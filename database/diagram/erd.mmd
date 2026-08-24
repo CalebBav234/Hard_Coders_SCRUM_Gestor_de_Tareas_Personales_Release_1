@@ -1,0 +1,73 @@
+erDiagram
+    CATEGORY ||--o{ TASK : clasifica
+    TASK ||--o{ TASK : contiene_subtarea
+    TASK ||--o{ TASK_TAG : tiene
+    TAG ||--o{ TASK_TAG : asignada
+    TASK ||--o{ TASK_RELATION : origen
+    TASK ||--o{ TASK_RELATION : destino
+    TASK ||--o{ TASK_STATUS_HISTORY : registra
+    TASK ||--o{ TASK_TIME_ENTRY : mide
+
+    CATEGORY {
+        bigint id PK
+        varchar name UK
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    TASK {
+        bigint id PK
+        varchar title
+        text description
+        varchar status
+        varchar priority
+        bigint category_id FK
+        bigint parent_task_id FK
+        timestamptz activated_at
+        timestamptz completed_at
+        bigint total_active_seconds
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+        bigint version
+    }
+
+    TAG {
+        bigint id PK
+        varchar name UK
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    TASK_TAG {
+        bigint task_id PK,FK
+        bigint tag_id PK,FK
+        timestamptz assigned_at
+    }
+
+    TASK_RELATION {
+        bigint id PK
+        bigint source_task_id FK
+        bigint target_task_id FK
+        varchar relation_type
+        timestamptz created_at
+    }
+
+    TASK_STATUS_HISTORY {
+        bigint id PK
+        bigint task_id FK
+        varchar from_status
+        varchar to_status
+        varchar change_reason
+        timestamptz changed_at
+    }
+
+    TASK_TIME_ENTRY {
+        bigint id PK
+        bigint task_id FK
+        timestamptz started_at
+        timestamptz ended_at
+        timestamptz created_at
+    }
