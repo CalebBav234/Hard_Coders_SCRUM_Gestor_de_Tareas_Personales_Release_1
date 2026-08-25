@@ -1,0 +1,29 @@
+# Credenciales y configuración local
+.env
+.env.*
+!.env.example
+*.pgpass
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Java / Spring
+backend/target/
+*.class
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+.angular/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# PostgreSQL / respaldos locales
+database/backups/
+database/.tmp/
+*.dump
+*.backup
