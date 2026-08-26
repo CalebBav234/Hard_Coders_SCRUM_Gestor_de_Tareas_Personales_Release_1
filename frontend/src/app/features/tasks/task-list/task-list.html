@@ -1,0 +1,42 @@
+<div class="task-list">
+
+  <div class="list-header">
+    <div>
+      <h2>Mis tareas</h2>
+      <p>Consulta las tareas registradas.</p>
+    </div>
+
+    <span class="task-count">
+      {{ tasks.length }} tareas
+    </span>
+  </div>
+
+  <div class="tasks">
+
+    @for (task of tasks; track task.id) {
+
+      <article class="task-card">
+
+        <div class="task-info">
+          <h3>{{ task.title }}</h3>
+
+          <div class="task-details">
+
+            <span class="status">
+              {{ task.status }}
+            </span>
+
+            <span class="priority">
+              Prioridad: {{ task.priority }}
+            </span>
+
+          </div>
+        </div>
+
+      </article>
+
+    }
+
+  </div>
+
+</div>
