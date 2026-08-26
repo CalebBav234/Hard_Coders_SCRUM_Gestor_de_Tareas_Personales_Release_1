@@ -1,0 +1,48 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f4f6f8;
+  color: #1f2937;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.app-container {
+  width: min(1100px, 92%);
+  margin: 0 auto;
+  padding: 40px 0 60px;
+}
+
+.app-header {
+  margin-bottom: 32px;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.app-header p {
+  margin: 8px 0 0;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.create-section,
+.tasks-section {
+  background: white;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
