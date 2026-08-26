@@ -9,4 +9,7 @@ import { TaskList } from './features/tasks/task-list/task-list';
   styleUrl: './app.css'
 })
 export class App {
+  onTaskCreated(taskList: TaskList): void {
+    taskList.loadTasks();
+  }
 }

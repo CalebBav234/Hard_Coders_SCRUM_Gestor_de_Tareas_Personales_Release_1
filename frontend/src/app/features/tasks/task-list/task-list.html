@@ -11,6 +11,22 @@
     </span>
   </div>
 
+  @if (feedback) {
+    <div class="feedback feedback-success" (click)="clearFeedback()">
+      {{ feedback }}
+    </div>
+  }
+
+  @if (error) {
+    <div class="feedback feedback-error" (click)="clearFeedback()">
+      {{ error }}
+    </div>
+  }
+
+  @if (loading) {
+    <p class="list-loading">Cargando tareas...</p>
+  }
+
   <div class="tasks">
 
     @for (task of tasks; track task.id) {
@@ -22,7 +38,7 @@
 
           <div class="task-details">
 
-            <span class="status">
+            <span class="status status-{{ task.status }}">
               {{ task.status }}
             </span>
 
@@ -30,11 +46,33 @@
               Prioridad: {{ task.priority }}
             </span>
 
+            @if (task.effectiveActiveSeconds != null && task.effectiveActiveSeconds > 0) {
+              <span class="active-time">
+                Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}
+              </span>
+            }
+
           </div>
+        </div>
+
+        <div class="task-actions">
+          @if (task.status === 'INACTIVA') {
+            <button type="button" class="btn-activate" (click)="activate(task)">
+              Activar
+            </button>
+          }
+
+          @if (task.status === 'ACTIVA') {
+            <button type="button" class="btn-complete" (click)="complete(task)">
+              Completar
+            </button>
+          }
         </div>
 
       </article>
 
+    } @empty {
+      <p class="empty-message">No hay tareas registradas todavía.</p>
     }
 
   </div>

@@ -14,6 +14,7 @@
       type="text"
       placeholder="Ej. Estudiar para el examen"
       [(ngModel)]="title"
+      [disabled]="loading"
     >
 
     @if (submitted && title.trim() === '') {
@@ -24,8 +25,12 @@
 
   </div>
 
-  <button type="button" (click)="crearTarea()">
-    Crear tarea
+  @if (error) {
+    <p class="error-message">{{ error }}</p>
+  }
+
+  <button type="button" (click)="crearTarea()" [disabled]="loading">
+    {{ loading ? 'Creando...' : 'Crear tarea' }}
   </button>
 
 </div>

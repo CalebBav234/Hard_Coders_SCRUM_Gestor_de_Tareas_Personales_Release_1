@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:18
+    container_name: gestor-tareas-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - ./database/migrations:/migrations:ro
+      - ./database/docker/init-dev-db.sql:/docker-entrypoint-initdb.d/init-dev-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

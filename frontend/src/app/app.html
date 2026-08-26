@@ -10,11 +10,11 @@
   <main>
 
     <section class="create-section">
-      <app-task-form></app-task-form>
+      <app-task-form (taskCreated)="onTaskCreated(taskList)"></app-task-form>
     </section>
 
     <section class="tasks-section">
-      <app-task-list></app-task-list>
+      <app-task-list #taskList></app-task-list>
     </section>
 
   </main>
