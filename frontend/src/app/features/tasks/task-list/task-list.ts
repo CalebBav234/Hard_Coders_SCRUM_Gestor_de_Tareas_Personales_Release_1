@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 
@@ -10,6 +10,7 @@ import { TaskService } from '../../../core/services/task.service';
 })
 export class TaskList implements OnInit {
   private readonly taskService = inject(TaskService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
   tasks: Task[] = [];
   loading = false;
@@ -27,18 +28,28 @@ export class TaskList implements OnInit {
       next: (tasks) => {
         this.tasks = tasks;
         this.loading = false;
+        this.changeDetector.markForCheck();
       },
       error: () => {
         this.loading = false;
         this.error = 'No se pudo cargar la lista de tareas.';
+        this.changeDetector.markForCheck();
       }
     });
+  }
+
+  showCreatedTask(task: Task): void {
+    this.tasks = [task, ...this.tasks.filter((currentTask) => currentTask.id !== task.id)];
+    this.feedback = `Tarea "${task.title}" creada.`;
+    this.error = null;
+    this.changeDetector.markForCheck();
   }
 
   activate(task: Task): void {
     this.taskService.activate(task).subscribe({
       next: () => {
         this.feedback = `Tarea "${task.title}" activada.`;
+        this.changeDetector.markForCheck();
         this.loadTasks();
       },
       error: (err) => this.handleError(err)
@@ -49,6 +60,7 @@ export class TaskList implements OnInit {
     this.taskService.complete(task).subscribe({
       next: () => {
         this.feedback = `Tarea "${task.title}" completada.`;
+        this.changeDetector.markForCheck();
         this.loadTasks();
       },
       error: (err) => this.handleError(err)
@@ -79,5 +91,6 @@ export class TaskList implements OnInit {
   private handleError(err: unknown): void {
     const message = (err as { error?: { message?: string } })?.error?.message;
     this.error = message ?? 'No se pudo completar la operación.';
+    this.changeDetector.markForCheck();
   }
 }

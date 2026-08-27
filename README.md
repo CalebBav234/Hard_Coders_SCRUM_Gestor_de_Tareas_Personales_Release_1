@@ -76,7 +76,7 @@ npm install
 npm start
 ```
 
-`npm start` usa un proxy (`proxy.conf.json`) que redirige `/api` al backend en `http://localhost:8080`.
+El proxy está configurado directamente en `angular.json`, por lo que tanto `npm start` como `ng serve` redirigen `/api` al backend en `http://localhost:8080`.
 
 ## Testing / Pruebas
 
@@ -215,4 +215,3 @@ DELETE FROM task_manager.tasks WHERE id = 1;  -- -> ERROR de permisos
 - El tiempo activo se consolida en **segundos enteros** (`Instant.now().getEpochSecond() - activatedAt.getEpochSecond()`); activar y completar en menos de 1 s dejan `total_active_seconds = 0`.
 - La columna `effectiveActiveSeconds` de la vista puede salir `-1` en el instante de activar si el reloj del contenedor y de PostgreSQL estan desincronizados; no afecta al negocio y la UI lo filtra (`> 0`).
 - Las contraseñas de desarrollo (`secret`, `ownerpass`, `apppass`) son solo para pruebas locales y **no** deben subirse a Git.
-

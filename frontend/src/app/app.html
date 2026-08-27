@@ -10,7 +10,7 @@
   <main>
 
     <section class="create-section">
-      <app-task-form (taskCreated)="onTaskCreated(taskList)"></app-task-form>
+      <app-task-form (taskCreated)="onTaskCreated(taskList, $event)"></app-task-form>
     </section>
 
     <section class="tasks-section">

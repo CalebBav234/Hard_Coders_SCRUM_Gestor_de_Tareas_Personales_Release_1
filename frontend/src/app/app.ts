@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { Task } from './core/models/task';
 import { TaskForm } from './features/tasks/task-form/task-form';
 import { TaskList } from './features/tasks/task-list/task-list';
 
@@ -9,7 +10,7 @@ import { TaskList } from './features/tasks/task-list/task-list';
   styleUrl: './app.css'
 })
 export class App {
-  onTaskCreated(taskList: TaskList): void {
-    taskList.loadTasks();
+  onTaskCreated(taskList: TaskList, task: Task): void {
+    taskList.showCreatedTask(task);
   }
 }

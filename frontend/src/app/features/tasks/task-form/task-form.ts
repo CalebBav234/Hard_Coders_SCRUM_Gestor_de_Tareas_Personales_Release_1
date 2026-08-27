@@ -1,5 +1,6 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 
 @Component({
@@ -10,8 +11,9 @@ import { TaskService } from '../../../core/services/task.service';
 })
 export class TaskForm {
   private readonly taskService = inject(TaskService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
 
-  @Output() taskCreated = new EventEmitter<void>();
+  @Output() taskCreated = new EventEmitter<Task>();
 
   title = '';
   submitted = false;
@@ -28,15 +30,17 @@ export class TaskForm {
 
     this.loading = true;
     this.taskService.createTask(this.title.trim()).subscribe({
-      next: () => {
+      next: (task) => {
         this.title = '';
         this.submitted = false;
         this.loading = false;
-        this.taskCreated.emit();
+        this.taskCreated.emit(task);
+        this.changeDetector.markForCheck();
       },
       error: (err) => {
         this.loading = false;
         this.error = err?.error?.message ?? 'No se pudo crear la tarea.';
+        this.changeDetector.markForCheck();
       }
     });
   }
