@@ -1,24 +1,24 @@
 <div class="task-list">
-
   <div class="list-header">
     <div>
       <h2>Mis tareas</h2>
       <p>Consulta las tareas registradas.</p>
     </div>
 
-    <span class="task-count">
-      {{ tasks.length }} tareas
-    </span>
+    <span class="task-count"> {{ tasks.length }} tareas </span>
+    <button type="button" class="btn-refresh" (click)="loadTasks()" [disabled]="actionsDisabled">
+      Actualizar lista
+    </button>
   </div>
 
   @if (feedback) {
-    <div class="feedback feedback-success" (click)="clearFeedback()">
+    <div class="feedback feedback-success" role="status">
       {{ feedback }}
     </div>
   }
 
   @if (error) {
-    <div class="feedback feedback-error" (click)="clearFeedback()">
+    <div class="feedback feedback-error" role="alert">
       {{ error }}
     </div>
   }
@@ -28,53 +28,102 @@
   }
 
   <div class="tasks">
-
     @for (task of tasks; track task.id) {
-
       <article class="task-card">
-
         <div class="task-info">
           <h3>{{ task.title }}</h3>
+          @if (task.description) {
+            <p class="task-description">{{ task.description }}</p>
+          }
 
           <div class="task-details">
-
             <span class="status status-{{ task.status }}">
               {{ task.status }}
             </span>
 
-            <span class="priority">
-              Prioridad: {{ task.priority }}
-            </span>
+            <span class="priority"> Prioridad: {{ task.priority }} </span>
 
             @if (task.effectiveActiveSeconds != null && task.effectiveActiveSeconds > 0) {
               <span class="active-time">
                 Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}
               </span>
             }
-
           </div>
         </div>
 
         <div class="task-actions">
           @if (task.status === 'INACTIVA') {
-            <button type="button" class="btn-activate" (click)="activate(task)">
+            <button
+              type="button"
+              class="btn-activate"
+              (click)="activate(task)"
+              [disabled]="actionsDisabled"
+            >
               Activar
             </button>
           }
 
           @if (task.status === 'ACTIVA') {
-            <button type="button" class="btn-complete" (click)="complete(task)">
+            <button
+              type="button"
+              class="btn-complete"
+              (click)="complete(task)"
+              [disabled]="actionsDisabled"
+            >
               Completar
             </button>
           }
+          <button type="button" class="btn-edit" (click)="edit(task)" [disabled]="actionsDisabled">
+            Editar
+          </button>
+          <button
+            type="button"
+            class="btn-delete"
+            (click)="requestDelete(task)"
+            [disabled]="actionsDisabled"
+          >
+            Eliminar
+          </button>
         </div>
 
-      </article>
+        @if (editingTask?.id === task.id) {
+          <app-task-editor
+            [task]="task"
+            (saved)="showUpdatedTask($event)"
+            (cancelled)="cancelEdit()"
+          />
+        }
 
+        @if (confirmingDelete?.id === task.id) {
+          <section class="delete-confirmation" [attr.aria-labelledby]="'delete-title-' + task.id">
+            <h4 [id]="'delete-title-' + task.id">¿Eliminar "{{ task.title }}"?</h4>
+            <p>
+              Dejará de aparecer en la lista de tareas. Su registro e historial se conservarán en la
+              base de datos.
+            </p>
+            <div class="task-actions">
+              <button
+                type="button"
+                class="btn-edit"
+                (click)="cancelDelete()"
+                [disabled]="busyTaskId !== null"
+              >
+                Cancelar eliminación
+              </button>
+              <button
+                type="button"
+                class="btn-delete"
+                (click)="confirmDelete()"
+                [disabled]="busyTaskId !== null"
+              >
+                {{ busyTaskId === task.id ? 'Eliminando...' : 'Confirmar eliminación' }}
+              </button>
+            </div>
+          </section>
+        }
+      </article>
     } @empty {
       <p class="empty-message">No hay tareas registradas todavía.</p>
     }
-
   </div>
-
 </div>

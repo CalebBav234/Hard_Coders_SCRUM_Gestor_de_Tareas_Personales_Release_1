@@ -1,0 +1,49 @@
+<form [formGroup]="form" (ngSubmit)="save()" [attr.aria-busy]="saving" aria-label="Editar tarea">
+  <h4>Editar tarea</h4>
+  <p class="hint">El estado, las fechas y el tiempo activo se conservan.</p>
+
+  <label [for]="'edit-title-' + task.id">Título</label>
+  <input
+    [id]="'edit-title-' + task.id"
+    formControlName="title"
+    maxlength="160"
+    [attr.aria-invalid]="form.controls.title.touched && form.controls.title.invalid"
+    [attr.aria-describedby]="'title-help-' + task.id"
+  />
+  <p class="hint" [id]="'title-help-' + task.id">Obligatorio, máximo 160 caracteres.</p>
+  @if (form.controls.title.touched && form.controls.title.invalid) {
+    <p class="error" role="alert">Escribe un título de 1 a 160 caracteres, no solo espacios.</p>
+  }
+
+  <label [for]="'edit-description-' + task.id">Descripción</label>
+  <textarea
+    [id]="'edit-description-' + task.id"
+    formControlName="description"
+    rows="4"
+    maxlength="4000"
+    [attr.aria-describedby]="'description-help-' + task.id"
+  ></textarea>
+  <p class="hint" [id]="'description-help-' + task.id">Opcional, máximo 4000 caracteres.</p>
+  @if (form.controls.description.touched && form.controls.description.invalid) {
+    <p class="error" role="alert">La descripción no puede superar 4000 caracteres.</p>
+  }
+
+  <label [for]="'edit-priority-' + task.id">Prioridad</label>
+  <select [id]="'edit-priority-' + task.id" formControlName="priority">
+    <option value="ALTA">Alta</option>
+    <option value="MEDIA">Media</option>
+    <option value="BAJA">Baja</option>
+  </select>
+
+  @if (error) {
+    <p class="error" role="alert">{{ error }}</p>
+  }
+  <div class="actions">
+    <button type="submit" [disabled]="saving">
+      {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+    </button>
+    <button type="button" class="secondary" [disabled]="saving" (click)="cancel()">
+      Cancelar edición
+    </button>
+  </div>
+</form>

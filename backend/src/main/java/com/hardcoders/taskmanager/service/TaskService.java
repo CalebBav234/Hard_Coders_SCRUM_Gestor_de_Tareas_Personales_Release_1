@@ -1,10 +1,12 @@
 package com.hardcoders.taskmanager.service;
 
 import com.hardcoders.taskmanager.dto.TaskResponse;
+import com.hardcoders.taskmanager.dto.UpdateTaskRequest;
 import com.hardcoders.taskmanager.entity.Task;
 import com.hardcoders.taskmanager.exception.InvalidTaskStateException;
 import com.hardcoders.taskmanager.exception.OptimisticLockConflictException;
 import com.hardcoders.taskmanager.exception.TaskNotFoundException;
+import com.hardcoders.taskmanager.exception.TaskHasSubtasksException;
 import com.hardcoders.taskmanager.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,8 +41,7 @@ public class TaskService {
     }
 
     public TaskResponse activate(Long taskId, Long expectedVersion) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        Task task = findVisibleTask(taskId);
         verifyVersion(taskId, expectedVersion, task.getVersion());
         if (!"INACTIVA".equals(task.getStatus())) {
             throw new InvalidTaskStateException(task.getStatus(), "ACTIVA");
@@ -54,8 +55,7 @@ public class TaskService {
     }
 
     public TaskResponse complete(Long taskId, Long expectedVersion) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        Task task = findVisibleTask(taskId);
         verifyVersion(taskId, expectedVersion, task.getVersion());
         if (!"ACTIVA".equals(task.getStatus())) {
             throw new InvalidTaskStateException(task.getStatus(), "TERMINADA");
@@ -69,6 +69,38 @@ public class TaskService {
         taskRepository.save(task);
         taskRepository.flush();
         return toResponse(taskRepository.findSummaryById(taskId));
+    }
+
+    public TaskResponse update(Long taskId, UpdateTaskRequest request) {
+        Task task = findVisibleTask(taskId);
+        verifyVersion(taskId, request.version(), task.getVersion());
+        task.setTitle(request.title().strip());
+        task.setDescription(request.description());
+        task.setPriority(request.priority());
+        task.setUpdatedAt(Instant.now());
+        taskRepository.save(task);
+        taskRepository.flush();
+        return toResponse(taskRepository.findSummaryById(taskId));
+    }
+
+    public void delete(Long taskId, Long expectedVersion) {
+        Task task = findVisibleTask(taskId);
+        verifyVersion(taskId, expectedVersion, task.getVersion());
+        if (taskRepository.existsByParentTaskIdAndDeletedAtIsNull(taskId)) {
+            throw new TaskHasSubtasksException();
+        }
+        // Preserve the task and its history. v_tasks already excludes deleted_at IS NOT NULL.
+        Instant now = Instant.now();
+        task.setDeletedAt(now);
+        task.setUpdatedAt(now);
+        taskRepository.save(task);
+        taskRepository.flush();
+    }
+
+    private Task findVisibleTask(Long taskId) {
+        return taskRepository.findById(taskId)
+                .filter(task -> task.getDeletedAt() == null)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
     }
 
     @Transactional(readOnly = true)

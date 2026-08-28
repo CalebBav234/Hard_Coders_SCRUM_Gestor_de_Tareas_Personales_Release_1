@@ -1,14 +1,14 @@
 # Gestor de Tareas Personales - Release 1
 
-Aplicación web académica gestionada con Scrum. El repositorio se encuentra en la fase inicial de infraestructura de datos.
+Aplicación web académica gestionada con Scrum, con frontend Angular, API Spring Boot y PostgreSQL.
 
 ## Estado actual
 
 - PostgreSQL objetivo: 18.
 - Esquema relacional versionado y reproducible.
 - Scripts locales para crear roles, base de datos, aplicar migraciones y verificar la instalación.
-- Configuración de conexión preparada para el futuro backend Spring Boot.
-- Las historias US-06 (editar) y US-07 (eliminar) aún no están implementadas.
+- Backend conectado al esquema existente y frontend con proxy hacia la API.
+- US-06 (editar) y US-07 (eliminar con confirmación) implementadas. Consulta [la guía de uso e integración](docs/us-06-us-07.md).
 
 ## Inicio rápido de base de datos
 
@@ -40,7 +40,7 @@ API REST sobre el esquema existente en `task_manager` (sin migraciones desde la 
 
 ### Configuración
 
-Define las variables de entorno (o usa `backend/.env` solo en local; está en `.gitignore`):
+Define las variables de entorno en la terminal donde arrancas el backend. Spring Boot no carga un archivo `.env` automáticamente:
 
 ```powershell
 $env:SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/gestor_tareas?currentSchema=task_manager"
@@ -63,10 +63,12 @@ El servidor queda en `http://localhost:8080`.
 |--------|-----|--------|-----------|
 | POST | `/api/tasks` | `{ "title": "..." }` | `201` + `TaskResponse` |
 | GET | `/api/tasks` | — | `200` + `TaskResponse[]` (desde `v_tasks`) |
+| PUT | `/api/tasks/{id}` | `{ "title": "...", "description": null, "priority": "MEDIA", "version": 0 }` | `200` + `TaskResponse` |
+| DELETE | `/api/tasks/{id}?version=0` | — | `204` (borrado lógico) |
 | POST | `/api/tasks/{id}/activate` | `{ "version": 0 }` | `200` + `TaskResponse` |
 | POST | `/api/tasks/{id}/complete` | `{ "version": 0 }` | `200` + `TaskResponse` |
 
-Errores: `404` tarea no encontrada, `409` transición inválida, `412` conflicto de versión (concurrencia), `400` validación.
+Errores: `404` tarea inexistente o eliminada, `409` transición inválida o tarea con subtareas visibles, `412` conflicto de versión (concurrencia), `400` validación.
 
 ## Frontend (Angular)
 
@@ -181,8 +183,8 @@ cd frontend
 npx ng test --watch=false
 ```
 
-- `mvn test`: `TaskServiceTest` **9/9**. Valida crear/listar/activar/completar, concurrencia `412`, estados invalidos `409`, no encontrado `404`, y el mapeo de la vista `v_tasks` (`Instant`/`Timestamp`).
-- `ng test`: **4/4**.
+- `mvn test`: cubre crear/listar/activar/completar, edición sin modificar el ciclo de vida, borrado lógico y errores de concurrencia/estado/no encontrado.
+- `ng test`: cubre creación visible, contrato HTTP de edición/borrado, validaciones, cancelación, confirmación y actualización inmediata de la interfaz.
 
 > El backend valida el esquema en arranque con `spring.jpa.hibernate.ddl-auto: validate`; si la entidad `Task` no cuadra con `task_manager.tasks`, la aplicacion no arranca.
 

@@ -9,6 +9,8 @@ import java.util.List;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
+    boolean existsByParentTaskIdAndDeletedAtIsNull(Long parentTaskId);
+
     String SUMMARY_COLUMNS = """
         id, title, description, status, priority,
         category_id, parent_task_id,

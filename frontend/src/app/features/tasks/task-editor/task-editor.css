@@ -1,0 +1,69 @@
+:host {
+  display: block;
+  width: 100%;
+}
+form {
+  border-top: 1px solid #d1d5db;
+  padding-top: 18px;
+}
+h4 {
+  margin: 0 0 8px;
+  color: #111827;
+}
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 14px 0 6px;
+}
+input,
+textarea,
+select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #9ca3af;
+  border-radius: 6px;
+  font: inherit;
+  background: white;
+  color: #111827;
+}
+textarea {
+  resize: vertical;
+}
+.hint {
+  color: #4b5563;
+  font-size: 13px;
+  margin: 6px 0;
+}
+.error {
+  color: #b91c1c;
+  font-size: 14px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+button.secondary {
+  background: #e5e7eb;
+  color: #1f2937;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+:is(input, textarea, select, button):focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}

@@ -4,6 +4,8 @@
 
 .list-header {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 22px;
@@ -36,7 +38,6 @@
   margin-bottom: 16px;
   font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
 }
 
 .feedback-success {
@@ -74,8 +75,11 @@
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   background: #fafafa;
-  transition: box-shadow 0.2s, transform 0.2s;
+  transition:
+    box-shadow 0.2s,
+    transform 0.2s;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
@@ -90,6 +94,17 @@
   margin: 0 0 12px;
   font-size: 16px;
   color: #1f2937;
+}
+
+.task-info {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.task-description {
+  white-space: pre-wrap;
+  font-size: 14px;
+  color: #4b5563;
 }
 
 .task-details {
@@ -136,8 +151,53 @@
 
 .task-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  flex-shrink: 0;
+}
+
+.btn-edit,
+.btn-refresh {
+  background: #4b5563;
+}
+.btn-delete {
+  background: #b91c1c;
+}
+.btn-delete:hover {
+  background: #991b1b;
+}
+.btn-refresh {
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 12px;
+  color: white;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+button:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+.delete-confirmation {
+  width: 100%;
+  border-top: 1px solid #fecaca;
+  padding-top: 12px;
+  overflow-wrap: anywhere;
+}
+.delete-confirmation h4 {
+  margin: 0;
+  color: #991b1b;
+}
+.delete-confirmation p {
+  font-size: 14px;
+  color: #4b5563;
+}
+@media (max-width: 600px) {
+  .task-list {
+    padding: 16px;
+  }
 }
 
 .task-actions button {
@@ -148,7 +208,9 @@
   font-weight: 600;
   color: white;
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+  transition:
+    background 0.2s,
+    transform 0.1s;
 }
 
 .btn-activate {
