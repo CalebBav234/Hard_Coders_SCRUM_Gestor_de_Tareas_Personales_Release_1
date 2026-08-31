@@ -1,5 +1,6 @@
 package com.hardcoders.taskmanager.controller;
 
+import com.hardcoders.taskmanager.dto.ChangeCategoryRequest;
 import com.hardcoders.taskmanager.dto.CreateTaskRequest;
 import com.hardcoders.taskmanager.dto.TaskResponse;
 import com.hardcoders.taskmanager.dto.UpdateTaskRequest;
@@ -35,7 +36,7 @@ public class TaskController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public TaskResponse create(@Valid @RequestBody CreateTaskRequest request) {
-        return taskService.create(request.title());
+        return taskService.create(request.title(), request.priority(), request.categoryName());
     }
 
     @GetMapping
@@ -66,5 +67,26 @@ public class TaskController {
             @PathVariable Long id,
             @Valid @RequestBody VersionRequest request) {
         return ResponseEntity.ok(taskService.complete(id, request.version()));
+    }
+
+    @PostMapping("/{id}/reopen")
+    public ResponseEntity<TaskResponse> reopen(
+            @PathVariable Long id,
+            @Valid @RequestBody VersionRequest request) {
+        return ResponseEntity.ok(taskService.reopen(id, request.version()));
+    }
+
+    @PostMapping("/{id}/pause")
+    public ResponseEntity<TaskResponse> pause(
+            @PathVariable Long id,
+            @Valid @RequestBody VersionRequest request) {
+        return ResponseEntity.ok(taskService.pause(id, request.version()));
+    }
+
+    @PutMapping("/{id}/category")
+    public ResponseEntity<TaskResponse> changeCategory(
+            @PathVariable Long id,
+            @Valid @RequestBody ChangeCategoryRequest request) {
+        return ResponseEntity.ok(taskService.changeCategory(id, request.categoryName(), request.version()));
     }
 }

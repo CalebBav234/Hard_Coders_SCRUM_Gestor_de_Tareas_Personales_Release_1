@@ -21,16 +21,19 @@ import java.util.List;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final CategoryService categoryService;
 
-    public TaskService(TaskRepository taskRepository) {
+    public TaskService(TaskRepository taskRepository, CategoryService categoryService) {
         this.taskRepository = taskRepository;
+        this.categoryService = categoryService;
     }
 
-    public TaskResponse create(String title) {
+    public TaskResponse create(String title, String priority, String categoryName) {
         Task task = new Task();
         task.setTitle(title);
         task.setStatus("INACTIVA");
-        task.setPriority("MEDIA");
+        task.setPriority(priority != null && !priority.isBlank() ? priority : "MEDIA");
+        task.setCategoryId(categoryService.findOrCreateVisibleByName(categoryName));
         task.setTotalActiveSeconds(0L);
         Instant now = Instant.now();
         task.setCreatedAt(now);
@@ -71,12 +74,54 @@ public class TaskService {
         return toResponse(taskRepository.findSummaryById(taskId));
     }
 
+    public TaskResponse reopen(Long taskId, Long expectedVersion) {
+        Task task = findVisibleTask(taskId);
+        verifyVersion(taskId, expectedVersion, task.getVersion());
+        if (!"TERMINADA".equals(task.getStatus())) {
+            throw new InvalidTaskStateException(task.getStatus(), "ACTIVA");
+        }
+        Instant now = Instant.now();
+        task.setStatus("ACTIVA");
+        task.setActivatedAt(now);
+        task.setCompletedAt(null);
+        task.setUpdatedAt(now);
+        taskRepository.save(task);
+        taskRepository.flush();
+        return toResponse(taskRepository.findSummaryById(taskId));
+    }
+
+    public TaskResponse pause(Long taskId, Long expectedVersion) {
+        Task task = findVisibleTask(taskId);
+        verifyVersion(taskId, expectedVersion, task.getVersion());
+        if (!"ACTIVA".equals(task.getStatus())) {
+            throw new InvalidTaskStateException(task.getStatus(), "INACTIVA");
+        }
+        long elapsedSeconds = Instant.now().getEpochSecond() - task.getActivatedAt().getEpochSecond();
+        task.setTotalActiveSeconds(task.getTotalActiveSeconds() + elapsedSeconds);
+        task.setActivatedAt(null);
+        task.setStatus("INACTIVA");
+        task.setUpdatedAt(Instant.now());
+        taskRepository.save(task);
+        taskRepository.flush();
+        return toResponse(taskRepository.findSummaryById(taskId));
+    }
+
     public TaskResponse update(Long taskId, UpdateTaskRequest request) {
         Task task = findVisibleTask(taskId);
         verifyVersion(taskId, request.version(), task.getVersion());
         task.setTitle(request.title().strip());
         task.setDescription(request.description());
         task.setPriority(request.priority());
+        task.setUpdatedAt(Instant.now());
+        taskRepository.save(task);
+        taskRepository.flush();
+        return toResponse(taskRepository.findSummaryById(taskId));
+    }
+
+    public TaskResponse changeCategory(Long taskId, String categoryName, Long expectedVersion) {
+        Task task = findVisibleTask(taskId);
+        verifyVersion(taskId, expectedVersion, task.getVersion());
+        task.setCategoryId(categoryService.findOrCreateVisibleByName(categoryName));
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
         taskRepository.flush();
@@ -127,14 +172,15 @@ public class TaskService {
                 (String) row[3],
                 (String) row[4],
                 toLong(row[5]),
-                toLong(row[6]),
-                toInstant(row[7]),
+                (String) row[6],
+                toLong(row[7]),
                 toInstant(row[8]),
-                toLong(row[9]),
+                toInstant(row[9]),
                 toLong(row[10]),
-                toInstant(row[11]),
+                toLong(row[11]),
                 toInstant(row[12]),
-                toLong(row[13])
+                toInstant(row[13]),
+                toLong(row[14])
         );
     }
 

@@ -18,6 +18,7 @@ describe('App', () => {
 
   const taskService = {
     listTasks: () => of([]),
+    listCategories: () => of([]),
     createTask: () => of(createdTask),
     activate: () => of(createdTask),
     complete: () => of(createdTask)

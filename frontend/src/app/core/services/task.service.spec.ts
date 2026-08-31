@@ -38,4 +38,97 @@ describe('TaskService edit/delete contract', () => {
     expect(req.request.body).toBeNull();
     req.flush(null, { status: 204, statusText: 'No Content' });
   });
+
+  it('creates a task carrying title, priority and category name', () => {
+    const expected = {
+      id: 1,
+      title: 'Nueva',
+      priority: 'ALTA',
+      categoryId: 3,
+      categoryName: 'Trabajo',
+      version: 0,
+    };
+    service.createTask('Nueva', 'ALTA', 'Trabajo').subscribe((task) => {
+      expect(task).toEqual(expected);
+    });
+    const req = http.expectOne('/api/tasks');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ title: 'Nueva', priority: 'ALTA', categoryName: 'Trabajo' });
+    req.flush(expected);
+  });
+
+  it('posts the version to reopen a terminated task', () => {
+    const task: Task = { id: 7, title: 'Tarea', status: 'TERMINADA', priority: 'MEDIA', version: 3 };
+    service.reopen(task).subscribe();
+    const req = http.expectOne('/api/tasks/7/reopen');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ version: 3 });
+    req.flush({ id: 7, title: 'Tarea', status: 'ACTIVA', priority: 'MEDIA', version: 4 });
+  });
+
+  it('posts the version to pause an active task', () => {
+    const task: Task = { id: 7, title: 'Tarea', status: 'ACTIVA', priority: 'MEDIA', version: 3 };
+    service.pause(task).subscribe();
+    const req = http.expectOne('/api/tasks/7/pause');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ version: 3 });
+    req.flush({ id: 7, title: 'Tarea', status: 'INACTIVA', priority: 'MEDIA', version: 4 });
+  });
+
+  it('sends categoryName and version when assigning a category', () => {
+    const task: Task = { id: 7, title: 'Tarea', status: 'ACTIVA', priority: 'MEDIA', version: 3 };
+    service.changeCategory(task, 'Trabajo').subscribe();
+    const req = http.expectOne('/api/tasks/7/category');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ categoryName: 'Trabajo', version: 3 });
+    req.flush({
+      id: 7,
+      title: 'Tarea',
+      categoryId: 5,
+      categoryName: 'Trabajo',
+      status: 'ACTIVA',
+      priority: 'MEDIA',
+      version: 4,
+    });
+  });
+
+  it('sends a null categoryName to clear the category', () => {
+    const task: Task = {
+      id: 7,
+      title: 'Tarea',
+      status: 'ACTIVA',
+      priority: 'MEDIA',
+      categoryId: 5,
+      categoryName: 'Trabajo',
+      version: 3,
+    };
+    service.changeCategory(task, null).subscribe();
+    const req = http.expectOne('/api/tasks/7/category');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ categoryName: null, version: 3 });
+    req.flush({
+      id: 7,
+      title: 'Tarea',
+      categoryId: null,
+      categoryName: null,
+      status: 'ACTIVA',
+      priority: 'MEDIA',
+      version: 4,
+    });
+  });
+
+  it('loads the category catalog from /api/categories', () => {
+    service.listCategories().subscribe((result) => {
+      expect(result).toEqual([
+        { id: 1, name: 'Trabajo' },
+        { id: 2, name: 'Personal' },
+      ]);
+    });
+    const req = http.expectOne('/api/categories');
+    expect(req.request.method).toBe('GET');
+    req.flush([
+      { id: 1, name: 'Trabajo' },
+      { id: 2, name: 'Personal' },
+    ]);
+  });
 });

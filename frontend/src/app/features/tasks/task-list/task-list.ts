@@ -95,6 +95,78 @@ export class TaskList implements OnInit {
     });
   }
 
+  reopen(task: Task): void {
+    if (this.actionsDisabled) return;
+    this.busyTaskId = task.id;
+    this.clearFeedback();
+    this.taskService.reopen(task).subscribe({
+      next: () => {
+        this.busyTaskId = null;
+        this.feedback = `Tarea "${task.title}" reabierta.`;
+        this.changeDetector.markForCheck();
+        this.loadTasks();
+      },
+      error: (err) => {
+        this.busyTaskId = null;
+        this.handleError(err);
+      },
+    });
+  }
+
+  pause(task: Task): void {
+    if (this.actionsDisabled) return;
+    this.busyTaskId = task.id;
+    this.clearFeedback();
+    this.taskService.pause(task).subscribe({
+      next: () => {
+        this.busyTaskId = null;
+        this.feedback = `Tarea "${task.title}" pausada.`;
+        this.changeDetector.markForCheck();
+        this.loadTasks();
+      },
+      error: (err) => {
+        this.busyTaskId = null;
+        this.handleError(err);
+      },
+    });
+  }
+
+  saveCategory(task: Task, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const name = input.value.trim();
+    if (name === (task.categoryName ?? '')) {
+      return;
+    }
+    this.changeCategory(task, name === '' ? null : name, input);
+  }
+
+  changeCategory(task: Task, categoryName: string | null, input: HTMLInputElement | null): void {
+    if (this.actionsDisabled) return;
+    const previous = task.categoryName ?? '';
+    this.busyTaskId = task.id;
+    this.clearFeedback();
+    this.taskService.changeCategory(task, categoryName).subscribe({
+      next: (updated) => {
+        this.busyTaskId = null;
+        this.tasks = this.tasks.map((current) => (current.id === task.id ? updated : current));
+        this.feedback =
+          categoryName == null
+            ? `Categoría eliminada de "${task.title}".`
+            : `Categoría de "${task.title}" actualizada.`;
+        this.error = null;
+        this.changeDetector.markForCheck();
+      },
+      error: (err) => {
+        this.busyTaskId = null;
+        if (input) {
+          input.value = previous;
+        }
+        this.handleError(err);
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
   edit(task: Task): void {
     if (this.actionsDisabled) return;
     this.clearFeedback();
@@ -169,12 +241,14 @@ export class TaskList implements OnInit {
   }
 
   private handleError(err: unknown): void {
-    const response = err as { status?: number; error?: { message?: string } };
+    const response = err as { status?: number; error?: { message?: string; error?: string } };
     this.error =
       response?.status === 412
         ? 'La tarea cambió. Actualiza la lista y vuelve a intentarlo.'
         : response?.status === 404
-          ? 'La tarea ya no está disponible. Actualiza la lista.'
+          ? response?.error?.error === 'CATEGORY_NOT_FOUND'
+            ? 'La categoría seleccionada ya no está disponible. Actualiza la lista.'
+            : 'La tarea ya no está disponible. Actualiza la lista.'
           : (response?.error?.message ?? 'No se pudo completar la operación.');
     this.changeDetector.markForCheck();
   }

@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
-import { Task, UpdateTaskRequest } from '../models/task';
+import { CategorySummary, Task, TaskPriority, UpdateTaskRequest } from '../models/task';
 
 @Injectable({
   providedIn: 'root',
@@ -14,8 +14,10 @@ export class TaskService {
     return this.http.get<Task[]>(this.baseUrl).pipe(catchError(this.handleError));
   }
 
-  createTask(title: string): Observable<Task> {
-    return this.http.post<Task>(this.baseUrl, { title }).pipe(catchError(this.handleError));
+  createTask(title: string, priority: TaskPriority, categoryName: string): Observable<Task> {
+    return this.http
+      .post<Task>(this.baseUrl, { title, priority, categoryName })
+      .pipe(catchError(this.handleError));
   }
 
   updateTask(id: number, request: UpdateTaskRequest): Observable<Task> {
@@ -39,6 +41,33 @@ export class TaskService {
   complete(task: Task): Observable<Task> {
     return this.http
       .post<Task>(`${this.baseUrl}/${task.id}/complete`, { version: task.version })
+      .pipe(catchError(this.handleError));
+  }
+
+  reopen(task: Task): Observable<Task> {
+    return this.http
+      .post<Task>(`${this.baseUrl}/${task.id}/reopen`, { version: task.version })
+      .pipe(catchError(this.handleError));
+  }
+
+  pause(task: Task): Observable<Task> {
+    return this.http
+      .post<Task>(`${this.baseUrl}/${task.id}/pause`, { version: task.version })
+      .pipe(catchError(this.handleError));
+  }
+
+  changeCategory(task: Task, categoryName: string | null): Observable<Task> {
+    return this.http
+      .put<Task>(`${this.baseUrl}/${task.id}/category`, {
+        categoryName,
+        version: task.version,
+      })
+      .pipe(catchError(this.handleError));
+  }
+
+  listCategories(): Observable<CategorySummary[]> {
+    return this.http
+      .get<CategorySummary[]>('/api/categories')
       .pipe(catchError(this.handleError));
   }
 

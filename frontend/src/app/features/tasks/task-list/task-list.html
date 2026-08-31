@@ -37,18 +37,40 @@
           }
 
           <div class="task-details">
-            <span class="status status-{{ task.status }}">
-              {{ task.status }}
-            </span>
+             <span class="status status-{{ task.status }}">
+               {{ task.status }}
+             </span>
 
-            <span class="priority"> Prioridad: {{ task.priority }} </span>
+             <span class="priority priority-{{ task.priority }}" aria-label="Prioridad {{ task.priority }}">
+               @switch (task.priority) {
+                 @case ('ALTA') { <span class="priority-glyph" aria-hidden="true">▲</span> Alta }
+                 @case ('MEDIA') { <span class="priority-glyph" aria-hidden="true">■</span> Media }
+                 @case ('BAJA') { <span class="priority-glyph" aria-hidden="true">▽</span> Baja }
+               }
+             </span>
 
-            @if (task.effectiveActiveSeconds != null && task.effectiveActiveSeconds > 0) {
-              <span class="active-time">
-                Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}
-              </span>
-            }
-          </div>
+             <span class="category-badge" data-testid="task-category">
+               {{ task.categoryName ?? 'Sin categoría' }}
+             </span>
+
+              <input
+                class="category-input"
+                type="text"
+                [value]="task.categoryName ?? ''"
+                placeholder="Sin categoría"
+                maxlength="80"
+                (blur)="saveCategory(task, $event)"
+                (keydown.enter)="saveCategory(task, $event)"
+                [disabled]="actionsDisabled"
+                data-testid="category-input"
+              />
+
+             @if (task.effectiveActiveSeconds != null && task.effectiveActiveSeconds > 0) {
+               <span class="active-time">
+                 Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}
+               </span>
+             }
+           </div>
         </div>
 
         <div class="task-actions">
@@ -66,6 +88,14 @@
           @if (task.status === 'ACTIVA') {
             <button
               type="button"
+              class="btn-pause"
+              (click)="pause(task)"
+              [disabled]="actionsDisabled"
+            >
+              Pausar
+            </button>
+            <button
+              type="button"
               class="btn-complete"
               (click)="complete(task)"
               [disabled]="actionsDisabled"
@@ -73,6 +103,18 @@
               Completar
             </button>
           }
+
+          @if (task.status === 'TERMINADA') {
+            <button
+              type="button"
+              class="btn-reopen"
+              (click)="reopen(task)"
+              [disabled]="actionsDisabled"
+            >
+              Reabrir
+            </button>
+          }
+
           <button type="button" class="btn-edit" (click)="edit(task)" [disabled]="actionsDisabled">
             Editar
           </button>

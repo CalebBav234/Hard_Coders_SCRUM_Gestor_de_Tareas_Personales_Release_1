@@ -1,6 +1,11 @@
 export type TaskStatus = 'INACTIVA' | 'ACTIVA' | 'TERMINADA';
 export type TaskPriority = 'ALTA' | 'MEDIA' | 'BAJA';
 
+export interface CategorySummary {
+  id: number;
+  name: string;
+}
+
 export interface UpdateTaskRequest {
   title: string;
   description: string | null;
@@ -15,6 +20,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   categoryId?: number | null;
+  categoryName?: string | null;
   parentTaskId?: number | null;
   activatedAt?: string | null;
   completedAt?: string | null;

@@ -26,6 +26,12 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of("TASK_NOT_FOUND", ex.getMessage()));
     }
 
+    @ExceptionHandler(CategoryNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleCategoryNotFound(CategoryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ErrorResponse.of("CATEGORY_NOT_FOUND", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidTaskStateException.class)
     public ResponseEntity<ErrorResponse> handleInvalidState(InvalidTaskStateException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

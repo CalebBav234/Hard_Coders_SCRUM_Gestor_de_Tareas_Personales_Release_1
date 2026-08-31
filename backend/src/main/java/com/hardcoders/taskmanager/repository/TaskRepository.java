@@ -13,7 +13,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     String SUMMARY_COLUMNS = """
         id, title, description, status, priority,
-        category_id, parent_task_id,
+        category_id, category_name, parent_task_id,
         activated_at, completed_at,
         total_active_seconds, effective_active_seconds,
         created_at, updated_at, version

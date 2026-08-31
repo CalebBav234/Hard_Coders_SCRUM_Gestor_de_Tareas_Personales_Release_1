@@ -9,6 +9,7 @@ public record TaskResponse(
         String status,
         String priority,
         Long categoryId,
+        String categoryName,
         Long parentTaskId,
         Instant activatedAt,
         Instant completedAt,

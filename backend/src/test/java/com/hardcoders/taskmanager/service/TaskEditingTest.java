@@ -24,12 +24,13 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TaskEditingTest {
     @Mock TaskRepository repository;
+    @Mock CategoryService categoryService;
     TaskService service;
     final Instant created = Instant.parse("2026-08-20T12:00:00Z");
     final Instant lifecycleTime = Instant.parse("2026-08-20T13:00:00Z");
 
     @BeforeEach
-    void setUp() { service = new TaskService(repository); }
+    void setUp() { service = new TaskService(repository, categoryService); }
 
     private Task task(String status) {
         Task task = new Task();
@@ -62,7 +63,7 @@ class TaskEditingTest {
         when(repository.findById(1L)).thenReturn(Optional.of(task));
         when(repository.findSummaryById(1L)).thenAnswer(invocation -> new Object[]{
                 task.getId(), task.getTitle(), task.getDescription(), task.getStatus(), task.getPriority(),
-                task.getCategoryId(), task.getParentTaskId(), task.getActivatedAt(), task.getCompletedAt(),
+                task.getCategoryId(), null, task.getParentTaskId(), task.getActivatedAt(), task.getCompletedAt(),
                 task.getTotalActiveSeconds(), 120L, task.getCreatedAt(), task.getUpdatedAt(), 5L
         });
 
@@ -145,5 +146,83 @@ class TaskEditingTest {
         assertThatThrownBy(() -> service.delete(1L, 4L)).isInstanceOf(TaskHasSubtasksException.class);
         assertThat(task.getDeletedAt()).isNull();
         verify(repository, never()).save(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"INACTIVA", "ACTIVA", "TERMINADA"})
+    void changeCategory_writesByNameAndBumpsAudit(String status) {
+        Task task = task(status);
+        Instant activated = task.getActivatedAt();
+        Instant completed = task.getCompletedAt();
+        when(repository.findById(1L)).thenReturn(Optional.of(task));
+        when(categoryService.findOrCreateVisibleByName("Nuevo")).thenReturn(9L);
+        when(repository.findSummaryById(1L)).thenAnswer(invocation -> new Object[]{
+                task.getId(), task.getTitle(), task.getDescription(), task.getStatus(), task.getPriority(),
+                9L, "Nuevo", task.getParentTaskId(), task.getActivatedAt(), task.getCompletedAt(),
+                task.getTotalActiveSeconds(), 120L, task.getCreatedAt(), task.getUpdatedAt(), 5L
+        });
+
+        var response = service.changeCategory(1L, "Nuevo", 4L);
+
+        assertThat(response.categoryName()).isEqualTo("Nuevo");
+        assertThat(task.getCategoryId()).isEqualTo(9L);
+        assertThat(task.getTitle()).isEqualTo("Original");
+        assertThat(task.getDescription()).isEqualTo("Descripción original");
+        assertThat(task.getPriority()).isEqualTo("MEDIA");
+        assertThat(task.getStatus()).isEqualTo(status);
+        assertThat(task.getTotalActiveSeconds()).isEqualTo(120L);
+        assertThat(task.getParentTaskId()).isEqualTo(3L);
+        assertThat(task.getActivatedAt()).isEqualTo(activated);
+        assertThat(task.getCompletedAt()).isEqualTo(completed);
+        assertThat(task.getCreatedAt()).isEqualTo(created);
+        assertThat(task.getUpdatedAt()).isAfter(created);
+        verify(repository).save(task);
+        verify(repository).flush();
+    }
+
+    @Test
+    void changeCategory_withNull_clearsCategory() {
+        Task task = task("ACTIVA");
+        when(repository.findById(1L)).thenReturn(Optional.of(task));
+        when(categoryService.findOrCreateVisibleByName(null)).thenReturn(null);
+        when(repository.findSummaryById(1L)).thenAnswer(invocation -> new Object[]{
+                task.getId(), task.getTitle(), task.getDescription(), task.getStatus(), task.getPriority(),
+                null, null, task.getParentTaskId(), task.getActivatedAt(), task.getCompletedAt(),
+                task.getTotalActiveSeconds(), 120L, task.getCreatedAt(), task.getUpdatedAt(), 5L
+        });
+
+        var response = service.changeCategory(1L, null, 4L);
+
+        assertThat(task.getCategoryId()).isNull();
+        assertThat(response.categoryName()).isNull();
+    }
+
+    @Test
+    void changeCategory_blankName_clearsCategory() {
+        Task task = task("INACTIVA");
+        when(repository.findById(1L)).thenReturn(Optional.of(task));
+        when(categoryService.findOrCreateVisibleByName("   ")).thenReturn(null);
+        when(repository.findSummaryById(1L)).thenAnswer(invocation -> new Object[]{
+                task.getId(), task.getTitle(), task.getDescription(), task.getStatus(), task.getPriority(),
+                null, null, task.getParentTaskId(), task.getActivatedAt(), task.getCompletedAt(),
+                task.getTotalActiveSeconds(), 120L, task.getCreatedAt(), task.getUpdatedAt(), 5L
+        });
+
+        var response = service.changeCategory(1L, "   ", 4L);
+
+        assertThat(task.getCategoryId()).isNull();
+        assertThat(response.categoryName()).isNull();
+    }
+
+    @Test
+    void changeCategory_whenVersionMismatch_throwsOptimisticLock() {
+        Task task = task("INACTIVA");
+        when(repository.findById(1L)).thenReturn(Optional.of(task));
+
+        assertThatThrownBy(() -> service.changeCategory(1L, "Nuevo", 3L))
+                .isInstanceOf(OptimisticLockConflictException.class);
+        assertThat(task.getCategoryId()).isEqualTo(2L);
+        verify(repository, never()).save(any());
+        verify(categoryService, never()).findOrCreateVisibleByName(any());
     }
 }

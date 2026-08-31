@@ -25,6 +25,27 @@
 
   </div>
 
+  <div class="form-group">
+    <label for="priority">Prioridad</label>
+    <select id="priority" [(ngModel)]="selectedPriority" [disabled]="loading">
+      <option value="ALTA">Alta</option>
+      <option value="MEDIA">Media</option>
+      <option value="BAJA">Baja</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="category">Categoría</label>
+    <input
+      id="category"
+      type="text"
+      placeholder="Ej. Trabajo (deja vacío para Sin categoría)"
+      maxlength="80"
+      [(ngModel)]="selectedCategoryName"
+      [disabled]="loading"
+    >
+  </div>
+
   @if (error) {
     <p class="error-message">{{ error }}</p>
   }

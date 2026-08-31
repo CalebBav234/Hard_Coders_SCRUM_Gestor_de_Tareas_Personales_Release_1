@@ -50,6 +50,29 @@
   color: #9ca3af;
 }
 
+.form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 15px;
+  background: #ffffff;
+  color: #1f2937;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.form-group select[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .error-message {
   margin: 0;
   color: #dc2626;
