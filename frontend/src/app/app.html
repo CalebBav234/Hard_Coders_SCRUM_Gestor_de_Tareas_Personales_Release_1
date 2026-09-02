@@ -1,5 +1,4 @@
 <div class="app-container">
-
   <header class="app-header">
     <div>
       <h1>Gestor de Tareas</h1>
@@ -8,15 +7,16 @@
   </header>
 
   <main>
-
     <section class="create-section">
       <app-task-form (taskCreated)="onTaskCreated(taskList, $event)"></app-task-form>
     </section>
 
     <section class="tasks-section">
-      <app-task-list #taskList></app-task-list>
+      <app-task-list #taskList (historyChanged)="taskHistory.loadHistory()"></app-task-list>
     </section>
 
+    <section class="history-section">
+      <app-task-history #taskHistory></app-task-history>
+    </section>
   </main>
-
 </div>

@@ -9,6 +9,7 @@ Aplicación web académica gestionada con Scrum, con frontend Angular, API Sprin
 - Scripts locales para crear roles, base de datos, aplicar migraciones y verificar la instalación.
 - Backend conectado al esquema existente y frontend con proxy hacia la API.
 - US-06 (editar) y US-07 (eliminar con confirmación) implementadas. Consulta [la guía de uso e integración](docs/us-06-us-07.md).
+- US-12 (historial unificado) y US-13 (búsqueda por título/descripción) implementadas. Consulta [la guía funcional](docs/us-12-us-13.md).
 
 ## Inicio rápido de base de datos
 
@@ -63,6 +64,8 @@ El servidor queda en `http://localhost:8080`.
 |--------|-----|--------|-----------|
 | POST | `/api/tasks` | `{ "title": "..." }` | `201` + `TaskResponse` |
 | GET | `/api/tasks` | — | `200` + `TaskResponse[]` (desde `v_tasks`) |
+| GET | `/api/tasks?q=texto` | — | `200` + tareas cuyo título o descripción coincide |
+| GET | `/api/tasks/history?q=texto` | — | `200` + tareas terminadas/eliminadas con transiciones |
 | PUT | `/api/tasks/{id}` | `{ "title": "...", "description": null, "priority": "MEDIA", "version": 0 }` | `200` + `TaskResponse` |
 | DELETE | `/api/tasks/{id}?version=0` | — | `204` (borrado lógico) |
 | POST | `/api/tasks/{id}/activate` | `{ "version": 0 }` | `200` + `TaskResponse` |

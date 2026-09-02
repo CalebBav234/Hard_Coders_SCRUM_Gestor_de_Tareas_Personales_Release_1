@@ -32,7 +32,8 @@ BEGIN
 
     IF to_regclass('task_manager.v_tasks') IS NULL
        OR to_regclass('task_manager.v_pending_tasks') IS NULL
-       OR to_regclass('task_manager.v_task_history') IS NULL THEN
+       OR to_regclass('task_manager.v_task_history') IS NULL
+       OR to_regclass('task_manager.v_task_archive') IS NULL THEN
         RAISE EXCEPTION 'Falta una o más vistas obligatorias';
     END IF;
 END;
@@ -58,4 +59,5 @@ SELECT
 SELECT
     (SELECT count(*) FROM task_manager.v_tasks) AS visible_tasks,
     (SELECT count(*) FROM task_manager.v_pending_tasks) AS pending_tasks,
-    (SELECT count(*) FROM task_manager.v_task_history) AS history_events;
+    (SELECT count(*) FROM task_manager.v_task_history) AS history_events,
+    (SELECT count(*) FROM task_manager.v_task_archive) AS archived_tasks;

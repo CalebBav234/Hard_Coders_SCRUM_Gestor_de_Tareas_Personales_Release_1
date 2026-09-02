@@ -1,6 +1,7 @@
 package com.hardcoders.taskmanager.service;
 
 import com.hardcoders.taskmanager.dto.TaskResponse;
+import com.hardcoders.taskmanager.dto.TaskHistoryResponse;
 import com.hardcoders.taskmanager.entity.Task;
 import com.hardcoders.taskmanager.exception.InvalidTaskStateException;
 import com.hardcoders.taskmanager.exception.OptimisticLockConflictException;
@@ -71,6 +72,15 @@ class TaskServiceTest {
                 now,                        // 12 created_at
                 now,                        // 13 updated_at
                 version                     // 14 version
+        };
+    }
+
+    private static Object[] archiveRow(Long id, String title, String description,
+                                       String status, Instant completedAt, Instant deletedAt) {
+        Instant now = Instant.parse("2026-08-26T18:00:00Z");
+        return new Object[]{
+                id, title, description, status, "MEDIA", null, null, null,
+                null, completedAt, 120L, 120L, now, now, deletedAt, 3L
         };
     }
 
@@ -275,6 +285,62 @@ class TaskServiceTest {
         assertThat(responses.get(0).title()).isEqualTo("Tarea A");
         assertThat(responses.get(1).status()).isEqualTo("TERMINADA");
         assertThat(responses.get(1).completedAt()).isNotNull();
+    }
+
+    @Test
+    void listTasks_searchesTitleOrDescriptionUsingSafeNormalizedPattern() {
+        when(taskRepository.findSummariesBySearchPattern("%reunion\\_100\\%%"))
+                .thenReturn(List.<Object[]>of(row(
+                        1L, "Reunión_100%", "INACTIVA", "ALTA",
+                        null, 0L, 0L, null, null, 0L)));
+
+        List<TaskResponse> responses = taskService.listTasks("  REUNIÓN_100%  ");
+
+        assertThat(responses).extracting(TaskResponse::title).containsExactly("Reunión_100%");
+        verify(taskRepository).findSummariesBySearchPattern("%reunion\\_100\\%%");
+        verify(taskRepository, never()).findSummaries();
+    }
+
+    @Test
+    void listTasks_blankSearchKeepsCompleteList() {
+        when(taskRepository.findSummaries()).thenReturn(List.of());
+
+        assertThat(taskService.listTasks("   ")).isEmpty();
+
+        verify(taskRepository).findSummaries();
+        verify(taskRepository, never()).findSummariesBySearchPattern(any());
+    }
+
+    @Test
+    void listHistory_unifiesArchivedTasksWithTheirStateEvents() {
+        Instant completedAt = Instant.parse("2026-08-26T18:00:00Z");
+        when(taskRepository.findArchivedSummariesBySearchPattern("%agenda%"))
+                .thenReturn(List.<Object[]>of(archiveRow(
+                        7L, "Preparar reunión", "Agenda semanal", "TERMINADA",
+                        completedAt, null)));
+        when(taskRepository.findHistoryEventsByTaskIds(List.of(7L)))
+                .thenReturn(List.of(
+                        new Object[]{2L, 7L, "ACTIVA", "TERMINADA", null, completedAt},
+                        new Object[]{1L, 7L, "INACTIVA", "ACTIVA", null,
+                                Instant.parse("2026-08-26T17:00:00Z")}));
+
+        List<TaskHistoryResponse> responses = taskService.listHistory("agenda");
+
+        assertThat(responses).hasSize(1);
+        TaskHistoryResponse archived = responses.getFirst();
+        assertThat(archived.title()).isEqualTo("Preparar reunión");
+        assertThat(archived.deletedAt()).isNull();
+        assertThat(archived.events()).hasSize(2);
+        assertThat(archived.events().getFirst().toStatus()).isEqualTo("TERMINADA");
+    }
+
+    @Test
+    void listHistory_withoutMatchesDoesNotQueryEvents() {
+        when(taskRepository.findArchivedSummaries()).thenReturn(List.of());
+
+        assertThat(taskService.listHistory("")).isEmpty();
+
+        verify(taskRepository, never()).findHistoryEventsByTaskIds(any());
     }
 
     @Test

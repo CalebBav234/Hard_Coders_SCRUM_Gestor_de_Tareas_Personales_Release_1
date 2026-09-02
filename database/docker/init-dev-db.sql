@@ -1,7 +1,7 @@
 -- bootstrap dev/test DB inside the official postgres:18 container.
 -- Runs AS superuser during docker-entrypoint-initdb.d (only on a fresh data dir).
 -- Replicates database/scripts/setup-local.ps1 + migrate.ps1: creates roles, the
--- gestor_tareas database, and applies V001/V002 as the owner role.
+-- gestor_tareas database, and applies V001/V002/V003 as the owner role.
 -- DEV ONLY: passwords below are local/test defaults. Do not use in production.
 
 -- 1. Roles
@@ -45,5 +45,10 @@ ON CONFLICT (version) DO NOTHING;
 
 \i /migrations/V002__views_and_permissions.sql
 INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
-VALUES (2, 'views and permissions', '985ff1238dfcd2f71ceec5bc848a90a2500d91c60617bba5e057e5b6d66f97b', CURRENT_USER)
+VALUES (2, 'views and permissions', '985ff1238dfcd2f71ceec5bc848a90a2500d91c60617bbaa5e057e5b6d66f97b', CURRENT_USER)
+ON CONFLICT (version) DO NOTHING;
+
+\i /migrations/V003__task_archive.sql
+INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
+VALUES (3, 'task archive', 'a5b8d1568195c6ea03e58babd4f41ee4ed0b38207ab6c89c287e98a1c4b31772', CURRENT_USER)
 ON CONFLICT (version) DO NOTHING;

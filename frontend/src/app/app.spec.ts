@@ -13,23 +13,23 @@ describe('App', () => {
     title: 'Tarea integrada',
     status: 'INACTIVA',
     priority: 'MEDIA',
-    version: 0
+    version: 0,
   };
 
   const taskService = {
     listTasks: () => of([]),
+    listHistory: () => of([]),
     listCategories: () => of([]),
     createTask: () => of(createdTask),
     activate: () => of(createdTask),
-    complete: () => of(createdTask)
+    complete: () => of(createdTask),
   } as unknown as TaskService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [{ provide: TaskService, useValue: taskService }]
-    })
-      .compileComponents();
+      providers: [{ provide: TaskService, useValue: taskService }],
+    }).compileComponents();
   });
 
   it('should create the app', () => {
@@ -51,8 +51,10 @@ describe('App', () => {
     await fixture.whenStable();
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const taskForm = fixture.debugElement.query(By.directive(TaskForm)).componentInstance as TaskForm;
-    const taskList = fixture.debugElement.query(By.directive(TaskList)).componentInstance as TaskList;
+    const taskForm = fixture.debugElement.query(By.directive(TaskForm))
+      .componentInstance as TaskForm;
+    const taskList = fixture.debugElement.query(By.directive(TaskList))
+      .componentInstance as TaskList;
 
     taskForm.title = createdTask.title;
     taskForm.crearTarea();

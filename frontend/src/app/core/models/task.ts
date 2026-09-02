@@ -30,3 +30,16 @@ export interface Task {
   updatedAt?: string | null;
   version: number;
 }
+
+export interface TaskStatusHistory {
+  id: number;
+  fromStatus?: TaskStatus | null;
+  toStatus: TaskStatus;
+  changeReason?: string | null;
+  changedAt: string;
+}
+
+export interface TaskHistory extends Task {
+  deletedAt?: string | null;
+  events: TaskStatusHistory[];
+}

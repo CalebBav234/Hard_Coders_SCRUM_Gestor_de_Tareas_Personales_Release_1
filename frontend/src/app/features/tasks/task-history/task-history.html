@@ -1,0 +1,100 @@
+<div class="history-panel">
+  <div class="history-header">
+    <div>
+      <h2>Historial de tareas</h2>
+      <p>Consulta tareas terminadas y eliminadas junto con sus cambios de estado.</p>
+    </div>
+    <span class="history-count">{{ history.length }} archivada(s)</span>
+    <button type="button" class="btn-refresh" (click)="loadHistory()" [disabled]="loading">
+      Actualizar historial
+    </button>
+  </div>
+
+  <form class="history-search" role="search" (submit)="searchHistory($event)">
+    <label for="history-search">Buscar en el historial por título o descripción</label>
+    <div class="search-controls">
+      <input
+        id="history-search"
+        type="search"
+        maxlength="160"
+        placeholder="Ej.: planificación mensual"
+        [value]="searchDraft"
+        (input)="updateSearchDraft($event)"
+        [disabled]="loading"
+      />
+      <button type="submit" class="btn-search" [disabled]="loading">Buscar</button>
+      @if (activeSearch) {
+        <button type="button" class="btn-clear" (click)="clearSearch()" [disabled]="loading">
+          Limpiar
+        </button>
+      }
+    </div>
+    @if (activeSearch) {
+      <p class="search-summary" role="status">
+        {{ history.length }} resultado(s) para “{{ activeSearch }}”
+      </p>
+    }
+  </form>
+
+  @if (error) {
+    <div class="history-feedback" role="alert">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <p class="loading-message">Cargando historial...</p>
+  }
+
+  <div class="history-list">
+    @for (task of history; track task.id) {
+      <article class="history-card">
+        <header>
+          <div>
+            <h3>{{ task.title }}</h3>
+            @if (task.description) {
+              <p class="history-description">{{ task.description }}</p>
+            }
+          </div>
+          <span class="archive-badge" [class.deleted]="task.deletedAt">
+            {{ archiveLabel(task) }}
+          </span>
+        </header>
+
+        <div class="history-meta">
+          <span>Fecha: {{ archiveDate(task) }}</span>
+          <span>Prioridad: {{ task.priority }}</span>
+          <span>Categoría: {{ task.categoryName ?? 'Sin categoría' }}</span>
+          <span>Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}</span>
+        </div>
+
+        <details class="timeline">
+          <summary>Ver cambios de estado ({{ task.events.length }})</summary>
+          @if (task.events.length > 0) {
+            <ol>
+              @for (event of task.events; track event.id) {
+                <li>
+                  <strong>{{ eventLabel(event) }}</strong>
+                  <time [attr.datetime]="event.changedAt">{{ formatDate(event.changedAt) }}</time>
+                  @if (event.changeReason) {
+                    <span>{{ event.changeReason }}</span>
+                  }
+                </li>
+              }
+            </ol>
+          } @else {
+            <p>No hay transiciones registradas para esta tarea.</p>
+          }
+        </details>
+      </article>
+    } @empty {
+      @if (!loading) {
+        <p class="empty-message">
+          {{
+            activeSearch
+              ? 'No se encontraron tareas anteriores con esa búsqueda.'
+              : 'Todavía no hay tareas terminadas o eliminadas.'
+          }}
+        </p>
+      }
+    }
+  </div>
+</div>

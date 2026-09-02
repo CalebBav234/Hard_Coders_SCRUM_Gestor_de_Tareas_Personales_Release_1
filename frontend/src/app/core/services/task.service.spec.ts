@@ -58,7 +58,13 @@ describe('TaskService edit/delete contract', () => {
   });
 
   it('posts the version to reopen a terminated task', () => {
-    const task: Task = { id: 7, title: 'Tarea', status: 'TERMINADA', priority: 'MEDIA', version: 3 };
+    const task: Task = {
+      id: 7,
+      title: 'Tarea',
+      status: 'TERMINADA',
+      priority: 'MEDIA',
+      version: 3,
+    };
     service.reopen(task).subscribe();
     const req = http.expectOne('/api/tasks/7/reopen');
     expect(req.request.method).toBe('POST');
@@ -130,5 +136,25 @@ describe('TaskService edit/delete contract', () => {
       { id: 1, name: 'Trabajo' },
       { id: 2, name: 'Personal' },
     ]);
+  });
+
+  it('searches visible tasks by title or description through the backend', () => {
+    service.listTasks('informe mensual').subscribe((result) => expect(result).toEqual([]));
+
+    const req = http.expectOne(
+      (request) => request.url === '/api/tasks' && request.params.get('q') === 'informe mensual',
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
+  });
+
+  it('loads and searches the unified task history', () => {
+    service.listHistory('reunión').subscribe((result) => expect(result).toEqual([]));
+
+    const req = http.expectOne(
+      (request) => request.url === '/api/tasks/history' && request.params.get('q') === 'reunión',
+    );
+    expect(req.request.method).toBe('GET');
+    req.flush([]);
   });
 });

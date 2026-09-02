@@ -40,7 +40,8 @@ main {
 }
 
 .create-section,
-.tasks-section {
+.tasks-section,
+.history-section {
   background: white;
   border-radius: 14px;
   border: 1px solid #e5e7eb;

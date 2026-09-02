@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, OnInit, Output, inject } from '@angular/core';
 import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 import { TaskEditor } from '../task-editor/task-editor';
@@ -20,6 +20,10 @@ export class TaskList implements OnInit {
   editingTask: Task | null = null;
   confirmingDelete: Task | null = null;
   busyTaskId: number | null = null;
+  searchDraft = '';
+  activeSearch = '';
+
+  @Output() readonly historyChanged = new EventEmitter<void>();
 
   get actionsDisabled(): boolean {
     return (
@@ -38,7 +42,7 @@ export class TaskList implements OnInit {
     if (this.actionsDisabled) return;
     this.loading = true;
     this.error = null;
-    this.taskService.listTasks().subscribe({
+    this.taskService.listTasks(this.activeSearch).subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.loading = false;
@@ -52,7 +56,30 @@ export class TaskList implements OnInit {
     });
   }
 
+  searchTasks(event: Event): void {
+    event.preventDefault();
+    if (this.actionsDisabled) return;
+    this.activeSearch = this.searchDraft.trim();
+    this.loadTasks();
+  }
+
+  updateSearchDraft(event: Event): void {
+    this.searchDraft = (event.target as HTMLInputElement).value;
+  }
+
+  clearSearch(): void {
+    if (this.actionsDisabled) return;
+    this.searchDraft = '';
+    this.activeSearch = '';
+    this.loadTasks();
+  }
+
   showCreatedTask(task: Task): void {
+    if (this.activeSearch) {
+      this.searchDraft = '';
+      this.activeSearch = '';
+      this.loadTasks();
+    }
     this.tasks = [task, ...this.tasks.filter((currentTask) => currentTask.id !== task.id)];
     this.feedback = `Tarea "${task.title}" creada.`;
     this.error = null;
@@ -68,6 +95,7 @@ export class TaskList implements OnInit {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" activada.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
         this.loadTasks();
       },
       error: (err) => {
@@ -86,6 +114,7 @@ export class TaskList implements OnInit {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" completada.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
         this.loadTasks();
       },
       error: (err) => {
@@ -104,6 +133,7 @@ export class TaskList implements OnInit {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" reabierta.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
         this.loadTasks();
       },
       error: (err) => {
@@ -155,6 +185,7 @@ export class TaskList implements OnInit {
             : `Categoría de "${task.title}" actualizada.`;
         this.error = null;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
       },
       error: (err) => {
         this.busyTaskId = null;
@@ -184,6 +215,7 @@ export class TaskList implements OnInit {
     this.feedback = `Tarea "${task.title}" actualizada.`;
     this.error = null;
     this.changeDetector.markForCheck();
+    this.historyChanged.emit();
   }
 
   requestDelete(task: Task): void {
@@ -210,6 +242,7 @@ export class TaskList implements OnInit {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" eliminada.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
       },
       error: (err) => {
         this.busyTaskId = null;
