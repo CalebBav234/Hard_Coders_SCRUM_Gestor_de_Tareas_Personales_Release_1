@@ -1,15 +1,17 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Subscription, interval } from 'rxjs';
 import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 import { TaskEditor } from '../task-editor/task-editor';
+import { TimeFormatPipe } from '../../../core/pipes/time-format.pipe';
 
 @Component({
   selector: 'app-task-list',
-  imports: [TaskEditor],
+  imports: [TaskEditor, TimeFormatPipe],
   templateUrl: './task-list.html',
   styleUrl: './task-list.css',
 })
-export class TaskList implements OnInit {
+export class TaskList implements OnInit, OnDestroy {
   private readonly taskService = inject(TaskService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
@@ -20,6 +22,9 @@ export class TaskList implements OnInit {
   editingTask: Task | null = null;
   confirmingDelete: Task | null = null;
   busyTaskId: number | null = null;
+
+  liveTimes: Record<number, number> = {};
+  private timerSub?: Subscription;
 
   get actionsDisabled(): boolean {
     return (
@@ -32,6 +37,41 @@ export class TaskList implements OnInit {
 
   ngOnInit(): void {
     this.loadTasks();
+    this.iniciarContadorGlobal();
+  }
+
+  ngOnDestroy(): void {
+    if (this.timerSub) {
+      this.timerSub.unsubscribe();
+    }
+  }
+
+  iniciarContadorGlobal(): void {
+    this.timerSub = interval(1000).subscribe(() => {
+      this.actualizarTiempos();
+    });
+  }
+
+  actualizarTiempos(): void {
+    let necesitaActualizar = false;
+    this.tasks.forEach(task => {
+      let extra = 0;
+      if (task.status === 'ACTIVA' && task.activatedAt) {
+        const start = new Date(task.activatedAt).getTime();
+        const now = new Date().getTime();
+        extra = Math.floor((now - start) / 1000);
+      }
+      const nuevoTiempo = (task.totalActiveSeconds || 0) + Math.max(0, extra);
+
+      if (this.liveTimes[task.id] !== nuevoTiempo) {
+        this.liveTimes[task.id] = nuevoTiempo;
+        necesitaActualizar = true;
+      }
+    });
+
+    if (necesitaActualizar) {
+      this.changeDetector.markForCheck();
+    }
   }
 
   loadTasks(): void {
@@ -41,6 +81,7 @@ export class TaskList implements OnInit {
     this.taskService.listTasks().subscribe({
       next: (tasks) => {
         this.tasks = tasks;
+        this.actualizarTiempos();
         this.loading = false;
         this.changeDetector.markForCheck();
       },
@@ -54,6 +95,7 @@ export class TaskList implements OnInit {
 
   showCreatedTask(task: Task): void {
     this.tasks = [task, ...this.tasks.filter((currentTask) => currentTask.id !== task.id)];
+    this.actualizarTiempos();
     this.feedback = `Tarea "${task.title}" creada.`;
     this.error = null;
     this.changeDetector.markForCheck();
@@ -217,22 +259,6 @@ export class TaskList implements OnInit {
         this.handleError(err);
       },
     });
-  }
-
-  formatDuration(seconds?: number): string {
-    if (seconds == null || seconds <= 0) {
-      return '0m';
-    }
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
-    if (minutes > 0) {
-      return `${minutes}m ${secs}s`;
-    }
-    return `${secs}s`;
   }
 
   clearFeedback(): void {
