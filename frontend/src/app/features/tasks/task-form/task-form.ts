@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Input,Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Task, TaskPriority } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
@@ -17,6 +17,10 @@ export class TaskForm {
   @Output() taskCreated = new EventEmitter<Task>();
   @Output() cancelled = new EventEmitter<void>();
 
+  cancelar(): void {
+    this.cancelled.emit();
+  }
+
   title = '';
   selectedPriority: TaskPriority = 'MEDIA';
   selectedCategoryName = '';
@@ -34,7 +38,7 @@ export class TaskForm {
 
     this.loading = true;
     this.taskService
-      .createTask(this.title.trim(), this.selectedPriority, this.selectedCategoryName)
+      .createTask(this.title.trim(), this.selectedPriority, this.selectedCategoryName, this.parentTaskId)
       .subscribe({
         next: (task) => {
           this.title = '';

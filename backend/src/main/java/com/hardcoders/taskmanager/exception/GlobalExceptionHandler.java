@@ -44,6 +44,12 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of("TASK_HAS_SUBTASKS", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidParentTaskException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidParent(InvalidParentTaskException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ErrorResponse.of("INVALID_PARENT_TASK", ex.getMessage()));
+    }
+
     @ExceptionHandler(OptimisticLockConflictException.class)
     public ResponseEntity<ErrorResponse> handleOptimisticConflict(OptimisticLockConflictException ex) {
         return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)

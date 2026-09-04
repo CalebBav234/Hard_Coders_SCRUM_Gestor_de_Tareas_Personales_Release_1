@@ -236,7 +236,17 @@
             </article>
           }
         </div>
-      }
+        }
+
+        @if (creatingSubtaskForId === task.id) {
+          <div class="subtask-form">
+            <app-task-form
+              [parentTaskId]="task.id"
+              (taskCreated)="addSubtask($event); cancelCreatingSubtask()"
+              (cancelled)="cancelCreatingSubtask()"
+            />
+          </div>
+        }
       </article>
     } @empty {
       <p class="empty-message">

@@ -5,6 +5,7 @@ import com.hardcoders.taskmanager.dto.TaskResponse;
 import com.hardcoders.taskmanager.dto.TaskStatusHistoryResponse;
 import com.hardcoders.taskmanager.dto.UpdateTaskRequest;
 import com.hardcoders.taskmanager.entity.Task;
+import com.hardcoders.taskmanager.exception.InvalidParentTaskException;
 import com.hardcoders.taskmanager.exception.InvalidTaskStateException;
 import com.hardcoders.taskmanager.exception.OptimisticLockConflictException;
 import com.hardcoders.taskmanager.exception.TaskNotFoundException;
@@ -45,7 +46,7 @@ public class TaskService {
         if (parentTaskId != null) {
             Task parentTask = findVisibleTask(parentTaskId);
             if (parentTask.getParentTaskId() != null) {
-                throw new IllegalArgumentException("No se pueden crear subtareas de otra subtarea.");
+                throw new InvalidParentTaskException(parentTaskId);
             }
             task.setParentTaskId(parentTaskId);
         }

@@ -3,6 +3,7 @@ package com.hardcoders.taskmanager.service;
 import com.hardcoders.taskmanager.dto.TaskResponse;
 import com.hardcoders.taskmanager.dto.TaskHistoryResponse;
 import com.hardcoders.taskmanager.entity.Task;
+import com.hardcoders.taskmanager.exception.InvalidParentTaskException;
 import com.hardcoders.taskmanager.exception.InvalidTaskStateException;
 import com.hardcoders.taskmanager.exception.OptimisticLockConflictException;
 import com.hardcoders.taskmanager.exception.TaskNotFoundException;
@@ -167,6 +168,50 @@ class TaskServiceTest {
         ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
         verify(taskRepository).save(captor.capture());
         assertThat(captor.getValue().getCategoryId()).isNull();
+    }
+
+    @Test
+    void create_withValidParent_setsParentTaskId() {
+        Task parent = new Task();
+        parent.setId(5L);
+        parent.setParentTaskId(null);
+        parent.setDeletedAt(null);
+        when(taskRepository.findById(5L)).thenReturn(Optional.of(parent));
+        when(categoryService.findOrCreateVisibleByName(null)).thenReturn(null);
+        when(taskRepository.findSummaryById(1L))
+                .thenReturn(row(1L, "Subtarea", "INACTIVA", "MEDIA", null, 0L, 0L, null, null, 0L));
+        when(taskRepository.save(any(Task.class))).thenAnswer(inv -> {
+            Task t = inv.getArgument(0);
+            t.setId(1L);
+            return t;
+        });
+
+        TaskResponse response = taskService.create("Subtarea", "MEDIA", null, 5L);
+
+        assertThat(response.id()).isEqualTo(1L);
+        ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepository).save(captor.capture());
+        assertThat(captor.getValue().getParentTaskId()).isEqualTo(5L);
+    }
+
+    @Test
+    void create_whenParentMissing_throwsNotFound() {
+        when(taskRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskService.create("Subtarea", "MEDIA", null, 99L))
+                .isInstanceOf(TaskNotFoundException.class);
+    }
+
+    @Test
+    void create_whenParentIsSubtask_throwsInvalidParent() {
+        Task parent = new Task();
+        parent.setId(5L);
+        parent.setParentTaskId(3L);
+        parent.setDeletedAt(null);
+        when(taskRepository.findById(5L)).thenReturn(Optional.of(parent));
+
+        assertThatThrownBy(() -> taskService.create("Subtarea", "MEDIA", null, 5L))
+                .isInstanceOf(InvalidParentTaskException.class);
     }
 
     @Test

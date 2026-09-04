@@ -144,7 +144,7 @@ export class TaskList implements OnInit, OnDestroy {
     this.loadTasks();
   }
 
-  showCreatedTask(task: Task): void {
+   showCreatedTask(task: Task): void {
     if (this.activeSearch) {
       this.searchDraft = '';
       this.activeSearch = '';
@@ -156,6 +156,15 @@ export class TaskList implements OnInit, OnDestroy {
     this.error = null;
     this.changeDetector.markForCheck();
   }
+
+  addSubtask(task: Task): void {
+    this.tasks = [...this.tasks, task];
+    this.actualizarTiempos();
+    this.feedback = `Subtarea "${task.title}" creada.`;
+    this.error = null;
+    this.changeDetector.markForCheck();
+  }
+
 
   activate(task: Task): void {
     if (this.actionsDisabled) return;
