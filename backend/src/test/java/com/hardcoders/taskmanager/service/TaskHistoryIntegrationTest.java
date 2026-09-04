@@ -29,7 +29,7 @@ class TaskHistoryIntegrationTest {
     @Test
     void completedTaskIsVisibleWithTimelineAndDescriptionSearch() {
         String title = "Reunión " + UUID.randomUUID();
-        TaskResponse task = service.create(title, "ALTA", null);
+        TaskResponse task = service.create(title, "ALTA", null, null);
         task = service.update(task.id(), new UpdateTaskRequest(
                 title, "Documentación " + title, "ALTA", task.version()));
         task = service.activate(task.id(), task.version());
@@ -49,7 +49,7 @@ class TaskHistoryIntegrationTest {
     @Test
     void deletedActiveTaskRetainsItsContextAndFrozenTime() {
         String title = "Historial literal_% " + UUID.randomUUID();
-        TaskResponse task = service.create(title, "MEDIA", null);
+        TaskResponse task = service.create(title, "MEDIA", null,null);
         task = service.activate(task.id(), task.version());
         service.delete(task.id(), task.version());
 

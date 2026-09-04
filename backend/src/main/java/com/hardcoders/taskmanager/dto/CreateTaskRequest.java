@@ -11,6 +11,7 @@ public record CreateTaskRequest(
         @Pattern(regexp = "ALTA|MEDIA|BAJA", message = "La prioridad debe ser ALTA, MEDIA o BAJA")
         String priority,
         @Size(max = 80, message = "La categoría debe tener como máximo 80 caracteres")
-        String categoryName
+        String categoryName,
+        Long parentTaskId
 ) {
 }

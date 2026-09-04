@@ -12,10 +12,11 @@ import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 import { TaskEditor } from '../task-editor/task-editor';
 import { TimeFormatPipe } from '../../../core/pipes/time-format.pipe';
+import { TaskForm } from '../task-form/task-form'; 
 
 @Component({
   selector: 'app-task-list',
-  imports: [TaskEditor, TimeFormatPipe],
+  imports: [TaskEditor, TimeFormatPipe, TaskForm],
   templateUrl: './task-list.html',
   styleUrl: './task-list.css',
 })
@@ -33,6 +34,8 @@ export class TaskList implements OnInit, OnDestroy {
   searchDraft = '';
   activeSearch = '';
 
+  creatingSubtaskForId: number | null = null;
+
   @Output() readonly historyChanged = new EventEmitter<void>();
 
   liveTimes: Record<number, number> = {};
@@ -45,6 +48,24 @@ export class TaskList implements OnInit, OnDestroy {
       this.editingTask !== null ||
       this.confirmingDelete !== null
     );
+  }
+
+  get parentTasks(): Task[] {
+    return this.tasks.filter((t) => !t.parentTaskId);
+  }
+
+  getSubtasks(parentId: number): Task[] {
+    return this.tasks.filter((t) => t.parentTaskId === parentId);
+  }
+
+  startCreatingSubtask(parentId: number): void {
+    if (this.actionsDisabled) return;
+    this.clearFeedback();
+    this.creatingSubtaskForId = parentId;
+  }
+
+  cancelCreatingSubtask(): void {
+    this.creatingSubtaskForId = null;
   }
 
   ngOnInit(): void {
@@ -309,14 +330,33 @@ export class TaskList implements OnInit, OnDestroy {
 
   private handleError(err: unknown): void {
     const response = err as { status?: number; error?: { message?: string; error?: string } };
-    this.error =
-      response?.status === 412
-        ? 'La tarea cambió. Actualiza la lista y vuelve a intentarlo.'
-        : response?.status === 404
-          ? response?.error?.error === 'CATEGORY_NOT_FOUND'
-            ? 'La categoría seleccionada ya no está disponible. Actualiza la lista.'
-            : 'La tarea ya no está disponible. Actualiza la lista.'
-          : (response?.error?.message ?? 'No se pudo completar la operación.');
+    switch (response?.status) {
+    case 400:
+      this.error = response?.error?.message ?? 'Los datos ingresados no son válidos. Por favor verifica e intenta de nuevo.';
+      break;
+
+    case 404:
+      if (response?.error?.error === 'CATEGORY_NOT_FOUND') {
+        this.error = 'La categoría seleccionada ya no existe. La lista se ha actualizado.';
+      } else {
+        this.error = 'La tarea seleccionada ya no existe. La lista se ha actualizado.';
+      }
+      this.loadTasks(); 
+      break;
+
+    case 409:
+      this.error = 'La operación no es compatible con el estado actual de la tarea.';
+      break;
+
+    case 412:
+      this.error = 'La tarea cambió de estado en el servidor. La lista se ha actualizado.';
+      this.loadTasks(); 
+      break;
+
+    default:
+      this.error = response?.error?.message ?? 'Ocurrió un error inesperado. Inténtalo nuevamente.';
+      break;
+  }
     this.changeDetector.markForCheck();
   }
 }

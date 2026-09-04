@@ -43,13 +43,13 @@
   </form>
 
   @if (feedback) {
-    <div class="feedback feedback-success" role="status">
+    <div class="alert alert-success" role="status">
       {{ feedback }}
     </div>
   }
 
   @if (error) {
-    <div class="feedback feedback-error" role="alert">
+    <div class="alert alert-danger" role="alert">
       {{ error }}
     </div>
   }
@@ -154,6 +154,14 @@
               Reabrir
             </button>
           }
+          <button
+           type="button"
+           class="btn-edit"
+           (click)="startCreatingSubtask(task.id)"
+            [disabled]="actionsDisabled"
+          >
+            + Subtarea
+          </button> 
 
           <button type="button" class="btn-edit" (click)="edit(task)" [disabled]="actionsDisabled">
             Editar
@@ -203,6 +211,32 @@
             </div>
           </section>
         }
+        @if (getSubtasks(task.id).length > 0) {
+        <div class="subtasks-container" style="margin-top: 1rem; margin-left: 2rem; border-left: 2px solid #ccc; padding-left: 1rem;">
+          <h4>Subtareas</h4>
+          @for (subtask of getSubtasks(task.id); track subtask.id) {
+            <article class="task-card subtask-card" style="margin-bottom: 0.5rem; background: #f9f9f9;">
+              <div class="task-info">
+                <h5>{{ subtask.title }}</h5>
+                <div class="task-details">
+                  <span class="status status-{{ subtask.status }}">{{ subtask.status }}</span>
+                  <span class="priority priority-{{ subtask.priority }}">{{ subtask.priority }}</span>
+                </div>
+              </div>
+              <div class="task-actions">
+                @if (subtask.status === 'INACTIVA') {
+                  <button type="button" class="btn-activate" (click)="activate(subtask)" [disabled]="actionsDisabled">Activar</button>
+                }
+                @if (subtask.status === 'ACTIVA') {
+                  <button type="button" class="btn-pause" (click)="pause(subtask)" [disabled]="actionsDisabled">Pausar</button>
+                  <button type="button" class="btn-complete" (click)="complete(subtask)" [disabled]="actionsDisabled">Completar</button>
+                }
+                <button type="button" class="btn-delete" (click)="requestDelete(subtask)" [disabled]="actionsDisabled">Eliminar</button>
+              </div>
+            </article>
+          }
+        </div>
+      }
       </article>
     } @empty {
       <p class="empty-message">

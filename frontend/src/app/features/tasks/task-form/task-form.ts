@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, EventEmitter, Output, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input,Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Task, TaskPriority } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
@@ -13,7 +13,9 @@ export class TaskForm {
   private readonly taskService = inject(TaskService);
   private readonly changeDetector = inject(ChangeDetectorRef);
 
+  @Input() parentTaskId: number | null = null;
   @Output() taskCreated = new EventEmitter<Task>();
+  @Output() cancelled = new EventEmitter<void>();
 
   title = '';
   selectedPriority: TaskPriority = 'MEDIA';

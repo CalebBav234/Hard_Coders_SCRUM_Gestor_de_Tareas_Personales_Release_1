@@ -95,7 +95,7 @@ class TaskServiceTest {
             return t;
         });
 
-        TaskResponse response = taskService.create("Mi primera tarea", "MEDIA", null);
+        TaskResponse response = taskService.create("Mi primera tarea", "MEDIA", null, null);
 
         assertThat(response.id()).isEqualTo(1L);
         assertThat(response.title()).isEqualTo("Mi primera tarea");
@@ -119,7 +119,7 @@ class TaskServiceTest {
             return t;
         });
 
-        TaskResponse response = taskService.create("Con categoría", "ALTA", "Trabajo");
+        TaskResponse response = taskService.create("Con categoría", "ALTA", "Trabajo", null);
 
         assertThat(response.priority()).isEqualTo("ALTA");
         assertThat(response.categoryName()).isEqualTo("Trabajo");
@@ -140,7 +140,7 @@ class TaskServiceTest {
             return t;
         });
 
-        TaskResponse response = taskService.create("Sin prioridad", null, null);
+        TaskResponse response = taskService.create("Sin prioridad", null, null,null);
 
         assertThat(response.priority()).isEqualTo("MEDIA");
         assertThat(response.categoryName()).isNull();
@@ -161,7 +161,7 @@ class TaskServiceTest {
             return t;
         });
 
-        TaskResponse response = taskService.create("Sin categoría", "MEDIA", "   ");
+        TaskResponse response = taskService.create("Sin categoría", "MEDIA", "   ",null);
 
         assertThat(response.categoryName()).isNull();
         ArgumentCaptor<Task> captor = ArgumentCaptor.forClass(Task.class);

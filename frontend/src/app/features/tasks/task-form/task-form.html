@@ -1,13 +1,12 @@
 <div class="task-form">
 
   <div class="form-header">
-    <h2>Crear nueva tarea</h2>
-    <p>Agrega una tarea pendiente a tu lista.</p>
+    <h2>{{ parentTaskId ? 'Crear nueva subtarea' : 'Crear nueva tarea' }}</h2>
+    <p>{{ parentTaskId ? 'Agrega una subtarea vinculada.' : 'Agrega una tarea pendiente a tu lista.' }}</p>
   </div>
-
   <div class="form-group">
 
-    <label for="title">Título de la tarea</label>
+    <label for="title">Título</label>
 
     <input
       id="title"
@@ -50,8 +49,16 @@
     <p class="error-message">{{ error }}</p>
   }
 
-  <button type="button" (click)="crearTarea()" [disabled]="loading">
-    {{ loading ? 'Creando...' : 'Crear tarea' }}
-  </button>
+  <div class="form-actions">
+    <button type="button" (click)="crearTarea()" [disabled]="loading">
+      {{ loading ? 'Creando...' : (parentTaskId ? 'Crear subtarea' : 'Crear tarea') }}
+    </button>
+
+    @if (parentTaskId) {
+      <button type="button" class="btn-cancel" (click)="cancelar()" [disabled]="loading">
+        Cancelar
+      </button>
+    }
+  </div>
 
 </div>

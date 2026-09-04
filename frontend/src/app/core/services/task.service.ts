@@ -30,9 +30,9 @@ export class TaskService {
       .pipe(catchError(this.handleError));
   }
 
-  createTask(title: string, priority: TaskPriority, categoryName: string): Observable<Task> {
+  createTask(title: string, priority: TaskPriority, categoryName: string, parentTaskId?: number | null): Observable<Task> {
     return this.http
-      .post<Task>(this.baseUrl, { title, priority, categoryName })
+      .post<Task>(this.baseUrl, { title, priority, categoryName,parentTaskId: parentTaskId ?? null })
       .pipe(catchError(this.handleError));
   }
 

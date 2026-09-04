@@ -35,13 +35,20 @@ public class TaskService {
         this.categoryService = categoryService;
     }
 
-    public TaskResponse create(String title, String priority, String categoryName) {
+    public TaskResponse create(String title, String priority, String categoryName, Long parentTaskId) {
         Task task = new Task();
         task.setTitle(title);
         task.setStatus("INACTIVA");
         task.setPriority(priority != null && !priority.isBlank() ? priority : "MEDIA");
         task.setCategoryId(categoryService.findOrCreateVisibleByName(categoryName));
         task.setTotalActiveSeconds(0L);
+        if (parentTaskId != null) {
+            Task parentTask = findVisibleTask(parentTaskId);
+            if (parentTask.getParentTaskId() != null) {
+                throw new IllegalArgumentException("No se pueden crear subtareas de otra subtarea.");
+            }
+            task.setParentTaskId(parentTaskId);
+        }
         Instant now = Instant.now();
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
