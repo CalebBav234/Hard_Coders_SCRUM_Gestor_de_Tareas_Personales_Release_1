@@ -105,9 +105,9 @@
               data-testid="category-input"
             />
 
-            @if (task.effectiveActiveSeconds != null && task.effectiveActiveSeconds > 0) {
-              <span class="active-time">
-                Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}
+            @if (liveTimes[task.id] > 0 || task.status === 'ACTIVA') {
+              <span class="active-time" [class.is-active]="task.status === 'ACTIVA'">
+                ⏱ {{ liveTimes[task.id] | timeFormat }}
               </span>
             }
           </div>
