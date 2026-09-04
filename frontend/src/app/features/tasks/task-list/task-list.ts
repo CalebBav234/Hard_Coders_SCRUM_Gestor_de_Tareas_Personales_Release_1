@@ -1,4 +1,12 @@
-import { ChangeDetectorRef, Component, EventEmitter, OnInit, OnDestroy, Output, inject } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  OnInit,
+  OnDestroy,
+  Output,
+  inject,
+} from '@angular/core';
 import { Subscription, interval } from 'rxjs';
 import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
@@ -58,7 +66,7 @@ export class TaskList implements OnInit, OnDestroy {
 
   actualizarTiempos(): void {
     let necesitaActualizar = false;
-    this.tasks.forEach(task => {
+    this.tasks.forEach((task) => {
       let extra = 0;
       if (task.status === 'ACTIVA' && task.activatedAt) {
         const start = new Date(task.activatedAt).getTime();

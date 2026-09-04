@@ -1,7 +1,7 @@
-<div class="history-panel">
+<div class="history-panel" [attr.aria-busy]="loading">
   <div class="history-header">
     <div>
-      <h2>Historial de tareas</h2>
+      <h2 id="history-heading">Historial de tareas</h2>
       <p>Consulta tareas terminadas y eliminadas junto con sus cambios de estado.</p>
     </div>
     <span class="history-count">{{ history.length }} archivada(s)</span>
@@ -29,7 +29,7 @@
         </button>
       }
     </div>
-    @if (activeSearch) {
+    @if (activeSearch && !loading && !error) {
       <p class="search-summary" role="status">
         {{ history.length }} resultado(s) para “{{ activeSearch }}”
       </p>
@@ -86,7 +86,7 @@
         </details>
       </article>
     } @empty {
-      @if (!loading) {
+      @if (!loading && !error) {
         <p class="empty-message">
           {{
             activeSearch

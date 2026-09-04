@@ -42,6 +42,22 @@ describe('TaskHistory', () => {
 
   afterEach(() => http.verify());
 
+  it('replaces an in-flight load when a task changes instead of losing the refresh', async () => {
+    const stale = http.expectOne('/api/tasks/history');
+    fixture.componentInstance.loadHistory();
+    expect(stale.cancelled).toBe(true);
+    http.expectOne('/api/tasks/history').flush([archived]);
+    await fixture.whenStable();
+    expect(fixture.componentInstance.history).toEqual([archived]);
+  });
+
+  it('does not present a load error as an empty archive', async () => {
+    http.expectOne('/api/tasks/history').flush({}, { status: 500, statusText: 'Server Error' });
+    await fixture.whenStable();
+    expect(element.querySelector('[role="alert"]')).not.toBeNull();
+    expect(element.querySelector('.empty-message')).toBeNull();
+  });
+
   it('renders archived tasks and their state transitions', async () => {
     http.expectOne('/api/tasks/history').flush([archived]);
     await fixture.whenStable();
@@ -86,5 +102,20 @@ describe('TaskHistory', () => {
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
       'No se pudo cargar el historial',
     );
+  });
+
+  it('explains when the backend does not expose the history endpoint', async () => {
+    http.expectOne('/api/tasks/history').flush({}, { status: 404, statusText: 'Not Found' });
+    await fixture.whenStable();
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+      'Actualiza y reinicia el backend',
+    );
+    expect(element.querySelector('.empty-message')).toBeNull();
+  });
+
+  it('cancels the pending request when the component is destroyed', () => {
+    const pending = http.expectOne('/api/tasks/history');
+    fixture.destroy();
+    expect(pending.cancelled).toBe(true);
   });
 });

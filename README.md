@@ -10,6 +10,7 @@ Aplicación web académica gestionada con Scrum, con frontend Angular, API Sprin
 - Backend conectado al esquema existente y frontend con proxy hacia la API.
 - US-06 (editar) y US-07 (eliminar con confirmación) implementadas. Consulta [la guía de uso e integración](docs/us-06-us-07.md).
 - US-12 (historial unificado) y US-13 (búsqueda por título/descripción) implementadas. Consulta [la guía funcional](docs/us-12-us-13.md).
+- Integración con el contador de tiempo de `develop`: el historial tiene acceso directo en la cabecera, conserva las actualizaciones durante cargas simultáneas y funciona con bases V001/V002 aunque V003 aún no esté aplicada.
 
 ## Inicio rápido de base de datos
 

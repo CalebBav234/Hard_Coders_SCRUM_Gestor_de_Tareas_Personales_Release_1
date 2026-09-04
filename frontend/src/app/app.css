@@ -33,6 +33,28 @@
   font-size: 16px;
 }
 
+.section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.section-nav a {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #1d4ed8;
+  background: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.section-nav a:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
 main {
   display: flex;
   flex-direction: column;

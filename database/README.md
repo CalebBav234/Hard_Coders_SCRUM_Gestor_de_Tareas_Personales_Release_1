@@ -122,7 +122,7 @@ El runner crea `public.database_schema_migrations` y guarda versión, descripci�
 - Para eliminar en US-07: actualizar `deleted_at`; no emitir `DELETE FROM task_manager.tasks`.
 - Usar `version` con `@Version` para evitar sobrescribir cambios concurrentes.
 - Mostrar tareas normales desde `v_tasks`; pendientes desde `v_pending_tasks`.
-- Mostrar terminadas y eliminadas desde `v_task_archive`; sus transiciones provienen de `v_task_history`.
+- `v_task_archive` permite consultar terminadas y eliminadas desde pgAdmin. Para mantener compatibilidad con bases V001/V002, el backend obtiene ese mismo archivo desde `tasks` y `categories`; sus transiciones provienen de `v_task_history`.
 - Aplicar la búsqueda en PostgreSQL sobre título y descripción, sin concatenar SQL recibido del usuario.
 
 ## 8. Pasos para cada integrante

@@ -1,4 +1,5 @@
-import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { TaskHistory as TaskHistoryModel, TaskStatusHistory } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 
@@ -7,9 +8,10 @@ import { TaskService } from '../../../core/services/task.service';
   templateUrl: './task-history.html',
   styleUrl: './task-history.css',
 })
-export class TaskHistory implements OnInit {
+export class TaskHistory implements OnInit, OnDestroy {
   private readonly taskService = inject(TaskService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private request?: Subscription;
 
   history: TaskHistoryModel[] = [];
   loading = false;
@@ -21,19 +23,28 @@ export class TaskHistory implements OnInit {
     this.loadHistory();
   }
 
+  ngOnDestroy(): void {
+    this.request?.unsubscribe();
+  }
+
   loadHistory(): void {
-    if (this.loading) return;
+    // A task may change while the previous request is still loading.
+    // Cancel that stale request; never discard the newer refresh.
+    this.request?.unsubscribe();
     this.loading = true;
     this.error = null;
-    this.taskService.listHistory(this.activeSearch).subscribe({
+    this.request = this.taskService.listHistory(this.activeSearch).subscribe({
       next: (history) => {
         this.history = history;
         this.loading = false;
         this.changeDetector.markForCheck();
       },
-      error: () => {
+      error: (response: { status?: number }) => {
         this.loading = false;
-        this.error = 'No se pudo cargar el historial. Inténtalo nuevamente.';
+        this.error =
+          response.status === 404
+            ? 'El backend no tiene disponible el historial. Actualiza y reinicia el backend con esta rama.'
+            : 'No se pudo cargar el historial. Comprueba que el backend y PostgreSQL estén disponibles y vuelve a intentarlo.';
         this.changeDetector.markForCheck();
       },
     });

@@ -27,6 +27,27 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         created_at, updated_at, deleted_at, version
         """;
 
+    // Read the existing tables so upgrading the app does not require V003 first.
+    // V003 remains an optional convenience view for SQL clients, not an API dependency.
+    String ARCHIVE_SOURCE = """
+        FROM (
+            SELECT task.id, task.title, task.description, task.status, task.priority,
+                task.category_id, category.name AS category_name, task.parent_task_id,
+                task.activated_at, task.completed_at, task.total_active_seconds,
+                task.total_active_seconds + CASE
+                    WHEN task.status = 'ACTIVA' AND task.activated_at IS NOT NULL
+                        THEN floor(EXTRACT(epoch FROM (
+                            COALESCE(task.deleted_at, CURRENT_TIMESTAMP) - task.activated_at
+                        )))::bigint
+                    ELSE 0
+                END AS effective_active_seconds,
+                task.created_at, task.updated_at, task.deleted_at, task.version
+            FROM task_manager.tasks AS task
+            LEFT JOIN task_manager.categories AS category ON category.id = task.category_id
+            WHERE task.status = 'TERMINADA' OR task.deleted_at IS NOT NULL
+        ) AS archive
+        """;
+
     String SEARCH_PREDICATE = """
         (translate(lower(coalesce(title, '')), 'áéíóúüñ', 'aeiouun') LIKE :searchPattern ESCAPE '\\'
          OR translate(lower(coalesce(description, '')), 'áéíóúüñ', 'aeiouun') LIKE :searchPattern ESCAPE '\\')
@@ -40,13 +61,13 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             + SEARCH_PREDICATE + " ORDER BY created_at DESC", nativeQuery = true)
     List<Object[]> findSummariesBySearchPattern(@Param("searchPattern") String searchPattern);
 
-    @Query(value = "SELECT " + ARCHIVE_COLUMNS + " FROM task_manager.v_task_archive "
-            + "ORDER BY COALESCE(deleted_at, completed_at, updated_at) DESC", nativeQuery = true)
+    @Query(value = "SELECT " + ARCHIVE_COLUMNS + ARCHIVE_SOURCE
+            + "ORDER BY COALESCE(deleted_at, completed_at, updated_at) DESC, id DESC", nativeQuery = true)
     List<Object[]> findArchivedSummaries();
 
-    @Query(value = "SELECT " + ARCHIVE_COLUMNS + " FROM task_manager.v_task_archive WHERE "
+    @Query(value = "SELECT " + ARCHIVE_COLUMNS + ARCHIVE_SOURCE + " WHERE "
             + SEARCH_PREDICATE
-            + " ORDER BY COALESCE(deleted_at, completed_at, updated_at) DESC", nativeQuery = true)
+            + " ORDER BY COALESCE(deleted_at, completed_at, updated_at) DESC, id DESC", nativeQuery = true)
     List<Object[]> findArchivedSummariesBySearchPattern(
             @Param("searchPattern") String searchPattern);
 
