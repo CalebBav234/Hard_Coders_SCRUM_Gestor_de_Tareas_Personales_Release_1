@@ -63,3 +63,4 @@ Relaciona dos tareas diferentes como `RELACIONADA`, `BLOQUEA` o `DEPENDE_DE`. No
 - `v_tasks`: tareas no eliminadas, con categoría, etiquetas y tiempo activo efectivo.
 - `v_pending_tasks`: `INACTIVA` + `ACTIVA`; pendientes no es un cuarto estado.
 - `v_task_history`: transiciones históricas, incluso si la tarea tiene borrado lógico.
+- `v_task_archive`: tareas terminadas o eliminadas lógicamente, con categoría, fecha de archivo y tiempo activo efectivo congelado al eliminar.

@@ -8,10 +8,10 @@ Esta carpeta implementa la fundación de datos del manual operativo y añade las
 - Esquema: `task_manager`.
 - Rol propietario de migraciones: `gestor_tareas_owner`.
 - Rol del backend con permisos limitados: `gestor_tareas_app`.
-- Siete tablas, tres vistas, índices, restricciones y triggers.
+- Siete tablas, cuatro vistas, índices, restricciones y triggers.
 - Migraciones ordenadas y protegidas por versión + checksum.
-- Borrado lógico preparado para US-07, sin implementar aún esa historia.
-- Campos y restricciones preparados para US-06, sin implementar aún la edición.
+- Borrado lógico para US-07 e historial unificado de terminadas/eliminadas para US-12.
+- Búsqueda por título o descripción para US-13 mediante consultas parametrizadas.
 
 El diagrama está en [diagram/erd.mmd](diagram/erd.mmd) y el detalle de columnas en [docs/data-dictionary.md](docs/data-dictionary.md).
 
@@ -62,7 +62,7 @@ El resultado correcto debe mostrar:
 
 - PostgreSQL mayor 18.
 - Zona horaria `UTC`.
-- Migraciones V1 y V2.
+- Migraciones V1, V2 y V3.
 - Permisos de lectura, inserción y actualización sobre `tasks`.
 - `can_hard_delete_tasks = false`.
 
@@ -122,6 +122,8 @@ El runner crea `public.database_schema_migrations` y guarda versión, descripci�
 - Para eliminar en US-07: actualizar `deleted_at`; no emitir `DELETE FROM task_manager.tasks`.
 - Usar `version` con `@Version` para evitar sobrescribir cambios concurrentes.
 - Mostrar tareas normales desde `v_tasks`; pendientes desde `v_pending_tasks`.
+- `v_task_archive` permite consultar terminadas y eliminadas desde pgAdmin. Para mantener compatibilidad con bases V001/V002, el backend obtiene ese mismo archivo desde `tasks` y `categories`; sus transiciones provienen de `v_task_history`.
+- Aplicar la búsqueda en PostgreSQL sobre título y descripción, sin concatenar SQL recibido del usuario.
 
 ## 8. Pasos para cada integrante
 

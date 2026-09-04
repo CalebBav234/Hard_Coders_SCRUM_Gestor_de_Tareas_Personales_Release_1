@@ -3,11 +3,13 @@ package com.hardcoders.taskmanager.controller;
 import com.hardcoders.taskmanager.dto.ChangeCategoryRequest;
 import com.hardcoders.taskmanager.dto.CreateTaskRequest;
 import com.hardcoders.taskmanager.dto.TaskResponse;
+import com.hardcoders.taskmanager.dto.TaskHistoryResponse;
 import com.hardcoders.taskmanager.dto.UpdateTaskRequest;
 import com.hardcoders.taskmanager.dto.VersionRequest;
 import com.hardcoders.taskmanager.service.TaskService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,8 +42,15 @@ public class TaskController {
     }
 
     @GetMapping
-    public List<TaskResponse> list() {
-        return taskService.listTasks();
+    public List<TaskResponse> list(
+            @RequestParam(defaultValue = "") @Size(max = 160) String q) {
+        return taskService.listTasks(q);
+    }
+
+    @GetMapping("/history")
+    public List<TaskHistoryResponse> history(
+            @RequestParam(defaultValue = "") @Size(max = 160) String q) {
+        return taskService.listHistory(q);
     }
 
     @PutMapping("/{id}")

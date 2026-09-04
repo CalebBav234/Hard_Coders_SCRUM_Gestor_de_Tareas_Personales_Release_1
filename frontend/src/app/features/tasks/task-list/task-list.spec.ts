@@ -57,6 +57,25 @@ describe('TaskList editing and deletion', () => {
     expect(element.textContent).toContain('Descripción inicial');
   });
 
+  it('searches by title or description and renders the backend result', async () => {
+    input('#task-search', 'documentación');
+    click('Buscar');
+
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/tasks' && candidate.params.get('q') === 'documentación',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      { ...original, title: 'Actualizar manual', description: 'Documentación final' },
+    ]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(element.querySelector('.task-card h3')?.textContent).toContain('Actualizar manual');
+    expect(element.textContent).toContain('1 resultado(s)');
+  });
+
   it('edits through HTTP and immediately renders the authoritative response', async () => {
     click('Editar');
     input('#edit-title-7', '  Corregida  ');
@@ -189,7 +208,9 @@ describe('TaskList editing and deletion', () => {
     http.expectOne('/api/tasks').flush([terminated]);
     await fixture.whenStable();
 
-    const labelsBefore = Array.from(element.querySelectorAll('button')).map((b) => b.textContent?.trim());
+    const labelsBefore = Array.from(element.querySelectorAll('button')).map((b) =>
+      b.textContent?.trim(),
+    );
     expect(labelsBefore).toContain('Reabrir');
     expect(labelsBefore).not.toContain('Pausar');
 
@@ -236,7 +257,9 @@ describe('TaskList editing and deletion', () => {
     await fixture.whenStable();
 
     expect(fixture.componentInstance.tasks[0].categoryName).toBe('Trabajo');
-    expect(element.querySelector('[data-testid="task-category"]')?.textContent).toContain('Trabajo');
+    expect(element.querySelector('[data-testid="task-category"]')?.textContent).toContain(
+      'Trabajo',
+    );
   });
 
   it('clears the category by leaving the field empty', async () => {
@@ -256,6 +279,8 @@ describe('TaskList editing and deletion', () => {
     await fixture.whenStable();
 
     expect(fixture.componentInstance.tasks[0].categoryName).toBeNull();
-    expect(element.querySelector('[data-testid="task-category"]')?.textContent).toContain('Sin categoría');
+    expect(element.querySelector('[data-testid="task-category"]')?.textContent).toContain(
+      'Sin categoría',
+    );
   });
 });

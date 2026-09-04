@@ -11,6 +11,37 @@
     </button>
   </div>
 
+  <form class="search-form" role="search" (submit)="searchTasks($event)">
+    <label for="task-search">Buscar por título o descripción</label>
+    <div class="search-controls">
+      <input
+        id="task-search"
+        type="search"
+        maxlength="160"
+        placeholder="Ej.: informe semanal"
+        [value]="searchDraft"
+        (input)="updateSearchDraft($event)"
+        [disabled]="actionsDisabled"
+      />
+      <button type="submit" class="btn-search" [disabled]="actionsDisabled">Buscar</button>
+      @if (activeSearch) {
+        <button
+          type="button"
+          class="btn-clear"
+          (click)="clearSearch()"
+          [disabled]="actionsDisabled"
+        >
+          Limpiar
+        </button>
+      }
+    </div>
+    @if (activeSearch) {
+      <p class="search-summary" role="status">
+        {{ tasks.length }} resultado(s) para “{{ activeSearch }}”
+      </p>
+    }
+  </form>
+
   @if (feedback) {
     <div class="feedback feedback-success" role="status">
       {{ feedback }}
@@ -37,39 +68,49 @@
           }
 
           <div class="task-details">
-             <span class="status status-{{ task.status }}">
-               {{ task.status }}
-             </span>
+            <span class="status status-{{ task.status }}">
+              {{ task.status }}
+            </span>
 
-             <span class="priority priority-{{ task.priority }}" aria-label="Prioridad {{ task.priority }}">
-               @switch (task.priority) {
-                 @case ('ALTA') { <span class="priority-glyph" aria-hidden="true">▲</span> Alta }
-                 @case ('MEDIA') { <span class="priority-glyph" aria-hidden="true">■</span> Media }
-                 @case ('BAJA') { <span class="priority-glyph" aria-hidden="true">▽</span> Baja }
-               }
-             </span>
+            <span
+              class="priority priority-{{ task.priority }}"
+              aria-label="Prioridad {{ task.priority }}"
+            >
+              @switch (task.priority) {
+                @case ('ALTA') {
+                  <span class="priority-glyph" aria-hidden="true">▲</span> Alta
+                }
+                @case ('MEDIA') {
+                  <span class="priority-glyph" aria-hidden="true">■</span> Media
+                }
+                @case ('BAJA') {
+                  <span class="priority-glyph" aria-hidden="true">▽</span> Baja
+                }
+              }
+            </span>
 
-             <span class="category-badge" data-testid="task-category">
-               {{ task.categoryName ?? 'Sin categoría' }}
-             </span>
+            <span class="category-badge" data-testid="task-category">
+              {{ task.categoryName ?? 'Sin categoría' }}
+            </span>
 
-              <input
-                class="category-input"
-                type="text"
-                [value]="task.categoryName ?? ''"
-                placeholder="Sin categoría"
-                maxlength="80"
-                (blur)="saveCategory(task, $event)"
-                (keydown.enter)="saveCategory(task, $event)"
-                [disabled]="actionsDisabled"
-                data-testid="category-input"
-              />
-             @if (liveTimes[task.id] > 0 || task.status === 'ACTIVA') {
-               <span class="active-time" [class.is-active]="task.status === 'ACTIVA'">
-                 ⏱ {{ liveTimes[task.id] | timeFormat }}
-               </span>
-             }
-           </div>
+            <input
+              class="category-input"
+              type="text"
+              [value]="task.categoryName ?? ''"
+              placeholder="Sin categoría"
+              maxlength="80"
+              (blur)="saveCategory(task, $event)"
+              (keydown.enter)="saveCategory(task, $event)"
+              [disabled]="actionsDisabled"
+              data-testid="category-input"
+            />
+
+            @if (liveTimes[task.id] > 0 || task.status === 'ACTIVA') {
+              <span class="active-time" [class.is-active]="task.status === 'ACTIVA'">
+                ⏱ {{ liveTimes[task.id] | timeFormat }}
+              </span>
+            }
+          </div>
         </div>
 
         <div class="task-actions">
@@ -164,7 +205,13 @@
         }
       </article>
     } @empty {
-      <p class="empty-message">No hay tareas registradas todavía.</p>
+      <p class="empty-message">
+        {{
+          activeSearch
+            ? 'No se encontraron tareas con esa búsqueda.'
+            : 'No hay tareas registradas todavía.'
+        }}
+      </p>
     }
   </div>
 </div>

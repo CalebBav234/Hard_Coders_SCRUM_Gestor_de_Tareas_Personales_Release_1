@@ -1,1 +1,44 @@
 /* You can add global styles to this file, and also import other style files */
+/* Estilos globales mínimos para la búsqueda de tareas (evita duplicarlos en el componente). */
+.tasks-section .search-controls input:focus {
+  outline: 3px solid rgba(37, 99, 235, 0.18);
+  border-color: #2563eb;
+}
+
+.tasks-section .search-summary {
+  margin: 10px 0 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.tasks-section .search-form {
+  margin: 0 0 22px;
+  padding: 16px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.tasks-section .search-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.tasks-section .search-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tasks-section .search-controls input {
+  flex: 1 1 260px;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #1f2937;
+  background: #fff;
+}

@@ -1,22 +1,26 @@
 <div class="app-container">
-
   <header class="app-header">
     <div>
       <h1>Gestor de Tareas</h1>
       <p>Organiza y administra tus tareas personales</p>
     </div>
+    <nav aria-label="Secciones de tareas" class="section-nav">
+      <a href="#my-tasks">Mis tareas</a>
+      <a href="#task-history">Historial de tareas</a>
+    </nav>
   </header>
 
   <main>
-
     <section class="create-section">
       <app-task-form (taskCreated)="onTaskCreated(taskList, $event)"></app-task-form>
     </section>
 
-    <section class="tasks-section">
-      <app-task-list #taskList></app-task-list>
+    <section id="my-tasks" class="tasks-section">
+      <app-task-list #taskList (historyChanged)="taskHistory.loadHistory()"></app-task-list>
     </section>
 
+    <section id="task-history" class="history-section" aria-labelledby="history-heading">
+      <app-task-history #taskHistory></app-task-history>
+    </section>
   </main>
-
 </div>

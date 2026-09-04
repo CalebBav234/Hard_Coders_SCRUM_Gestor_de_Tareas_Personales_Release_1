@@ -1,6 +1,8 @@
 package com.hardcoders.taskmanager.service;
 
+import com.hardcoders.taskmanager.dto.TaskHistoryResponse;
 import com.hardcoders.taskmanager.dto.TaskResponse;
+import com.hardcoders.taskmanager.dto.TaskStatusHistoryResponse;
 import com.hardcoders.taskmanager.dto.UpdateTaskRequest;
 import com.hardcoders.taskmanager.entity.Task;
 import com.hardcoders.taskmanager.exception.InvalidTaskStateException;
@@ -14,7 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -150,21 +157,96 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> listTasks() {
-        return taskRepository.findSummaries().stream()
+        return listTasks("");
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> listTasks(String query) {
+        String searchPattern = toSearchPattern(query);
+        List<Object[]> rows = searchPattern == null
+                ? taskRepository.findSummaries()
+                : taskRepository.findSummariesBySearchPattern(searchPattern);
+        return rows.stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    private void verifyVersion(Long taskId, Long expectedVersion, Long actualVersion) {
-        if (expectedVersion != null && !expectedVersion.equals(actualVersion)) {
-            throw new OptimisticLockConflictException(taskId, expectedVersion, actualVersion);
+    @Transactional(readOnly = true)
+    public List<TaskHistoryResponse> listHistory(String query) {
+        String searchPattern = toSearchPattern(query);
+        List<Object[]> archivedRows = searchPattern == null
+                ? taskRepository.findArchivedSummaries()
+                : taskRepository.findArchivedSummariesBySearchPattern(searchPattern);
+        if (archivedRows.isEmpty()) {
+            return List.of();
         }
+
+        List<Long> taskIds = archivedRows.stream()
+                .map(row -> toLong(unwrap(row)[0]))
+                .toList();
+        Map<Long, List<TaskStatusHistoryResponse>> eventsByTask = new HashMap<>();
+        for (Object[] rawEvent : taskRepository.findHistoryEventsByTaskIds(taskIds)) {
+            Object[] event = unwrap(rawEvent);
+            Long taskId = toLong(event[1]);
+            eventsByTask.computeIfAbsent(taskId, ignored -> new ArrayList<>())
+                    .add(new TaskStatusHistoryResponse(
+                            toLong(event[0]),
+                            (String) event[2],
+                            (String) event[3],
+                            (String) event[4],
+                            toInstant(event[5])));
+        }
+
+        return archivedRows.stream()
+                .map(row -> toHistoryResponse(row, eventsByTask))
+                .toList();
     }
 
-    private TaskResponse toResponse(Object[] row) {
-        if (row.length == 1 && row[0] instanceof Object[] inner) {
-            row = inner;
+    private TaskHistoryResponse toHistoryResponse(
+            Object[] rawRow,
+            Map<Long, List<TaskStatusHistoryResponse>> eventsByTask) {
+        Object[] row = unwrap(rawRow);
+        Long taskId = toLong(row[0]);
+        return new TaskHistoryResponse(
+                taskId,
+                (String) row[1],
+                (String) row[2],
+                (String) row[3],
+                (String) row[4],
+                toLong(row[5]),
+                (String) row[6],
+                toLong(row[7]),
+                toInstant(row[8]),
+                toInstant(row[9]),
+                toLong(row[10]),
+                toLong(row[11]),
+                toInstant(row[12]),
+                toInstant(row[13]),
+                toInstant(row[14]),
+                toLong(row[15]),
+                eventsByTask.getOrDefault(taskId, List.of())
+        );
+    }
+
+    static String toSearchPattern(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
         }
+        String normalized = Normalizer.normalize(query.strip(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "")
+                .toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + normalized + "%";
+    }
+
+    private static Object[] unwrap(Object[] row) {
+        return row.length == 1 && row[0] instanceof Object[] inner ? inner : row;
+    }
+
+    private TaskResponse toResponse(Object[] rawRow) {
+        Object[] row = unwrap(rawRow);
         return new TaskResponse(
                 toLong(row[0]),
                 (String) row[1],
@@ -182,6 +264,12 @@ public class TaskService {
                 toInstant(row[13]),
                 toLong(row[14])
         );
+    }
+
+    private void verifyVersion(Long taskId, Long expectedVersion, Long actualVersion) {
+        if (expectedVersion != null && !expectedVersion.equals(actualVersion)) {
+            throw new OptimisticLockConflictException(taskId, expectedVersion, actualVersion);
+        }
     }
 
     private static Long toLong(Object value) {

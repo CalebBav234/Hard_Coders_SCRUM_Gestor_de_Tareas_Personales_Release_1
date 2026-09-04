@@ -1,4 +1,12 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, inject } from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  EventEmitter,
+  OnInit,
+  OnDestroy,
+  Output,
+  inject,
+} from '@angular/core';
 import { Subscription, interval } from 'rxjs';
 import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
@@ -22,6 +30,10 @@ export class TaskList implements OnInit, OnDestroy {
   editingTask: Task | null = null;
   confirmingDelete: Task | null = null;
   busyTaskId: number | null = null;
+  searchDraft = '';
+  activeSearch = '';
+
+  @Output() readonly historyChanged = new EventEmitter<void>();
 
   liveTimes: Record<number, number> = {};
   private timerSub?: Subscription;
@@ -54,7 +66,7 @@ export class TaskList implements OnInit, OnDestroy {
 
   actualizarTiempos(): void {
     let necesitaActualizar = false;
-    this.tasks.forEach(task => {
+    this.tasks.forEach((task) => {
       let extra = 0;
       if (task.status === 'ACTIVA' && task.activatedAt) {
         const start = new Date(task.activatedAt).getTime();
@@ -78,7 +90,7 @@ export class TaskList implements OnInit, OnDestroy {
     if (this.actionsDisabled) return;
     this.loading = true;
     this.error = null;
-    this.taskService.listTasks().subscribe({
+    this.taskService.listTasks(this.activeSearch).subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.actualizarTiempos();
@@ -93,7 +105,30 @@ export class TaskList implements OnInit, OnDestroy {
     });
   }
 
+  searchTasks(event: Event): void {
+    event.preventDefault();
+    if (this.actionsDisabled) return;
+    this.activeSearch = this.searchDraft.trim();
+    this.loadTasks();
+  }
+
+  updateSearchDraft(event: Event): void {
+    this.searchDraft = (event.target as HTMLInputElement).value;
+  }
+
+  clearSearch(): void {
+    if (this.actionsDisabled) return;
+    this.searchDraft = '';
+    this.activeSearch = '';
+    this.loadTasks();
+  }
+
   showCreatedTask(task: Task): void {
+    if (this.activeSearch) {
+      this.searchDraft = '';
+      this.activeSearch = '';
+      this.loadTasks();
+    }
     this.tasks = [task, ...this.tasks.filter((currentTask) => currentTask.id !== task.id)];
     this.actualizarTiempos();
     this.feedback = `Tarea "${task.title}" creada.`;
@@ -110,6 +145,7 @@ export class TaskList implements OnInit, OnDestroy {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" activada.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
         this.loadTasks();
       },
       error: (err) => {
@@ -128,6 +164,7 @@ export class TaskList implements OnInit, OnDestroy {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" completada.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
         this.loadTasks();
       },
       error: (err) => {
@@ -146,6 +183,7 @@ export class TaskList implements OnInit, OnDestroy {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" reabierta.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
         this.loadTasks();
       },
       error: (err) => {
@@ -197,6 +235,7 @@ export class TaskList implements OnInit, OnDestroy {
             : `Categoría de "${task.title}" actualizada.`;
         this.error = null;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
       },
       error: (err) => {
         this.busyTaskId = null;
@@ -226,6 +265,7 @@ export class TaskList implements OnInit, OnDestroy {
     this.feedback = `Tarea "${task.title}" actualizada.`;
     this.error = null;
     this.changeDetector.markForCheck();
+    this.historyChanged.emit();
   }
 
   requestDelete(task: Task): void {
@@ -252,6 +292,7 @@ export class TaskList implements OnInit, OnDestroy {
         this.busyTaskId = null;
         this.feedback = `Tarea "${task.title}" eliminada.`;
         this.changeDetector.markForCheck();
+        this.historyChanged.emit();
       },
       error: (err) => {
         this.busyTaskId = null;

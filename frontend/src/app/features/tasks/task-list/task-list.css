@@ -32,6 +32,24 @@
   font-weight: 600;
 }
 
+.btn-search,
+.btn-clear {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-search {
+  background: #2563eb;
+}
+
+.btn-clear {
+  background: #64748b;
+}
+
 .feedback {
   padding: 12px 14px;
   border-radius: 8px;
@@ -213,8 +231,13 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .task-actions {

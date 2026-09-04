@@ -1,7 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
-import { CategorySummary, Task, TaskPriority, UpdateTaskRequest } from '../models/task';
+import {
+  CategorySummary,
+  Task,
+  TaskHistory,
+  TaskPriority,
+  UpdateTaskRequest,
+} from '../models/task';
 
 @Injectable({
   providedIn: 'root',
@@ -10,8 +16,18 @@ export class TaskService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/tasks';
 
-  listTasks(): Observable<Task[]> {
-    return this.http.get<Task[]>(this.baseUrl).pipe(catchError(this.handleError));
+  listTasks(query = ''): Observable<Task[]> {
+    const q = query.trim();
+    return this.http
+      .get<Task[]>(this.baseUrl, { params: q ? { q } : {} })
+      .pipe(catchError(this.handleError));
+  }
+
+  listHistory(query = ''): Observable<TaskHistory[]> {
+    const q = query.trim();
+    return this.http
+      .get<TaskHistory[]>(`${this.baseUrl}/history`, { params: q ? { q } : {} })
+      .pipe(catchError(this.handleError));
   }
 
   createTask(title: string, priority: TaskPriority, categoryName: string): Observable<Task> {
@@ -66,9 +82,7 @@ export class TaskService {
   }
 
   listCategories(): Observable<CategorySummary[]> {
-    return this.http
-      .get<CategorySummary[]>('/api/categories')
-      .pipe(catchError(this.handleError));
+    return this.http.get<CategorySummary[]>('/api/categories').pipe(catchError(this.handleError));
   }
 
   private handleError(error: unknown): Observable<never> {
