@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.hardcoders.taskmanager.repository.TaskRelationRepository;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,11 +45,14 @@ class TaskServiceTest {
     @Mock
     CategoryService categoryService;
 
+    @Mock
+    TaskRelationRepository taskRelationRepository;
+
     TaskService taskService;
 
     @BeforeEach
     void setUp() {
-        taskService = new TaskService(taskRepository, categoryService);
+        taskService = new TaskService(taskRepository, categoryService, taskRelationRepository);
     }
 
     // Column order matches TaskRepository.SUMMARY_COLUMNS (v_tasks).

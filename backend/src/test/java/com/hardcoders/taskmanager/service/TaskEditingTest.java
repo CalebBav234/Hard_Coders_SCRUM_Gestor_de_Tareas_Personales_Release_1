@@ -13,6 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.hardcoders.taskmanager.repository.TaskRelationRepository;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -25,12 +26,13 @@ import static org.mockito.Mockito.*;
 class TaskEditingTest {
     @Mock TaskRepository repository;
     @Mock CategoryService categoryService;
+    @Mock TaskRelationRepository taskRelationRepository;
     TaskService service;
     final Instant created = Instant.parse("2026-08-20T12:00:00Z");
     final Instant lifecycleTime = Instant.parse("2026-08-20T13:00:00Z");
 
     @BeforeEach
-    void setUp() { service = new TaskService(repository, categoryService); }
+    void setUp() { service = new TaskService(repository, categoryService, taskRelationRepository); }
 
     private Task task(String status) {
         Task task = new Task();

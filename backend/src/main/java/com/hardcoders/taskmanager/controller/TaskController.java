@@ -22,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import com.hardcoders.taskmanager.dto.CreateTaskRelationRequest;
+import com.hardcoders.taskmanager.dto.TaskRelationResponse;
 
 import java.util.List;
 
@@ -98,4 +100,26 @@ public class TaskController {
             @Valid @RequestBody ChangeCategoryRequest request) {
         return ResponseEntity.ok(taskService.changeCategory(id, request.categoryName(), request.version()));
     }
+    
+    @PostMapping("/{id}/relations")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TaskRelationResponse addRelation(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateTaskRelationRequest request) {
+        return taskService.addRelation(id, request);
+    }
+
+    @GetMapping("/{id}/relations")
+    public List<TaskRelationResponse> getRelations(@PathVariable Long id) {
+        return taskService.getRelations(id);
+    }
+
+    @DeleteMapping("/{id}/relations/{relationId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeRelation(
+            @PathVariable Long id,
+            @PathVariable Long relationId) {
+        taskService.removeRelation(id, relationId);
+    }
+
 }

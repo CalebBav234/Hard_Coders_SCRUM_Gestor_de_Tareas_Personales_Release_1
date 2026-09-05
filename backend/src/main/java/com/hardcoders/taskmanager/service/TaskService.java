@@ -13,6 +13,10 @@ import com.hardcoders.taskmanager.exception.TaskHasSubtasksException;
 import com.hardcoders.taskmanager.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.hardcoders.taskmanager.dto.CreateTaskRelationRequest;
+import com.hardcoders.taskmanager.dto.TaskRelationResponse;
+import com.hardcoders.taskmanager.entity.TaskRelation;
+import com.hardcoders.taskmanager.repository.TaskRelationRepository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -30,10 +34,12 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final CategoryService categoryService;
+    private final TaskRelationRepository taskRelationRepository;
 
-    public TaskService(TaskRepository taskRepository, CategoryService categoryService) {
+    public TaskService(TaskRepository taskRepository, CategoryService categoryService, TaskRelationRepository taskRelationRepository) {
         this.taskRepository = taskRepository;
         this.categoryService = categoryService;
+        this.taskRelationRepository = taskRelationRepository;
     }
 
     public TaskResponse create(String title, String priority, String categoryName, Long parentTaskId) {
@@ -251,6 +257,70 @@ public class TaskService {
 
     private static Object[] unwrap(Object[] row) {
         return row.length == 1 && row[0] instanceof Object[] inner ? inner : row;
+    }
+
+    public TaskRelationResponse addRelation(Long sourceTaskId, CreateTaskRelationRequest request) {
+        if (sourceTaskId.equals(request.targetTaskId())) {
+            throw new IllegalArgumentException("Una tarea no puede relacionarse consigo misma");
+        }
+
+        Task sourceTask = findVisibleTask(sourceTaskId);
+        Task targetTask = findVisibleTask(request.targetTaskId());
+
+        String type = request.relationType() != null ? request.relationType() : "RELACIONADA";
+
+        if (taskRelationRepository.existsBySourceTaskIdAndTargetTaskIdAndRelationType(sourceTaskId, targetTask.getId(), type)) {
+            throw new IllegalArgumentException("Esta relación ya existe");
+        }
+
+        TaskRelation relation = new TaskRelation();
+        relation.setSourceTaskId(sourceTask.getId());
+        relation.setTargetTaskId(targetTask.getId());
+        relation.setRelationType(type);
+        relation.setCreatedAt(Instant.now());
+
+        TaskRelation saved = taskRelationRepository.save(relation);
+
+        return new TaskRelationResponse(
+                saved.getId(),
+                targetTask.getId(),
+                targetTask.getTitle(),
+                saved.getRelationType(),
+                saved.getCreatedAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<TaskRelationResponse> getRelations(Long taskId) {
+        findVisibleTask(taskId); 
+        
+        return taskRelationRepository.findBySourceTaskId(taskId).stream()
+                .map(relation -> {
+                    String targetTitle = taskRepository.findById(relation.getTargetTaskId())
+                            .filter(t -> t.getDeletedAt() == null)
+                            .map(Task::getTitle)
+                            .orElse("(Tarea eliminada o no disponible)");
+
+                    return new TaskRelationResponse(
+                            relation.getId(),
+                            relation.getTargetTaskId(),
+                            targetTitle,
+                            relation.getRelationType(),
+                            relation.getCreatedAt()
+                    );
+                })
+                .toList();
+    }
+
+    public void removeRelation(Long taskId, Long relationId) {
+        TaskRelation relation = taskRelationRepository.findById(relationId)
+                .orElseThrow(() -> new IllegalArgumentException("Relación no encontrada"));
+                
+        if (!relation.getSourceTaskId().equals(taskId)) {
+            throw new IllegalArgumentException("La relación no pertenece a esta tarea");
+        }
+        
+        taskRelationRepository.delete(relation);
     }
 
     private TaskResponse toResponse(Object[] rawRow) {

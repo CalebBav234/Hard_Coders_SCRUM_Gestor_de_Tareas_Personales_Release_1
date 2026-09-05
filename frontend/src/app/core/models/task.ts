@@ -1,5 +1,6 @@
 export type TaskStatus = 'INACTIVA' | 'ACTIVA' | 'TERMINADA';
 export type TaskPriority = 'ALTA' | 'MEDIA' | 'BAJA';
+export type RelationType = 'RELACIONADA' | 'BLOQUEA' | 'DEPENDE_DE';
 
 export interface CategorySummary {
   id: number;
@@ -42,4 +43,17 @@ export interface TaskStatusHistory {
 export interface TaskHistory extends Task {
   deletedAt?: string | null;
   events: TaskStatusHistory[];
+}
+
+export interface TaskRelationResponse {
+  id: number;
+  targetTaskId: number;
+  targetTaskTitle: string;
+  relationType: RelationType;
+  createdAt: string;
+}
+
+export interface CreateTaskRelationRequest {
+  targetTaskId: number;
+  relationType: RelationType;
 }

@@ -60,7 +60,7 @@
 
   <div class="tasks">
     @for (task of tasks; track task.id) {
-      <article class="task-card">
+      <article class="task-card" [id]="'task-card-' + task.id">
         <div class="task-info">
           <h3>{{ task.title }}</h3>
           @if (task.description) {
@@ -161,7 +161,7 @@
             [disabled]="actionsDisabled"
           >
             + Subtarea
-          </button> 
+          </button>
 
           <button type="button" class="btn-edit" (click)="edit(task)" [disabled]="actionsDisabled">
             Editar
@@ -181,6 +181,7 @@
             [task]="task"
             (saved)="showUpdatedTask($event)"
             (cancelled)="cancelEdit()"
+            (navigateToTask)="scrollToTask($event)"
           />
         }
 

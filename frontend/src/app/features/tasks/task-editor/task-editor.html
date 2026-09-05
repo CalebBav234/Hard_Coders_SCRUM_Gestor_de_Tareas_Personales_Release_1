@@ -35,9 +35,52 @@
     <option value="BAJA">Baja</option>
   </select>
 
+  <!-- SECCIÓN DE RELACIONES (US-18) -->
+  <div class="relations-section">
+    <h4>Tareas Relacionadas</h4>
+
+    @if (loadingRelations) {
+      <p class="hint">Cargando relaciones...</p>
+    } @else {
+      <div class="chips-container">
+        @for (rel of relations; track rel.id) {
+          <div class="relation-chip">
+            <span class="rel-type">{{ rel.relationType }}</span>
+            <!-- Al hacer clic en el título, navega a esa tarea -->
+            <button type="button" class="link-btn" (click)="navigate(rel.targetTaskId)" title="Ir a la tarea">
+              #{{ rel.targetTaskId }} - {{ rel.targetTaskTitle }}
+            </button>
+            <button type="button" class="delete-chip-btn" (click)="removeRelation(rel.id)" title="Eliminar relación">
+              &times;
+            </button>
+          </div>
+        } @empty {
+          <p class="hint">No hay tareas relacionadas.</p>
+        }
+      </div>
+    }
+
+    <div [formGroup]="relationForm" class="add-relation-form">
+      <input type="number" formControlName="targetTaskId" placeholder="ID de tarea" min="1">
+      <select formControlName="relationType">
+        <option value="RELACIONADA">Relacionada</option>
+        <option value="BLOQUEA">Bloquea</option>
+        <option value="DEPENDE_DE">Depende de</option>
+      </select>
+      <button type="button" class="secondary" (click)="addRelation()" [disabled]="relationForm.invalid || addingRelation">
+        Añadir
+      </button>
+    </div>
+    @if (relationError) {
+      <p class="error" role="alert">{{ relationError }}</p>
+    }
+  </div>
+  <!-- FIN SECCIÓN DE RELACIONES -->
+
   @if (error) {
     <p class="error" role="alert">{{ error }}</p>
   }
+
   <div class="actions">
     <button type="submit" [disabled]="saving">
       {{ saving ? 'Guardando...' : 'Guardar cambios' }}

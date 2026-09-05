@@ -1,69 +1,86 @@
-:host {
-  display: block;
-  width: 100%;
+.relations-section {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
 }
-form {
-  border-top: 1px solid #d1d5db;
-  padding-top: 18px;
-}
-h4 {
-  margin: 0 0 8px;
-  color: #111827;
-}
-label {
-  display: block;
+
+.relations-section h4 {
+  margin-top: 0;
   font-size: 14px;
-  font-weight: 600;
-  margin: 14px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
 }
-input,
-textarea,
-select {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #9ca3af;
-  border-radius: 6px;
-  font: inherit;
-  background: white;
-  color: #111827;
-}
-textarea {
-  resize: vertical;
-}
-.hint {
-  color: #4b5563;
-  font-size: 13px;
-  margin: 6px 0;
-}
-.error {
-  color: #b91c1c;
-  font-size: 14px;
-}
-.actions {
+
+.chips-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
-button {
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 6px;
-  background: #2563eb;
+
+.relation-chip {
+  display: inline-flex;
+  align-items: center;
+  background-color: #e0e7ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.rel-type {
+  background-color: #3b82f6;
   color: white;
-  cursor: pointer;
+  padding: 4px 8px;
   font-weight: 600;
+  font-size: 11px;
 }
-button.secondary {
-  background: #e5e7eb;
-  color: #1f2937;
+
+.link-btn {
+  background: none;
+  border: none;
+  color: #1e3a8a;
+  padding: 4px 8px;
+  margin: 0;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
 }
-button:disabled {
-  opacity: 0.6;
-  cursor: wait;
+
+.link-btn:hover {
+  color: #1e40af;
+  background-color: #dbeafe;
 }
-:is(input, textarea, select, button):focus-visible {
-  outline: 3px solid #2563eb;
-  outline-offset: 3px;
+
+.delete-chip-btn {
+  background: none;
+  border: none;
+  color: #6b7280;
+  padding: 4px 8px;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.delete-chip-btn:hover {
+  color: #ef4444;
+  background-color: #fee2e2;
+}
+
+.add-relation-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.add-relation-form input[type="number"] {
+  width: 120px;
+}
+
+.add-relation-form select {
+  width: 140px;
 }

@@ -3,9 +3,11 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
 import {
   CategorySummary,
+  CreateTaskRelationRequest,
   Task,
   TaskHistory,
   TaskPriority,
+  TaskRelationResponse,
   UpdateTaskRequest,
 } from '../models/task';
 
@@ -32,7 +34,7 @@ export class TaskService {
 
   createTask(title: string, priority: TaskPriority, categoryName: string, parentTaskId?: number | null): Observable<Task> {
     return this.http
-      .post<Task>(this.baseUrl, { title, priority, categoryName,parentTaskId: parentTaskId ?? null })
+      .post<Task>(this.baseUrl, { title, priority, categoryName, parentTaskId: parentTaskId ?? null })
       .pipe(catchError(this.handleError));
   }
 
@@ -83,6 +85,26 @@ export class TaskService {
 
   listCategories(): Observable<CategorySummary[]> {
     return this.http.get<CategorySummary[]>('/api/categories').pipe(catchError(this.handleError));
+  }
+
+  // --- Nuevos métodos para Relaciones de Tareas (US-18) ---
+
+  getRelations(taskId: number): Observable<TaskRelationResponse[]> {
+    return this.http
+      .get<TaskRelationResponse[]>(`${this.baseUrl}/${taskId}/relations`)
+      .pipe(catchError(this.handleError));
+  }
+
+  addRelation(taskId: number, request: CreateTaskRelationRequest): Observable<TaskRelationResponse> {
+    return this.http
+      .post<TaskRelationResponse>(`${this.baseUrl}/${taskId}/relations`, request)
+      .pipe(catchError(this.handleError));
+  }
+
+  removeRelation(taskId: number, relationId: number): Observable<void> {
+    return this.http
+      .delete<void>(`${this.baseUrl}/${taskId}/relations/${relationId}`)
+      .pipe(catchError(this.handleError));
   }
 
   private handleError(error: unknown): Observable<never> {

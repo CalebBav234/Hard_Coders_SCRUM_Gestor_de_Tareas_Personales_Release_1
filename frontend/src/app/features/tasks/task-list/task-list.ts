@@ -12,7 +12,7 @@ import { Task } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 import { TaskEditor } from '../task-editor/task-editor';
 import { TimeFormatPipe } from '../../../core/pipes/time-format.pipe';
-import { TaskForm } from '../task-form/task-form'; 
+import { TaskForm } from '../task-form/task-form';
 
 @Component({
   selector: 'app-task-list',
@@ -332,6 +332,35 @@ export class TaskList implements OnInit, OnDestroy {
     });
   }
 
+  scrollToTask(taskId: number): void {
+    if (this.activeSearch) {
+        this.clearSearch();
+    }
+
+    setTimeout(() => {
+        const taskElement = document.getElementById('task-card-' + taskId);
+        if (taskElement) {
+            taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            taskElement.style.transition = 'background-color 0.5s ease';
+            taskElement.style.backgroundColor = '#dbeafe';
+            setTimeout(() => {
+                taskElement.style.backgroundColor = '';
+            }, 1500);
+
+            const taskToEdit = this.tasks.find(t => t.id === taskId);
+            if (taskToEdit) {
+                this.editingTask = null;
+                this.edit(taskToEdit);
+                this.changeDetector.markForCheck();
+            }
+        } else {
+            this.error = `La tarea relacionada #${taskId} no está cargada en esta vista.`;
+            this.changeDetector.markForCheck();
+        }
+    }, 50);
+  }
+
   clearFeedback(): void {
     this.feedback = null;
     this.error = null;
@@ -350,7 +379,7 @@ export class TaskList implements OnInit, OnDestroy {
       } else {
         this.error = 'La tarea seleccionada ya no existe. La lista se ha actualizado.';
       }
-      this.loadTasks(); 
+      this.loadTasks();
       break;
 
     case 409:
@@ -359,7 +388,7 @@ export class TaskList implements OnInit, OnDestroy {
 
     case 412:
       this.error = 'La tarea cambió de estado en el servidor. La lista se ha actualizado.';
-      this.loadTasks(); 
+      this.loadTasks();
       break;
 
     default:
