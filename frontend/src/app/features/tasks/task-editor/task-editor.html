@@ -1,92 +1,165 @@
-<form [formGroup]="form" (ngSubmit)="save()" [attr.aria-busy]="saving" aria-label="Editar tarea">
-  <h4>Editar tarea</h4>
-  <p class="hint">El estado, las fechas y el tiempo activo se conservan.</p>
+<form
+  class="task-editor-form"
+  [formGroup]="form"
+  (ngSubmit)="save()"
+  novalidate
+>
 
-  <label [for]="'edit-title-' + task.id">Título</label>
-  <input
-    [id]="'edit-title-' + task.id"
-    formControlName="title"
-    maxlength="160"
-    [attr.aria-invalid]="form.controls.title.touched && form.controls.title.invalid"
-    [attr.aria-describedby]="'title-help-' + task.id"
-  />
-  <p class="hint" [id]="'title-help-' + task.id">Obligatorio, máximo 160 caracteres.</p>
-  @if (form.controls.title.touched && form.controls.title.invalid) {
-    <p class="error" role="alert">Escribe un título de 1 a 160 caracteres, no solo espacios.</p>
-  }
+  <!-- TÍTULO -->
 
-  <label [for]="'edit-description-' + task.id">Descripción</label>
-  <textarea
-    [id]="'edit-description-' + task.id"
-    formControlName="description"
-    rows="4"
-    maxlength="4000"
-    [attr.aria-describedby]="'description-help-' + task.id"
-  ></textarea>
-  <p class="hint" [id]="'description-help-' + task.id">Opcional, máximo 4000 caracteres.</p>
-  @if (form.controls.description.touched && form.controls.description.invalid) {
-    <p class="error" role="alert">La descripción no puede superar 4000 caracteres.</p>
-  }
+  <div class="editor-field">
+    <label for="task-title">
+      Título
+    </label>
 
-  <label [for]="'edit-priority-' + task.id">Prioridad</label>
-  <select [id]="'edit-priority-' + task.id" formControlName="priority">
-    <option value="ALTA">Alta</option>
-    <option value="MEDIA">Media</option>
-    <option value="BAJA">Baja</option>
-  </select>
+    <input
+      id="task-title"
+      type="text"
+      formControlName="title"
+      placeholder="Escribe el título de la tarea"
+      autocomplete="off"
+    />
 
-  <!-- SECCIÓN DE RELACIONES (US-18) -->
-  <div class="relations-section">
-    <h4>Tareas Relacionadas</h4>
-
-    @if (loadingRelations) {
-      <p class="hint">Cargando relaciones...</p>
-    } @else {
-      <div class="chips-container">
-        @for (rel of relations; track rel.id) {
-          <div class="relation-chip">
-            <span class="rel-type">{{ rel.relationType }}</span>
-            <!-- Al hacer clic en el título, navega a esa tarea -->
-            <button type="button" class="link-btn" (click)="navigate(rel.targetTaskId)" title="Ir a la tarea">
-              #{{ rel.targetTaskId }} - {{ rel.targetTaskTitle }}
-            </button>
-            <button type="button" class="delete-chip-btn" (click)="removeRelation(rel.id)" title="Eliminar relación">
-              &times;
-            </button>
-          </div>
-        } @empty {
-          <p class="hint">No hay tareas relacionadas.</p>
-        }
-      </div>
-    }
-
-    <div [formGroup]="relationForm" class="add-relation-form">
-      <input type="number" formControlName="targetTaskId" placeholder="ID de tarea" min="1">
-      <select formControlName="relationType">
-        <option value="RELACIONADA">Relacionada</option>
-        <option value="BLOQUEA">Bloquea</option>
-        <option value="DEPENDE_DE">Depende de</option>
-      </select>
-      <button type="button" class="secondary" (click)="addRelation()" [disabled]="relationForm.invalid || addingRelation">
-        Añadir
-      </button>
-    </div>
-    @if (relationError) {
-      <p class="error" role="alert">{{ relationError }}</p>
+    @if (
+      form.controls.title.invalid &&
+      form.controls.title.touched
+    ) {
+      <small class="field-error">
+        El título es obligatorio y debe tener un máximo de 160 caracteres.
+      </small>
     }
   </div>
-  <!-- FIN SECCIÓN DE RELACIONES -->
+
+
+  <!-- DESCRIPCIÓN -->
+
+  <div class="editor-field">
+    <label for="task-description">
+      Descripción
+    </label>
+
+    <textarea
+      id="task-description"
+      formControlName="description"
+      rows="5"
+      placeholder="Describe la tarea..."
+    ></textarea>
+
+    @if (
+      form.controls.description.invalid &&
+      form.controls.description.touched
+    ) {
+      <small class="field-error">
+        La descripción no puede superar los 4000 caracteres.
+      </small>
+    }
+  </div>
+
+
+  <!-- PRIORIDAD + CATEGORÍA -->
+
+  <div class="editor-fields-row">
+
+    <!-- PRIORIDAD -->
+
+    <div class="editor-field">
+      <label for="task-priority">
+        Prioridad
+      </label>
+
+      <select
+        id="task-priority"
+        formControlName="priority"
+      >
+        <option value="ALTA">
+          Alta
+        </option>
+
+        <option value="MEDIA">
+          Media
+        </option>
+
+        <option value="BAJA">
+          Baja
+        </option>
+      </select>
+    </div>
+
+
+    <!-- CATEGORÍA -->
+
+    <div class="editor-field">
+      <label for="task-category">
+        Categoría
+      </label>
+
+      <select
+        id="task-category"
+        formControlName="categoryName"
+      >
+
+        <option value="">
+          Sin categoría
+        </option>
+
+        @for (category of categories; track category.id) {
+          <option [value]="category.name">
+            {{ category.name }}
+          </option>
+        }
+
+      </select>
+
+      @if (loadingCategories) {
+        <small class="field-hint">
+          Cargando categorías...
+        </small>
+      }
+
+      @if (categoryError) {
+        <small class="field-error">
+          {{ categoryError }}
+        </small>
+      }
+    </div>
+
+  </div>
+
+
+  <!-- ERROR GENERAL -->
 
   @if (error) {
-    <p class="error" role="alert">{{ error }}</p>
+    <div class="editor-error">
+      {{ error }}
+    </div>
   }
 
-  <div class="actions">
-    <button type="submit" [disabled]="saving">
-      {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+
+  <!-- ACCIONES -->
+
+  <div class="editor-actions">
+
+    <button
+      type="button"
+      class="btn-editor-cancel"
+      (click)="cancel()"
+      [disabled]="saving"
+    >
+      Cancelar
     </button>
-    <button type="button" class="secondary" [disabled]="saving" (click)="cancel()">
-      Cancelar edición
+
+    <button
+      type="submit"
+      class="btn-editor-save"
+      [disabled]="saving || form.invalid"
+    >
+      @if (saving) {
+        Guardando...
+      } @else {
+        Guardar cambios
+      }
     </button>
+
   </div>
+
 </form>

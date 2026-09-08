@@ -1,262 +1,1172 @@
-<div class="task-list">
-  <div class="list-header">
+<div class="task-list-page">
+
+  <!-- =========================================================
+       ENCABEZADO
+       ========================================================= -->
+
+  <header class="page-header">
+
     <div>
-      <h2>Mis tareas</h2>
-      <p>Consulta las tareas registradas.</p>
+      <h1 class="page-title">
+        Mis tareas
+
+        <span class="task-count">
+          {{ parentTasks.length }}
+        </span>
+      </h1>
+
+      <p class="page-subtitle">
+        Organiza, activa y completa tus tareas.
+      </p>
     </div>
 
-    <span class="task-count"> {{ tasks.length }} tareas </span>
-    <button type="button" class="btn-refresh" (click)="loadTasks()" [disabled]="actionsDisabled">
-      Actualizar lista
-    </button>
-  </div>
+    <div class="page-header-actions">
 
-  <form class="search-form" role="search" (submit)="searchTasks($event)">
-    <label for="task-search">Buscar por título o descripción</label>
-    <div class="search-controls">
-      <input
-        id="task-search"
-        type="search"
-        maxlength="160"
-        placeholder="Ej.: informe semanal"
-        [value]="searchDraft"
-        (input)="updateSearchDraft($event)"
-        [disabled]="actionsDisabled"
-      />
-      <button type="submit" class="btn-search" [disabled]="actionsDisabled">Buscar</button>
-      @if (activeSearch) {
+      @if (completedTasks.length > 0) {
+
         <button
           type="button"
-          class="btn-clear"
-          (click)="clearSearch()"
-          [disabled]="actionsDisabled"
+          class="btn-completed"
+          (click)="openCompletedAside()"
         >
-          Limpiar
+          ✓ Completadas
+
+          <span class="completed-count">
+            {{ completedTasks.length }}
+          </span>
         </button>
+
       }
-    </div>
-    @if (activeSearch) {
-      <p class="search-summary" role="status">
-        {{ tasks.length }} resultado(s) para “{{ activeSearch }}”
-      </p>
-    }
-  </form>
 
-  @if (feedback) {
-    <div class="alert alert-success" role="status">
-      {{ feedback }}
+      <button
+        type="button"
+        class="btn-refresh"
+        (click)="loadTasks()"
+        [disabled]="loading"
+      >
+        ↻ Actualizar
+      </button>
+
     </div>
+
+  </header>
+
+
+  <!-- =========================================================
+       INDICACIÓN DE SWIPE
+       ========================================================= -->
+
+  <div class="swipe-hint">
+
+    <span class="swipe-hint-delete">
+      ← Desliza para eliminar
+    </span>
+
+    <span class="swipe-hint-complete">
+      Desliza para completar →
+    </span>
+
+  </div>
+
+
+  <!-- =========================================================
+       BUSCADOR
+       ========================================================= -->
+
+  <section class="search-container">
+
+    <form
+      class="search-form"
+      (ngSubmit)="searchTasks()"
+    >
+
+      <input
+        type="text"
+        class="search-input"
+        [(ngModel)]="searchTerm"
+        name="searchTerm"
+        placeholder="Buscar tareas..."
+      />
+
+      <button
+        type="submit"
+        class="btn-search"
+        [disabled]="loading"
+      >
+        Buscar
+      </button>
+
+    </form>
+
+  </section>
+
+
+  <!-- =========================================================
+       MENSAJE DE ÉXITO
+       ========================================================= -->
+
+  @if (successMessage) {
+
+    <div class="alert alert-success">
+      {{ successMessage }}
+    </div>
+
   }
 
-  @if (error) {
-    <div class="alert alert-danger" role="alert">
-      {{ error }}
+
+  <!-- =========================================================
+       MENSAJE DE ERROR
+       ========================================================= -->
+
+  @if (errorMessage) {
+
+    <div class="alert alert-error">
+      {{ errorMessage }}
     </div>
+
   }
+
+
+  <!-- =========================================================
+       CARGANDO
+       ========================================================= -->
 
   @if (loading) {
-    <p class="list-loading">Cargando tareas...</p>
+
+    <div class="empty-state">
+
+      <div class="empty-state-icon">
+        ⏳
+      </div>
+
+      <h3>
+        Cargando tareas...
+      </h3>
+
+      <p>
+        Espera un momento.
+      </p>
+
+    </div>
+
   }
 
-  <div class="tasks">
-    @for (task of tasks; track task.id) {
-      <article class="task-card" [id]="'task-card-' + task.id">
-        <div class="task-info">
-          <h3>{{ task.title }}</h3>
-          @if (task.description) {
-            <p class="task-description">{{ task.description }}</p>
-          }
 
-          <div class="task-details">
-            <span class="status status-{{ task.status }}">
-              {{ task.status }}
+  <!-- =========================================================
+       LISTA DE TAREAS PRINCIPALES
+       ========================================================= -->
+
+  @else if (parentTasks.length > 0) {
+
+    <section class="tasks">
+
+      @for (task of parentTasks; track task.id) {
+
+        <div class="swipe-container">
+
+          <!-- ACCIÓN ELIMINAR -->
+
+          <div
+            class="swipe-action swipe-delete"
+            [class.revealed]="getSwipeOffset(task.id) < -20"
+          >
+
+            <span class="swipe-icon">
+              🗑
             </span>
 
-            <span
-              class="priority priority-{{ task.priority }}"
-              aria-label="Prioridad {{ task.priority }}"
-            >
-              @switch (task.priority) {
-                @case ('ALTA') {
-                  <span class="priority-glyph" aria-hidden="true">▲</span> Alta
-                }
-                @case ('MEDIA') {
-                  <span class="priority-glyph" aria-hidden="true">■</span> Media
-                }
-                @case ('BAJA') {
-                  <span class="priority-glyph" aria-hidden="true">▽</span> Baja
-                }
-              }
-            </span>
+            <strong>
+              ELIMINAR
+            </strong>
 
-            <span class="category-badge" data-testid="task-category">
-              {{ task.categoryName ?? 'Sin categoría' }}
-            </span>
-
-            <input
-              class="category-input"
-              type="text"
-              [value]="task.categoryName ?? ''"
-              placeholder="Sin categoría"
-              maxlength="80"
-              (blur)="saveCategory(task, $event)"
-              (keydown.enter)="saveCategory(task, $event)"
-              [disabled]="actionsDisabled"
-              data-testid="category-input"
-            />
-
-            @if (liveTimes[task.id] > 0 || task.status === 'ACTIVA') {
-              <span class="active-time" [class.is-active]="task.status === 'ACTIVA'">
-                ⏱ {{ liveTimes[task.id] | timeFormat }}
-              </span>
-            }
           </div>
-        </div>
 
-        <div class="task-actions">
-          @if (task.status === 'INACTIVA') {
-            <button
-              type="button"
-              class="btn-activate"
-              (click)="activate(task)"
-              [disabled]="actionsDisabled"
-            >
-              Activar
-            </button>
-          }
 
-          @if (task.status === 'ACTIVA') {
-            <button
-              type="button"
-              class="btn-pause"
-              (click)="pause(task)"
-              [disabled]="actionsDisabled"
-            >
-              Pausar
-            </button>
-            <button
-              type="button"
-              class="btn-complete"
-              (click)="complete(task)"
-              [disabled]="actionsDisabled"
-            >
-              Completar
-            </button>
-          }
+          <!-- ACCIÓN COMPLETAR -->
 
-          @if (task.status === 'TERMINADA') {
-            <button
-              type="button"
-              class="btn-reopen"
-              (click)="reopen(task)"
-              [disabled]="actionsDisabled"
-            >
-              Reabrir
-            </button>
-          }
-          <button
-           type="button"
-           class="btn-edit"
-           (click)="startCreatingSubtask(task.id)"
-            [disabled]="actionsDisabled"
+          <div
+            class="swipe-action swipe-complete"
+            [class.revealed]="getSwipeOffset(task.id) > 20"
           >
-            + Subtarea
-          </button>
 
-          <button type="button" class="btn-edit" (click)="edit(task)" [disabled]="actionsDisabled">
-            Editar
-          </button>
-          <button
-            type="button"
-            class="btn-delete"
-            (click)="requestDelete(task)"
-            [disabled]="actionsDisabled"
+            <span class="swipe-icon">
+              ✓
+            </span>
+
+            <strong>
+              COMPLETAR
+            </strong>
+
+          </div>
+
+
+          <!-- TARJETA PRINCIPAL -->
+
+          <article
+            class="task-card"
+            [ngClass]="getTaskColorClass(task.id)"
+            [id]="'task-card-' + task.id"
+            [class.is-swiping]="isSwiping(task.id)"
+            [style.transform]="
+              'translate3d(' +
+              getSwipeOffset(task.id) +
+              'px, 0, 0)'
+            "
+            (pointerdown)="startSwipe($event, task)"
+            (pointermove)="moveSwipe($event, task)"
+            (pointerup)="endSwipe($event, task)"
+            (pointercancel)="cancelSwipe(task.id)"
           >
-            Eliminar
-          </button>
-        </div>
 
-        @if (editingTask?.id === task.id) {
-          <app-task-editor
-            [task]="task"
-            (saved)="showUpdatedTask($event)"
-            (cancelled)="cancelEdit()"
-            (navigateToTask)="scrollToTask($event)"
-          />
-        }
+            <!-- CABECERA -->
 
-        @if (confirmingDelete?.id === task.id) {
-          <section class="delete-confirmation" [attr.aria-labelledby]="'delete-title-' + task.id">
-            <h4 [id]="'delete-title-' + task.id">¿Eliminar "{{ task.title }}"?</h4>
-            <p>
-              Dejará de aparecer en la lista de tareas. Su registro e historial se conservarán en la
-              base de datos.
-            </p>
-            <div class="task-actions">
+            <div class="task-header">
+
+              <h2 class="task-title">
+                {{ task.title }}
+              </h2>
+
+              <span
+                class="task-status"
+                [class.status-activa]="task.status === 'ACTIVA'"
+                [class.status-inactiva]="task.status === 'INACTIVA'"
+                [class.status-terminada]="task.status === 'TERMINADA'"
+              >
+                {{ task.status }}
+              </span>
+
+            </div>
+
+
+            <!-- DESCRIPCIÓN -->
+
+            @if (task.description) {
+
+              <p class="task-description">
+                {{ task.description }}
+              </p>
+
+            }
+
+
+            <!-- INFORMACIÓN -->
+
+            <div class="task-meta">
+
+              <span
+                class="meta-item priority"
+                [class.priority-alta]="task.priority === 'ALTA'"
+                [class.priority-media]="task.priority === 'MEDIA'"
+                [class.priority-baja]="task.priority === 'BAJA'"
+              >
+                Prioridad:
+                {{ task.priority }}
+              </span>
+
+            </div>
+
+
+            <!-- TIEMPO ACTIVO -->
+
+            @if (task.totalActiveSeconds !== undefined) {
+
+              <div class="active-time">
+
+                <span>
+                  Tiempo activo
+                </span>
+
+                <strong>
+                  {{ formatActiveTime(getActiveSeconds(task)) }}
+                </strong>
+
+              </div>
+
+            }
+
+
+            <!-- SUBTAREAS -->
+
+            @if (getSubtasks(task.id).length > 0) {
+
               <button
                 type="button"
-                class="btn-edit"
-                (click)="cancelDelete()"
-                [disabled]="busyTaskId !== null"
+                class="subtasks-button"
+                (click)="openSubtasksModal(task)"
+                [disabled]="actionsDisabled(task)"
               >
-                Cancelar eliminación
+
+                <span>
+                  ▣ Subtareas
+                </span>
+
+                <span class="subtasks-count">
+                  {{ getSubtasks(task.id).length }}
+                </span>
+
               </button>
+
+            }
+
+
+            <!-- BOTONES DE ACCIÓN -->
+
+            <div class="task-actions">
+
+              @if (task.status === 'INACTIVA') {
+
+                <button
+                  type="button"
+                  (click)="activate(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ▶ Activar
+                </button>
+
+              }
+
+              @if (task.status === 'ACTIVA') {
+
+                <button
+                  type="button"
+                  (click)="pause(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ⏸ Pausar
+                </button>
+
+                <button
+                  type="button"
+                  (click)="complete(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ✓ Completar
+                </button>
+
+              }
+
+              @if (task.status === 'TERMINADA') {
+
+                <button
+                  type="button"
+                  class="btn-reopen"
+                  (click)="reopen(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ↻ Reabrir tarea
+                </button>
+
+              }
+
+
+              <!-- CREAR SUBTAREA -->
+
+              <button
+                type="button"
+                (click)="createSubtask(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                ＋ Subtarea
+              </button>
+
+
+              <!-- EDITAR TAREA PRINCIPAL -->
+
+              <button
+                type="button"
+                (click)="editTask(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                ✎ Editar
+              </button>
+
+
+              <!-- ELIMINAR -->
+
               <button
                 type="button"
                 class="btn-delete"
-                (click)="confirmDelete()"
-                [disabled]="busyTaskId !== null"
+                (click)="requestDelete(task)"
+                [disabled]="actionsDisabled(task)"
               >
-                {{ busyTaskId === task.id ? 'Eliminando...' : 'Confirmar eliminación' }}
+                🗑 Eliminar
               </button>
+
             </div>
-          </section>
-        }
-        @if (getSubtasks(task.id).length > 0) {
-        <div class="subtasks-container" style="margin-top: 1rem; margin-left: 2rem; border-left: 2px solid #ccc; padding-left: 1rem;">
-          <h4>Subtareas</h4>
-          @for (subtask of getSubtasks(task.id); track subtask.id) {
-            <article class="task-card subtask-card" style="margin-bottom: 0.5rem; background: #f9f9f9;">
-              <div class="task-info">
-                <h5>{{ subtask.title }}</h5>
-                <div class="task-details">
-                  <span class="status status-{{ subtask.status }}">{{ subtask.status }}</span>
-                  <span class="priority priority-{{ subtask.priority }}">{{ subtask.priority }}</span>
+
+
+            <!-- CONFIRMACIÓN DE ELIMINACIÓN -->
+
+            @if (confirmingDelete === task.id) {
+
+              <section class="delete-confirmation">
+
+                <div class="delete-warning-icon">
+                  ⚠
                 </div>
-              </div>
-              <div class="task-actions">
-                @if (subtask.status === 'INACTIVA') {
-                  <button type="button" class="btn-activate" (click)="activate(subtask)" [disabled]="actionsDisabled">Activar</button>
-                }
-                @if (subtask.status === 'ACTIVA') {
-                  <button type="button" class="btn-pause" (click)="pause(subtask)" [disabled]="actionsDisabled">Pausar</button>
-                  <button type="button" class="btn-complete" (click)="complete(subtask)" [disabled]="actionsDisabled">Completar</button>
-                }
-                <button type="button" class="btn-delete" (click)="requestDelete(subtask)" [disabled]="actionsDisabled">Eliminar</button>
-              </div>
-            </article>
-          }
+
+                <div class="delete-warning-content">
+
+                  <h4>
+                    ¿Eliminar "{{ task.title }}"?
+                  </h4>
+
+                  <p>
+                    La tarea dejará de aparecer
+                    en la lista.
+                    Su historial se conservará.
+                  </p>
+
+                </div>
+
+                <div class="delete-confirmation-actions">
+
+                  <button
+                    type="button"
+                    class="btn-cancel-delete"
+                    (click)="cancelDelete()"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-confirm-delete"
+                    (click)="deleteTask(task)"
+                    [disabled]="busyTaskId === task.id"
+                  >
+                    Eliminar
+                  </button>
+
+                </div>
+
+              </section>
+
+            }
+
+          </article>
+
         </div>
+
+      }
+
+    </section>
+
+  }
+
+
+  <!-- =========================================================
+       SIN TAREAS
+       ========================================================= -->
+
+  @else {
+
+    <div class="empty-state">
+
+      <div class="empty-state-icon">
+        📝
+      </div>
+
+      <h3>
+        No hay tareas
+      </h3>
+
+      <p>
+        Crea una tarea para comenzar a organizar
+        tu trabajo.
+      </p>
+
+    </div>
+
+  }
+
+
+  <!-- =========================================================
+       ASIDE DE TAREAS COMPLETADAS
+       ========================================================= -->
+
+  @if (completedAsideOpen) {
+
+    <div
+      class="completed-overlay"
+      (click)="closeCompletedAside()"
+    ></div>
+
+    <aside
+      class="completed-aside"
+      aria-label="Tareas completadas"
+    >
+
+      <header class="completed-aside-header">
+
+        <div>
+
+          <h2>
+            Tareas completadas
+          </h2>
+
+          <p>
+            {{ completedTasks.length }}
+            tarea(s) terminada(s)
+          </p>
+
+        </div>
+
+        <button
+          type="button"
+          class="completed-aside-close"
+          aria-label="Cerrar tareas completadas"
+          (click)="closeCompletedAside()"
+        >
+          ×
+        </button>
+
+      </header>
+
+
+      <div class="completed-aside-content">
+
+        @for (task of completedTasks; track task.id) {
+
+          <article class="completed-task">
+
+            <div class="completed-task-check">
+              ✓
+            </div>
+
+            <div class="completed-task-content">
+
+              <!-- IDENTIFICADOR DEL TIPO DE TAREA -->
+
+              @if (task.parentTaskId) {
+
+                <span class="completed-task-type subtask-type">
+                  SUBTAREA
+                </span>
+
+              } @else {
+
+                <span class="completed-task-type main-task-type">
+                  TAREA PRINCIPAL
+                </span>
+
+              }
+
+
+              <!-- TÍTULO -->
+
+              <h3>
+                {{ task.title }}
+              </h3>
+
+
+              <!-- TAREA PRINCIPAL DE LA SUBTAREA -->
+
+              @if (task.parentTaskId) {
+
+                @if (getParentTask(task); as parentTask) {
+
+                  <p class="completed-parent-task">
+                    Tarea principal:
+                    <strong>
+                      {{ parentTask.title }}
+                    </strong>
+                  </p>
+
+                }
+
+              }
+
+
+              <!-- DESCRIPCIÓN -->
+
+              @if (task.description) {
+
+                <p>
+                  {{ task.description }}
+                </p>
+
+              }
+
+
+              <!-- INFORMACIÓN -->
+
+              <div class="completed-task-meta">
+
+                <span
+                  class="completed-priority"
+                  [class.priority-alta]="task.priority === 'ALTA'"
+                  [class.priority-media]="task.priority === 'MEDIA'"
+                  [class.priority-baja]="task.priority === 'BAJA'"
+                >
+                  {{ task.priority }}
+                </span>
+
+                @if (task.categoryName) {
+
+                  <span>
+                    {{ task.categoryName }}
+                  </span>
+
+                }
+
+              </div>
+
+
+              <!-- REABRIR -->
+
+              <button
+                type="button"
+                class="btn-reopen"
+                (click)="reopen(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                ↻ Reabrir
+              </button>
+
+            </div>
+
+          </article>
+
+        } @empty {
+
+          <div class="completed-empty">
+
+            <div>
+              ✓
+            </div>
+
+            <h3>
+              No hay tareas completadas
+            </h3>
+
+            <p>
+              Las tareas que completes aparecerán aquí.
+            </p>
+
+          </div>
+
         }
 
-        @if (creatingSubtaskForId === task.id) {
-          <div class="subtask-form">
-            <app-task-form
-              [parentTaskId]="task.id"
-              (taskCreated)="addSubtask($event); cancelCreatingSubtask()"
-              (cancelled)="cancelCreatingSubtask()"
-            />
+      </div>
+
+    </aside>
+
+  }
+
+
+  <!-- =========================================================
+       POPUP DE SUBTAREAS
+       ========================================================= -->
+
+  @if (subtasksModalParent) {
+
+    <div
+      class="subtasks-modal-overlay"
+      (click)="closeSubtasksModal()"
+    >
+
+      <section
+        class="subtasks-modal"
+        role="dialog"
+        aria-modal="true"
+        [attr.aria-label]="
+          'Subtareas de ' +
+          subtasksModalParent.title
+        "
+        (click)="$event.stopPropagation()"
+      >
+
+        <!-- =====================================================
+             VISTA LISTA
+             ===================================================== -->
+
+        @if (subtaskModalMode === 'list') {
+
+          <div class="subtasks-modal-header">
+
+            <div>
+
+              <h2>
+                Subtareas
+              </h2>
+
+              <p>
+                Subtareas de "{{ subtasksModalParent.title }}"
+              </p>
+
+            </div>
+
+
+            <!-- BOTÓN ÚNICO DE NUEVA SUBTAREA -->
+
+            <div class="subtasks-modal-header-actions">
+
+              <button
+                type="button"
+                class="btn-new-subtask"
+                (click)="openCreateSubtask()"
+              >
+                + Nueva subtarea
+              </button>
+
+              <button
+                type="button"
+                class="subtasks-modal-close"
+                (click)="closeSubtasksModal()"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+
+            </div>
+
           </div>
+
+
+          <div class="subtasks-modal-content">
+
+            <div class="subtasks-modal-summary">
+
+              {{ getSubtasks(subtasksModalParent.id).length }}
+              subtarea(s)
+
+            </div>
+
+
+            <section class="subtasks-modal-grid">
+
+              @for (
+                subtask of getSubtasks(subtasksModalParent.id);
+                track subtask.id
+              ) {
+                <!-- CONTENEDOR SWIPE -->
+
+                <div class="subtask-swipe-container">
+
+                  <!-- SWIPE ELIMINAR -->
+
+                  <div
+                    class="subtask-swipe-actions subtask-swipe-delete"
+                    [class.revealed]="getSwipeOffset(subtask.id) < -20"
+                  >
+
+                    <span>
+                      🗑
+                    </span>
+
+                    <strong>
+                      ELIMINAR
+                    </strong>
+
+                  </div>
+
+
+                  <!-- SWIPE COMPLETAR -->
+
+                  <div
+                    class="subtask-swipe-actions subtask-swipe-complete"
+                    [class.revealed]="getSwipeOffset(subtask.id) > 20"
+                  >
+
+                    <span>
+                      ✓
+                    </span>
+
+                    <strong>
+                      COMPLETAR
+                    </strong>
+
+                  </div>
+
+
+                  <!-- SUBTAREA -->
+
+                  <article
+                    class="subtask-postit"
+                    [ngClass]="getTaskColorClass(subtask.id)"
+                    [class.is-swiping]="isSwiping(subtask.id)"
+                    [style.transform]="
+                      'translate3d(' +
+                      getSwipeOffset(subtask.id) +
+                      'px, 0, 0)'
+                    "
+                    (pointerdown)="startSwipe($event, subtask)"
+                    (pointermove)="moveSwipe($event, subtask)"
+                    (pointerup)="endSwipe($event, subtask)"
+                    (pointercancel)="cancelSwipe(subtask.id)"
+                  >
+
+                    <!-- CABECERA SUBTAREA -->
+
+                    <header class="subtask-postit-header">
+
+                      <h3>
+                        {{ subtask.title }}
+                      </h3>
+
+                      <span
+                        class="task-status"
+                        [class.status-activa]="subtask.status === 'ACTIVA'"
+                        [class.status-inactiva]="subtask.status === 'INACTIVA'"
+                        [class.status-terminada]="subtask.status === 'TERMINADA'"
+                      >
+                        {{ subtask.status }}
+                      </span>
+
+                    </header>
+
+
+                    <!-- DESCRIPCIÓN -->
+
+                    @if (subtask.description) {
+
+                      <p class="subtask-postit-description">
+                        {{ subtask.description }}
+                      </p>
+
+                    }
+
+
+                    <!-- INFORMACIÓN -->
+
+                    <div class="task-meta">
+
+                      <span
+                        class="meta-item priority"
+                        [class.priority-alta]="subtask.priority === 'ALTA'"
+                        [class.priority-media]="subtask.priority === 'MEDIA'"
+                        [class.priority-baja]="subtask.priority === 'BAJA'"
+                      >
+                        Prioridad:
+                        {{ subtask.priority }}
+                      </span>
+
+                    </div>
+
+
+                    <!-- TIEMPO ACTIVO -->
+
+                    @if (subtask.totalActiveSeconds !== undefined) {
+
+                      <div class="active-time">
+
+                        <span>
+                          Tiempo activo
+                        </span>
+
+                        <strong>
+                          {{ formatActiveTime(getActiveSeconds(subtask)) }}
+                        </strong>
+
+                      </div>
+
+                    }
+
+
+                    <!-- EDITOR DE CATEGORÍA -->
+
+                    @if (editingCategoryId === subtask.id) {
+
+                      <div class="subtask-category-editor">
+
+                        <select
+                          [(ngModel)]="selectedCategoryName"
+                          name="subtask-category-{{ subtask.id }}"
+                        >
+
+                          <option [ngValue]="null">
+                            Sin categoría
+                          </option>
+
+                          @for (category of categories; track category.id) {
+
+                            <option [ngValue]="category.name">
+                              {{ category.name }}
+                            </option>
+
+                          }
+
+                        </select>
+
+
+                        <div class="category-editor-actions">
+
+                          <button
+                            type="button"
+                            (click)="saveCategory(subtask)"
+                            [disabled]="busyTaskId === subtask.id"
+                          >
+                            Guardar
+                          </button>
+
+                          <button
+                            type="button"
+                            (click)="cancelCategoryEdit()"
+                            [disabled]="busyTaskId === subtask.id"
+                          >
+                            Cancelar
+                          </button>
+
+                        </div>
+
+                      </div>
+
+                    }
+
+
+                    <!-- ACCIONES SUBTAREA -->
+
+                    <div class="subtask-postit-actions">
+
+                      @if (subtask.status === 'INACTIVA') {
+
+                        <button
+                          type="button"
+                          (click)="activate(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ▶ Activar
+                        </button>
+
+                      }
+
+                      @if (subtask.status === 'ACTIVA') {
+
+                        <button
+                          type="button"
+                          (click)="pause(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ⏸ Pausar
+                        </button>
+
+                        <button
+                          type="button"
+                          (click)="complete(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ✓ Completar
+                        </button>
+
+                      }
+
+                      @if (subtask.status === 'TERMINADA') {
+
+                        <button
+                          type="button"
+                          class="btn-reopen"
+                          (click)="reopen(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ↻ Reabrir
+                        </button>
+
+                      }
+
+
+                      <!-- EDITAR SUBTAREA -->
+
+                      <button
+                        type="button"
+                        (click)="openEditSubtask(subtask)"
+                        [disabled]="actionsDisabled(subtask)"
+                      >
+                        ✎ Editar
+                      </button>
+
+
+                      <!-- ELIMINAR -->
+
+                      <button
+                        type="button"
+                        class="btn-delete"
+                        (click)="requestDelete(subtask)"
+                        [disabled]="actionsDisabled(subtask)"
+                      >
+                        🗑 Eliminar
+                      </button>
+
+                    </div>
+
+
+                    <!-- CONFIRMACIÓN ELIMINAR SUBTAREA -->
+
+                    @if (confirmingDelete === subtask.id) {
+
+                      <section class="subtask-delete-confirm">
+
+                        <div class="delete-warning-icon">
+                          ⚠
+                        </div>
+
+                        <div class="delete-warning-content">
+
+                          <h4>
+                            ¿Eliminar "{{ subtask.title }}"?
+                          </h4>
+
+                          <p>
+                            La subtarea dejará de aparecer
+                            en la lista.
+                            Su historial se conservará.
+                          </p>
+
+                        </div>
+
+                        <div class="delete-confirmation-actions">
+
+                          <button
+                            type="button"
+                            class="btn-cancel-delete"
+                            (click)="cancelDelete()"
+                          >
+                            Cancelar
+                          </button>
+
+                          <button
+                            type="button"
+                            class="btn-confirm-delete"
+                            (click)="deleteTask(subtask)"
+                            [disabled]="busyTaskId === subtask.id"
+                          >
+                            Eliminar
+                          </button>
+
+                        </div>
+
+                      </section>
+
+                    }
+
+                  </article>
+
+                </div>
+
+              } @empty {
+
+                <div class="subtasks-empty-state">
+
+                  <div>
+                    ▣
+                  </div>
+
+                  <h3>
+                    No hay subtareas
+                  </h3>
+
+                  <p>
+                    Crea una subtarea para organizar
+                    mejor esta tarea.
+                  </p>
+
+                </div>
+
+              }
+
+            </section>
+
+          </div>
+
         }
-      </article>
-    } @empty {
-      <p class="empty-message">
-        {{
-          activeSearch
-            ? 'No se encontraron tareas con esa búsqueda.'
-            : 'No hay tareas registradas todavía.'
-        }}
-      </p>
-    }
-  </div>
+
+
+        <!-- =====================================================
+             VISTA CREAR SUBTAREA
+             ===================================================== -->
+
+        @if (subtaskModalMode === 'create') {
+
+          <header class="subtasks-modal-header">
+
+            <div>
+
+              <h2>
+                Nueva subtarea
+              </h2>
+
+              <p>
+                {{ subtasksModalParent.title }}
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              class="subtasks-modal-close"
+              aria-label="Cerrar"
+              (click)="closeSubtasksModal()"
+            >
+              ×
+            </button>
+
+          </header>
+
+
+          <div class="subtask-form-view">
+
+            <app-task-form
+              [parentTaskId]="subtasksModalParent.id"
+              (taskCreated)="onSubtaskCreated($event)"
+              (cancelled)="backToSubtasks()"
+            ></app-task-form>
+
+          </div>
+
+        }
+
+
+        <!-- =====================================================
+             VISTA EDITAR SUBTAREA
+             ===================================================== -->
+
+        @if (
+          subtaskModalMode === 'edit' &&
+          editingSubtask
+        ) {
+
+          <header class="subtasks-modal-header">
+
+            <div>
+
+              <h2>
+                Editar subtarea
+              </h2>
+
+              <p>
+                {{ subtasksModalParent.title }}
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              class="subtasks-modal-close"
+              aria-label="Cerrar"
+              (click)="closeSubtasksModal()"
+            >
+              ×
+            </button>
+
+          </header>
+
+
+          <div class="subtask-form-view">
+
+            <app-task-editor
+              [task]="editingSubtask"
+              (saved)="onSubtaskSaved($event)"
+              (cancelled)="backToSubtasks()"
+            ></app-task-editor>
+
+          </div>
+
+        }
+
+      </section>
+
+    </div>
+
+  }
+
 </div>

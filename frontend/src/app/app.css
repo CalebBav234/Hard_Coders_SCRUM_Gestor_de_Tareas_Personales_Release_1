@@ -1,71 +1,243 @@
-:host {
-  display: block;
-  min-height: 100vh;
-  background: #f4f6f8;
-  color: #1f2937;
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-* {
-  box-sizing: border-box;
-}
-
 .app-container {
-  width: min(1100px, 92%);
+min-height: 100vh;
+width: 100%;
+
+padding: 0 48px 80px;
+
+background: var(--espejismo);
+}
+
+/* =========================================================
+   APP HEADER
+   ========================================================= */
+
+.app-header {
+
+  width: 100%;
+
+  max-width: 1480px;
+
+  height: 76px;
+
   margin: 0 auto;
-  padding: 40px 0 60px;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  /* Mantener el navbar visible al hacer scroll */
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  /* Fondo para que el contenido no se vea por detrás */
+  background: var(--espejismo);
+
+  border-bottom: 1px solid var(--martinica);
+}
+
+/* =========================================================
+HEADER LEFT
+========================================================= */
+
+.app-header-left {
+display: flex;
+align-items: center;
+
+gap: 13px;
+}
+
+.app-logo {
+width: 34px;
+height: 34px;
+
+display: flex;
+align-items: center;
+justify-content: center;
+
+border-radius: 7px;
+
+background: var(--scampi);
+color: #FFFFFF;
+
+font-size: 17px;
+font-weight: 700;
+
+box-shadow:
+0 2px 5px rgba(0, 0, 0, 0.18);
+}
+
+/* =========================================================
+BRAND
+========================================================= */
+
+.app-brand h1 {
+margin: 0;
+
+color: var(--text-primary);
+
+font-size: 25px;
+line-height: 1.2;
+font-weight: 650;
+
+letter-spacing: -0.15px;
+}
+
+.app-brand p {
+margin: 3px 0 0;
+
+color: var(--text-muted);
+
+font-size: 11px;
+line-height: 1.3;
+}
+
+/* =========================================================
+NAVIGATION
+========================================================= */
+
+.section-nav {
+height: 100%;
+
+display: flex;
+align-items: stretch;
+
+gap: 2px;
+}
+
+.nav-link {
+position: relative;
+
+min-width: 112px;
+
+padding: 0 18px;
+
+display: flex;
+align-items: center;
+justify-content: center;
+
+color: var(--text-muted);
+
+font-size: 13px;
+font-weight: 600;
+
+transition:
+color 0.18s ease,
+background-color 0.18s ease;
+}
+
+.nav-link:hover {
+color: var(--text-secondary);
+
+background: rgba(80, 80, 119, 0.16);
+}
+
+.nav-link.active {
+color: var(--text-primary);
+}
+
+.nav-link.active::after {
+content: "";
+
+position: absolute;
+
+left: 18px;
+right: 18px;
+bottom: -1px;
+
+height: 2px;
+
+border-radius: 2px;
+
+background: var(--scampi);
+}
+
+/* =========================================================
+MAIN
+========================================================= */
+
+main {
+width: 100%;
+max-width: 1480px;
+
+margin: 0 auto;
+}
+
+
+/* =========================================================
+HISTORY
+========================================================= */
+
+.history-section {
+width: 100%;
+
+margin-top: 72px;
+padding-top: 44px;
+
+border-top: 1px solid var(--martinica);
+}
+
+/* =========================================================
+RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+.app-container {
+padding: 0 28px 60px;
 }
 
 .app-header {
-  margin-bottom: 32px;
-}
+height: auto;
+min-height: 76px;
 
-.app-header h1 {
-  margin: 0;
-  font-size: 32px;
-  font-weight: 700;
-  color: #111827;
-}
+padding: 16px 0;
 
-.app-header p {
-  margin: 8px 0 0;
-  color: #6b7280;
-  font-size: 16px;
 }
 
 .section-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 20px;
+height: 44px;
 }
 
-.section-nav a {
-  padding: 10px 14px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  color: #1d4ed8;
-  background: #fff;
-  font-weight: 600;
-  text-decoration: none;
+.nav-link {
+min-width: 100px;
+}
 }
 
-.section-nav a:focus-visible {
-  outline: 3px solid #2563eb;
-  outline-offset: 3px;
+@media (max-width: 650px) {
+.app-container {
+padding: 0 16px 45px;
 }
 
-main {
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
+.app-header {
+align-items: flex-start;
+
+flex-direction: column;
+
+gap: 15px;
+
 }
 
-.create-section,
-.tasks-section,
-.history-section {
-  background: white;
-  border-radius: 14px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+.app-header-left {
+width: 100%;
+}
+
+.app-brand p {
+display: none;
+}
+
+.section-nav {
+width: 100%;
+height: 42px;
+}
+
+.nav-link {
+flex: 1;
+min-width: 0;
+}
+
+.create-section {
+margin-top: 28px;
+}
 }

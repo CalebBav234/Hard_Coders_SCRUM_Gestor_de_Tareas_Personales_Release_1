@@ -7,158 +7,209 @@ import {
   Output,
   inject,
 } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Task, TaskPriority, TaskRelationResponse, RelationType } from '../../../core/models/task';
+import {
+  FormBuilder,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+
+import {
+  Task,
+  TaskPriority,
+} from '../../../core/models/task';
+
 import { TaskService } from '../../../core/services/task.service';
 
 @Component({
   selector: 'app-task-editor',
+  standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './task-editor.html',
   styleUrl: './task-editor.css',
 })
 export class TaskEditor implements OnInit {
+
   @Input({ required: true }) task!: Task;
+
   @Output() saved = new EventEmitter<Task>();
   @Output() cancelled = new EventEmitter<void>();
-  @Output() navigateToTask = new EventEmitter<number>();
 
   private readonly taskService = inject(TaskService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly formBuilder = inject(FormBuilder);
 
   readonly form = this.formBuilder.nonNullable.group({
-    title: ['', [Validators.required, Validators.maxLength(160), Validators.pattern(/\S/)]],
-    description: ['', Validators.maxLength(4000)],
+    title: [
+      '',
+      [
+        Validators.required,
+        Validators.maxLength(160),
+        Validators.pattern(/\S/),
+      ],
+    ],
+
+    description: [
+      '',
+      Validators.maxLength(4000),
+    ],
+
     priority: [
       'MEDIA' as TaskPriority,
-      [Validators.required, Validators.pattern(/^(ALTA|MEDIA|BAJA)$/)],
+      [
+        Validators.required,
+        Validators.pattern(/^(ALTA|MEDIA|BAJA)$/),
+      ],
     ],
+
+    categoryName: [''],
   });
 
-  readonly relationForm = this.formBuilder.nonNullable.group({
-    targetTaskId: [0, [Validators.required, Validators.min(1)]],
-    relationType: ['RELACIONADA' as RelationType, Validators.required]
-  });
+  categories: Array<{ id: number; name: string }> = [];
 
+  loadingCategories = false;
   saving = false;
-  error: string | null = null;
 
-  relations: TaskRelationResponse[] = [];
-  loadingRelations = false;
-  relationError: string | null = null;
-  addingRelation = false;
+  error: string | null = null;
+  categoryError: string | null = null;
 
   ngOnInit(): void {
     this.form.setValue({
       title: this.task.title,
       description: this.task.description ?? '',
       priority: this.task.priority,
+      categoryName: this.task.categoryName ?? '',
     });
-    this.loadRelations();
+
+    this.loadCategories();
   }
 
+  loadCategories(): void {
+    this.loadingCategories = true;
+    this.categoryError = null;
 
-  loadRelations(): void {
-    this.loadingRelations = true;
-    this.taskService.getRelations(this.task.id).subscribe({
-      next: (relations) => {
-        this.relations = relations;
-        this.loadingRelations = false;
+    this.taskService.listCategories().subscribe({
+      next: (categories) => {
+        this.categories = categories;
+        this.loadingCategories = false;
+
         this.changeDetector.markForCheck();
       },
+
       error: () => {
-        this.loadingRelations = false;
-        this.relationError = 'No se pudieron cargar las relaciones.';
-        this.changeDetector.markForCheck();
-      }
-    });
-  }
+        this.loadingCategories = false;
+        this.categoryError =
+          'No se pudieron cargar las categorías.';
 
-  addRelation(): void {
-    if (this.relationForm.invalid || this.addingRelation) return;
-
-    this.addingRelation = true;
-    this.relationError = null;
-    const values = this.relationForm.getRawValue();
-
-    this.taskService.addRelation(this.task.id, {
-      targetTaskId: values.targetTaskId,
-      relationType: values.relationType
-    }).subscribe({
-      next: (newRelation) => {
-        this.relations = [...this.relations, newRelation];
-        this.relationForm.reset({ targetTaskId: 0, relationType: 'RELACIONADA' });
-        this.addingRelation = false;
         this.changeDetector.markForCheck();
       },
-      error: (err) => {
-        this.addingRelation = false;
-        this.relationError = err.error?.message || 'Error al añadir relación. Verifica el ID.';
-        this.changeDetector.markForCheck();
-      }
     });
   }
-
-  removeRelation(relationId: number): void {
-    this.relationError = null;
-    this.taskService.removeRelation(this.task.id, relationId).subscribe({
-      next: () => {
-        this.relations = this.relations.filter(r => r.id !== relationId);
-        this.changeDetector.markForCheck();
-      },
-      error: () => {
-        this.relationError = 'Error al eliminar la relación.';
-        this.changeDetector.markForCheck();
-      }
-    });
-  }
-
-  navigate(targetTaskId: number): void {
-    this.navigateToTask.emit(targetTaskId);
-  }
-
 
   save(): void {
-    if (this.saving) return;
+    if (this.saving) {
+      return;
+    }
+
     this.form.markAllAsTouched();
-    if (this.form.invalid) return;
+
+    if (this.form.invalid) {
+      return;
+    }
 
     const values = this.form.getRawValue();
+
+    const categoryName =
+      values.categoryName.trim() === ''
+        ? null
+        : values.categoryName.trim();
+
     this.saving = true;
     this.error = null;
+
     this.form.disable();
+
+    const {
+      categoryName: _categoryName,
+      ...taskValues
+    } = values;
+
     this.taskService
       .updateTask(this.task.id, {
-        ...values,
-        title: values.title.trim(),
-        description: values.description || null,
+        ...taskValues,
+        title: taskValues.title.trim(),
+        description:
+          taskValues.description.trim() === ''
+            ? null
+            : taskValues.description.trim(),
+        priority: taskValues.priority,
         version: this.task.version,
       })
       .subscribe({
-        next: (task) => {
-          this.saving = false;
-          this.saved.emit(task);
-          this.changeDetector.markForCheck();
+        next: (updatedTask) => {
+
+          const categoryChanged =
+            (this.task.categoryName ?? null) !== categoryName;
+
+          if (!categoryChanged) {
+            this.saving = false;
+            this.saved.emit(updatedTask);
+
+            this.changeDetector.markForCheck();
+            return;
+          }
+
+          this.taskService
+            .changeCategory(updatedTask, categoryName)
+            .subscribe({
+              next: () => {
+                const finalTask: Task = {
+                  ...updatedTask,
+                  categoryName: categoryName,
+                };
+
+                this.saving = false;
+                this.saved.emit(finalTask);
+
+                this.changeDetector.markForCheck();
+              },
+
+              error: (err) => {
+                this.saving = false;
+                this.form.enable();
+
+                this.error =
+                  err.error?.message ??
+                  'La tarea se guardó, pero no se pudo actualizar la categoría.';
+
+                this.changeDetector.markForCheck();
+              },
+            });
         },
+
         error: (err) => {
           this.saving = false;
           this.form.enable();
+
           if (err.status === 412) {
             this.error =
               'La tarea cambió mientras la editabas. Conserva tu texto, cancela y actualiza la lista antes de volver a editar.';
           } else if (err.status === 404) {
-            this.error = 'Esta tarea ya no está disponible. Cancela y actualiza la lista.';
+            this.error =
+              'Esta tarea ya no está disponible. Cancela y actualiza la lista.';
           } else {
             this.error =
-              err.error?.message ?? 'No se pudieron guardar los cambios. Inténtalo de nuevo.';
+              err.error?.message ??
+              'No se pudieron guardar los cambios. Inténtalo de nuevo.';
           }
+
           this.changeDetector.markForCheck();
         },
       });
   }
 
   cancel(): void {
-    if (!this.saving) this.cancelled.emit();
+    if (!this.saving) {
+      this.cancelled.emit();
+    }
   }
 }

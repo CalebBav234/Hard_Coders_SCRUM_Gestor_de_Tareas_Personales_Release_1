@@ -25,6 +25,12 @@ export class TaskService {
       .pipe(catchError(this.handleError));
   }
 
+  getTask(id: number): Observable<Task> {
+    return this.http
+      .get<Task>(`${this.baseUrl}/${id}`)
+      .pipe(catchError(this.handleError));
+  }
+
   listHistory(query = ''): Observable<TaskHistory[]> {
     const q = query.trim();
     return this.http

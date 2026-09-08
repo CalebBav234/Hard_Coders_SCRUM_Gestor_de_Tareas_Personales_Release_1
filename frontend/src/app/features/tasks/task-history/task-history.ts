@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { TaskHistory as TaskHistoryModel, TaskStatusHistory } from '../../../core/models/task';
+import { Task,TaskHistory as TaskHistoryModel, TaskStatusHistory } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
 
 @Component({
@@ -14,6 +14,7 @@ export class TaskHistory implements OnInit, OnDestroy {
   private request?: Subscription;
 
   history: TaskHistoryModel[] = [];
+  tasks: Task[] = [];
   loading = false;
   error: string | null = null;
   searchDraft = '';
@@ -21,6 +22,7 @@ export class TaskHistory implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadHistory();
+    this.loadTasks();
   }
 
   ngOnDestroy(): void {
@@ -50,6 +52,22 @@ export class TaskHistory implements OnInit, OnDestroy {
     });
   }
 
+  loadTasks(): void {
+    this.taskService.listTasks().subscribe({
+      next: (tasks) => {
+        this.tasks = tasks;
+        this.changeDetector.markForCheck();
+      },
+
+      error: (error) => {
+        console.error(
+          'Error al cargar tareas para el historial:',
+          error
+        );
+      }
+    });
+  }
+
   searchHistory(event: Event): void {
     event.preventDefault();
     if (this.loading) return;
@@ -66,6 +84,23 @@ export class TaskHistory implements OnInit, OnDestroy {
     this.searchDraft = '';
     this.activeSearch = '';
     this.loadHistory();
+  }
+
+  isSubtask(task: TaskHistoryModel): boolean {
+    return task.parentTaskId != null;
+  }
+
+  getParentTaskTitle(task: TaskHistoryModel): string {
+    if (!task.parentTaskId) {
+      return '';
+    }
+
+    const parentTask = this.tasks.find(
+      (currentTask) =>
+        currentTask.id === task.parentTaskId
+    );
+
+    return parentTask?.title ?? 'Tarea principal no disponible';
   }
 
   archiveLabel(task: TaskHistoryModel): string {
