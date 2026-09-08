@@ -47,6 +47,7 @@ export class TaskList implements OnInit {
   searchTerm = '';
 
   busyTaskId: number | null = null;
+  pausingSubtasksForParentId: number | null = null;
   confirmingDelete: number | null = null;
 
   editingCategoryId: number | null = null;
@@ -611,7 +612,6 @@ private releasePointer(
   // =========================================================
 
   pause(task: Task): void {
-
     if (this.actionsDisabled(task)) {
       return;
     }
@@ -619,43 +619,92 @@ private releasePointer(
     this.busyTaskId = task.id;
     this.clearMessages();
 
-    this.taskService
-      .pause(task)
-      .subscribe({
+    this.taskService.pause(task).subscribe({
+      next: () => {
+        const subtasks = this.getAllSubtasks(task.id);
 
-        next: () => {
+        const activeSubtasks = subtasks.filter(
+          (subtask) => subtask.status === 'ACTIVA'
+        );
 
+        // Si no hay subtareas activas, terminamos.
+        if (activeSubtasks.length === 0) {
           this.successMessage =
             'Tarea pausada correctamente.';
 
           this.busyTaskId = null;
-
           this.loadTasks();
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error pausando tarea:',
-            error
-          );
-
-          this.errorMessage =
-            'No se pudo pausar la tarea.';
-
-          this.busyTaskId = null;
-
-          this.changeDetector.markForCheck();
+          return;
         }
-      });
-  }
 
+        // Bloqueamos inmediatamente todo el grupo.
+        this.pausingSubtasksForParentId = task.id;
+
+        let completed = 0;
+        let hasError = false;
+
+        activeSubtasks.forEach((subtask) => {
+          this.taskService.pause(subtask).subscribe({
+            next: () => {
+              completed++;
+
+              if (completed === activeSubtasks.length) {
+                this.pausingSubtasksForParentId = null;
+                this.busyTaskId = null;
+
+                if (hasError) {
+                  this.errorMessage =
+                    'La tarea se pausó, pero algunas subtareas no pudieron pausarse.';
+                } else {
+                  this.successMessage =
+                    'Tarea y subtareas pausadas correctamente.';
+                }
+
+                this.loadTasks();
+              }
+            },
+
+            error: (error) => {
+              console.error(
+                `Error pausando subtarea ${subtask.id}:`,
+                error
+              );
+
+              hasError = true;
+              completed++;
+
+              if (completed === activeSubtasks.length) {
+                this.pausingSubtasksForParentId = null;
+                this.busyTaskId = null;
+
+                this.errorMessage =
+                  'La tarea se pausó, pero algunas subtareas no pudieron pausarse.';
+
+                this.loadTasks();
+              }
+            }
+          });
+        });
+      },
+
+      error: (error) => {
+        console.error('Error pausando tarea:', error);
+
+        this.errorMessage =
+          'No se pudo pausar la tarea.';
+
+        this.busyTaskId = null;
+        this.pausingSubtasksForParentId = null;
+
+        this.changeDetector.markForCheck();
+      }
+    });
+  }
   // =========================================================
   // COMPLETAR
   // =========================================================
 
   complete(task: Task): void {
-
     if (this.actionsDisabled(task)) {
       return;
     }
@@ -667,39 +716,20 @@ private releasePointer(
     this.busyTaskId = task.id;
     this.clearMessages();
 
-    this.taskService
-      .complete(task)
-      .subscribe({
+    this.taskService.complete(task).subscribe({
+      next: () => {
+        this.successMessage = 'Tarea completada correctamente.';
+        this.busyTaskId = null;
 
-        next: () => {
-
-          this.successMessage =
-            'Tarea completada correctamente.';
-
-          this.busyTaskId = null;
-
-          if (task.parentTaskId) {
-            this.completedAsideOpen = true;
-          }
-
-          this.loadTasks();
-        },
-
-        error: (error) => {
-
-          console.error(
-            'Error completando tarea:',
-            error
-          );
-
-          this.errorMessage =
-            'No se pudo completar la tarea.';
-
-          this.busyTaskId = null;
-
-          this.changeDetector.markForCheck();
-        }
-      });
+        this.loadTasks();
+      },
+      error: (error) => {
+        console.error('Error completando tarea:', error);
+        this.errorMessage = 'No se pudo completar la tarea.';
+        this.busyTaskId = null;
+        this.changeDetector.markForCheck();
+      }
+    });
   }
 
   // =========================================================
@@ -929,25 +959,42 @@ private releasePointer(
   // DESHABILITAR ACCIONES
   // =========================================================
 
-  actionsDisabled(
-    task: Task
-  ): boolean {
+  actionsDisabled(task: Task): boolean {
+    const parentIsInactive = this.isParentInactive(task);
+
+    const parentIsBeingPaused =
+      task.parentTaskId !== null &&
+      task.parentTaskId === this.pausingSubtasksForParentId;
+
+    const isParentBeingPaused =
+      !task.parentTaskId &&
+      task.id === this.pausingSubtasksForParentId;
 
     return (
       this.loading ||
-
       this.busyTaskId === task.id ||
-
+      parentIsInactive ||
+      parentIsBeingPaused ||
+      isParentBeingPaused ||
       (
         this.confirmingDelete !== null &&
         this.confirmingDelete !== task.id
       ) ||
-
       (
         this.editingCategoryId !== null &&
         this.editingCategoryId !== task.id
       )
     );
+  }
+
+  isParentInactive(task: Task): boolean {
+    if (!task.parentTaskId) {
+      return false;
+    }
+
+    const parentTask = this.getParentTask(task);
+
+    return parentTask?.status === 'INACTIVA';
   }
 
   // =========================================================

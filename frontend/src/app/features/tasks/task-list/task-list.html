@@ -706,6 +706,7 @@
                 type="button"
                 class="btn-new-subtask"
                 (click)="openCreateSubtask()"
+                [disabled]="actionsDisabled(subtasksModalParent)"
               >
                 + Nueva subtarea
               </button>

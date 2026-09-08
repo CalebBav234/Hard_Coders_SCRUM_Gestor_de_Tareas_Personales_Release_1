@@ -161,25 +161,14 @@ export class TaskEditor implements OnInit {
           this.taskService
             .changeCategory(updatedTask, categoryName)
             .subscribe({
-              next: () => {
+              next: (categoryUpdatedTask) => {
                 const finalTask: Task = {
-                  ...updatedTask,
+                  ...categoryUpdatedTask,
                   categoryName: categoryName,
                 };
 
                 this.saving = false;
                 this.saved.emit(finalTask);
-
-                this.changeDetector.markForCheck();
-              },
-
-              error: (err) => {
-                this.saving = false;
-                this.form.enable();
-
-                this.error =
-                  err.error?.message ??
-                  'La tarea se guardó, pero no se pudo actualizar la categoría.';
 
                 this.changeDetector.markForCheck();
               },
