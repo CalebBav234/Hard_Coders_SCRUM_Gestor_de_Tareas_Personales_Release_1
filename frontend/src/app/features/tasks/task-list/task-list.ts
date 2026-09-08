@@ -3,398 +3,1050 @@ import {
   Component,
   EventEmitter,
   OnInit,
-  OnDestroy,
-  Output,
-  inject,
+  Output
 } from '@angular/core';
-import { Subscription, interval } from 'rxjs';
-import { Task } from '../../../core/models/task';
+
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
 import { TaskService } from '../../../core/services/task.service';
-import { TaskEditor } from '../task-editor/task-editor';
-import { TimeFormatPipe } from '../../../core/pipes/time-format.pipe';
+import { Task } from '../../../core/models/task';
+
 import { TaskForm } from '../task-form/task-form';
+import { TaskEditor } from '../task-editor/task-editor';
 
 @Component({
   selector: 'app-task-list',
-  imports: [TaskEditor, TimeFormatPipe, TaskForm],
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    TaskForm,
+    TaskEditor
+  ],
   templateUrl: './task-list.html',
-  styleUrl: './task-list.css',
+  styleUrl: './task-list.css'
 })
-export class TaskList implements OnInit, OnDestroy {
-  private readonly taskService = inject(TaskService);
-  private readonly changeDetector = inject(ChangeDetectorRef);
+export class TaskList implements OnInit {
+
+  @Output() editRequested = new EventEmitter<Task>();
+  @Output() subtaskRequested = new EventEmitter<Task>();
 
   tasks: Task[] = [];
+  categories: any[] = [];
+
+  subtasksModalParent: Task | null = null;
+
+  subtaskModalMode: 'list' | 'create' | 'edit' = 'list';
+
+  editingSubtask: Task | null = null;
+
   loading = false;
-  error: string | null = null;
-  feedback: string | null = null;
-  editingTask: Task | null = null;
-  confirmingDelete: Task | null = null;
+  successMessage = '';
+  errorMessage = '';
+  searchTerm = '';
+
   busyTaskId: number | null = null;
-  searchDraft = '';
-  activeSearch = '';
+  confirmingDelete: number | null = null;
 
-  creatingSubtaskForId: number | null = null;
+  editingCategoryId: number | null = null;
+  selectedCategoryName: string | null = null;
 
-  @Output() readonly historyChanged = new EventEmitter<void>();
+  completedAsideOpen = false;
 
-  liveTimes: Record<number, number> = {};
-  private timerSub?: Subscription;
+  swipeOffsets: Record<number, number> = {};
 
-  get actionsDisabled(): boolean {
-    return (
-      this.loading ||
-      this.busyTaskId !== null ||
-      this.editingTask !== null ||
-      this.confirmingDelete !== null
-    );
-  }
+  private swipeStartX = 0;
+  private activeSwipeTaskId: number | null = null;
+  private swipeMoved = false;
 
-  get parentTasks(): Task[] {
-    return this.tasks.filter((t) => !t.parentTaskId);
-  }
+  private readonly swipeThreshold = 80;
+  private readonly maxSwipeDistance = 125;
 
-  getSubtasks(parentId: number): Task[] {
-    return this.tasks.filter((t) => t.parentTaskId === parentId);
-  }
+  private timerInterval: ReturnType<typeof setInterval> | null = null;
 
-  startCreatingSubtask(parentId: number): void {
-    if (this.actionsDisabled) return;
-    this.clearFeedback();
-    this.creatingSubtaskForId = parentId;
-  }
+  currentTime = Date.now();
 
-  cancelCreatingSubtask(): void {
-    this.creatingSubtaskForId = null;
-  }
+  constructor(
+    private readonly taskService: TaskService,
+    private readonly changeDetector: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.loadTasks();
-    this.iniciarContadorGlobal();
+    this.loadCategories();
+    this.startTimer();
   }
 
-  ngOnDestroy(): void {
-    if (this.timerSub) {
-      this.timerSub.unsubscribe();
-    }
-  }
+  // =========================================================
+// RELOJ EN TIEMPO REAL
+// =========================================================
 
-  iniciarContadorGlobal(): void {
-    this.timerSub = interval(1000).subscribe(() => {
-      this.actualizarTiempos();
-    });
-  }
-
-  actualizarTiempos(): void {
-    let necesitaActualizar = false;
-    this.tasks.forEach((task) => {
-      let extra = 0;
-      if (task.status === 'ACTIVA' && task.activatedAt) {
-        const start = new Date(task.activatedAt).getTime();
-        const now = new Date().getTime();
-        extra = Math.floor((now - start) / 1000);
-      }
-      const nuevoTiempo = (task.totalActiveSeconds || 0) + Math.max(0, extra);
-
-      if (this.liveTimes[task.id] !== nuevoTiempo) {
-        this.liveTimes[task.id] = nuevoTiempo;
-        necesitaActualizar = true;
-      }
-    });
-
-    if (necesitaActualizar) {
-      this.changeDetector.markForCheck();
-    }
-  }
-
-  loadTasks(): void {
-    if (this.actionsDisabled) return;
-    this.loading = true;
-    this.error = null;
-    this.taskService.listTasks(this.activeSearch).subscribe({
-      next: (tasks) => {
-        this.tasks = tasks;
-        this.actualizarTiempos();
-        this.loading = false;
-        this.changeDetector.markForCheck();
-      },
-      error: () => {
-        this.loading = false;
-        this.error = 'No se pudo cargar la lista de tareas.';
-        this.changeDetector.markForCheck();
-      },
-    });
-  }
-
-  searchTasks(event: Event): void {
-    event.preventDefault();
-    if (this.actionsDisabled) return;
-    this.activeSearch = this.searchDraft.trim();
-    this.loadTasks();
-  }
-
-  updateSearchDraft(event: Event): void {
-    this.searchDraft = (event.target as HTMLInputElement).value;
-  }
-
-  clearSearch(): void {
-    if (this.actionsDisabled) return;
-    this.searchDraft = '';
-    this.activeSearch = '';
-    this.loadTasks();
-  }
-
-   showCreatedTask(task: Task): void {
-    if (this.activeSearch) {
-      this.searchDraft = '';
-      this.activeSearch = '';
-      this.loadTasks();
-    }
-    this.tasks = [task, ...this.tasks.filter((currentTask) => currentTask.id !== task.id)];
-    this.actualizarTiempos();
-    this.feedback = `Tarea "${task.title}" creada.`;
-    this.error = null;
-    this.changeDetector.markForCheck();
-  }
-
-  addSubtask(task: Task): void {
-    this.tasks = [...this.tasks, task];
-    this.actualizarTiempos();
-    this.feedback = `Subtarea "${task.title}" creada.`;
-    this.error = null;
-    this.changeDetector.markForCheck();
-  }
-
-
-  activate(task: Task): void {
-    if (this.actionsDisabled) return;
-    this.busyTaskId = task.id;
-    this.clearFeedback();
-    this.taskService.activate(task).subscribe({
-      next: () => {
-        this.busyTaskId = null;
-        this.feedback = `Tarea "${task.title}" activada.`;
-        this.changeDetector.markForCheck();
-        this.historyChanged.emit();
-        this.loadTasks();
-      },
-      error: (err) => {
-        this.busyTaskId = null;
-        this.handleError(err);
-      },
-    });
-  }
-
-  complete(task: Task): void {
-    if (this.actionsDisabled) return;
-    this.busyTaskId = task.id;
-    this.clearFeedback();
-    this.taskService.complete(task).subscribe({
-      next: () => {
-        this.busyTaskId = null;
-        this.feedback = `Tarea "${task.title}" completada.`;
-        this.changeDetector.markForCheck();
-        this.historyChanged.emit();
-        this.loadTasks();
-      },
-      error: (err) => {
-        this.busyTaskId = null;
-        this.handleError(err);
-      },
-    });
-  }
-
-  reopen(task: Task): void {
-    if (this.actionsDisabled) return;
-    this.busyTaskId = task.id;
-    this.clearFeedback();
-    this.taskService.reopen(task).subscribe({
-      next: () => {
-        this.busyTaskId = null;
-        this.feedback = `Tarea "${task.title}" reabierta.`;
-        this.changeDetector.markForCheck();
-        this.historyChanged.emit();
-        this.loadTasks();
-      },
-      error: (err) => {
-        this.busyTaskId = null;
-        this.handleError(err);
-      },
-    });
-  }
-
-  pause(task: Task): void {
-    if (this.actionsDisabled) return;
-    this.busyTaskId = task.id;
-    this.clearFeedback();
-    this.taskService.pause(task).subscribe({
-      next: () => {
-        this.busyTaskId = null;
-        this.feedback = `Tarea "${task.title}" pausada.`;
-        this.changeDetector.markForCheck();
-        this.loadTasks();
-      },
-      error: (err) => {
-        this.busyTaskId = null;
-        this.handleError(err);
-      },
-    });
-  }
-
-  saveCategory(task: Task, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const name = input.value.trim();
-    if (name === (task.categoryName ?? '')) {
+  private startTimer(): void {
+    if (this.timerInterval) {
       return;
     }
-    this.changeCategory(task, name === '' ? null : name, input);
-  }
 
-  changeCategory(task: Task, categoryName: string | null, input: HTMLInputElement | null): void {
-    if (this.actionsDisabled) return;
-    const previous = task.categoryName ?? '';
-    this.busyTaskId = task.id;
-    this.clearFeedback();
-    this.taskService.changeCategory(task, categoryName).subscribe({
-      next: (updated) => {
+    this.timerInterval = setInterval(() => {
+      this.currentTime = Date.now();
+      this.changeDetector.markForCheck();
+    }, 1000);
+  }
+  // =========================================================
+  // CARGAR TAREAS
+  // =========================================================
+
+  loadTasks(): void {
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.taskService.listTasks().subscribe({
+      next: (tasks) => {
+        this.tasks = tasks;
+        this.loading = false;
         this.busyTaskId = null;
-        this.tasks = this.tasks.map((current) => (current.id === task.id ? updated : current));
-        this.feedback =
-          categoryName == null
-            ? `Categoría eliminada de "${task.title}".`
-            : `Categoría de "${task.title}" actualizada.`;
-        this.error = null;
-        this.changeDetector.markForCheck();
-        this.historyChanged.emit();
-      },
-      error: (err) => {
-        this.busyTaskId = null;
-        if (input) {
-          input.value = previous;
-        }
-        this.handleError(err);
+
         this.changeDetector.markForCheck();
       },
+
+      error: (error) => {
+        console.error('Error al cargar tareas:', error);
+
+        this.errorMessage =
+          'No se pudieron cargar las tareas.';
+
+        this.loading = false;
+        this.busyTaskId = null;
+
+        this.changeDetector.markForCheck();
+      }
     });
   }
 
-  edit(task: Task): void {
-    if (this.actionsDisabled) return;
-    this.clearFeedback();
-    this.editingTask = task;
+  // =========================================================
+  // CARGAR CATEGORÍAS
+  // =========================================================
+
+  loadCategories(): void {
+    this.taskService.listCategories().subscribe({
+      next: (categories) => {
+        this.categories = categories;
+
+        this.changeDetector.markForCheck();
+      },
+
+      error: (error) => {
+        console.error(
+          'Error al cargar categorías:',
+          error
+        );
+      }
+    });
   }
 
-  cancelEdit(): void {
-    this.editingTask = null;
-    this.feedback = 'Edición cancelada. No se guardaron cambios.';
+  // =========================================================
+  // TAREAS PRINCIPALES
+  // =========================================================
+
+  get parentTasks(): Task[] {
+    return this.tasks.filter(
+      (task) =>
+        !task.parentTaskId &&
+        task.status !== 'TERMINADA'
+    );
   }
 
-  showUpdatedTask(task: Task): void {
-    this.tasks = this.tasks.map((current) => (current.id === task.id ? task : current));
-    this.editingTask = null;
-    this.feedback = `Tarea "${task.title}" actualizada.`;
-    this.error = null;
+  // =========================================================
+  // TAREAS COMPLETADAS
+  // =========================================================
+
+  get completedTasks(): Task[] {
+    return this.tasks
+      .filter(
+        (task) => task.status === 'TERMINADA'
+      )
+      .sort((a, b) => {
+        const dateA = a.completedAt
+          ? new Date(a.completedAt).getTime()
+          : 0;
+
+        const dateB = b.completedAt
+          ? new Date(b.completedAt).getTime()
+          : 0;
+
+        return dateB - dateA;
+      });
+  }
+
+  getParentTask(task: Task): Task | undefined {
+    if (!task.parentTaskId) {
+      return undefined;
+    }
+
+    return this.tasks.find(
+      (parentTask) =>
+        parentTask.id === task.parentTaskId
+    );
+  }
+  // =========================================================
+  // SUBTAREAS NO TERMINADAS
+  // =========================================================
+
+  getSubtasks(parentId: number): Task[] {
+    return this.tasks.filter(
+      (task) =>
+        task.parentTaskId === parentId &&
+        task.status !== 'TERMINADA'
+    );
+  }
+
+  // =========================================================
+  // TODAS LAS SUBTAREAS
+  // =========================================================
+
+  getAllSubtasks(parentId: number): Task[] {
+    return this.tasks.filter(
+      (task) =>
+        task.parentTaskId === parentId
+    );
+  }
+
+  // =========================================================
+  // ASIDE DE TAREAS COMPLETADAS
+  // =========================================================
+
+  openCompletedAside(): void {
+    this.completedAsideOpen = true;
     this.changeDetector.markForCheck();
-    this.historyChanged.emit();
   }
+
+  closeCompletedAside(): void {
+    this.completedAsideOpen = false;
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+  // POPUP DE SUBTAREAS
+  // =========================================================
+
+  openSubtasksModal(task: Task): void {
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.subtasksModalParent = task;
+    this.subtaskModalMode = 'list';
+    this.editingSubtask = null;
+
+    this.changeDetector.markForCheck();
+  }
+
+  closeSubtasksModal(): void {
+    this.subtasksModalParent = null;
+    this.subtaskModalMode = 'list';
+    this.editingSubtask = null;
+
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+  // CREAR SUBTAREA DENTRO DEL POPUP
+  // =========================================================
+
+  openCreateSubtask(): void {
+    if (!this.subtasksModalParent) {
+      return;
+    }
+
+    this.subtaskModalMode = 'create';
+    this.editingSubtask = null;
+
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+  // EDITAR SUBTAREA DENTRO DEL POPUP
+  // =========================================================
+
+  openEditSubtask(task: Task): void {
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.editingSubtask = task;
+    this.subtaskModalMode = 'edit';
+
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+  // VOLVER A LA LISTA DE SUBTAREAS
+  // =========================================================
+
+  backToSubtasks(): void {
+    this.subtaskModalMode = 'list';
+    this.editingSubtask = null;
+
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+  // SUBTAREA CREADA
+  // =========================================================
+
+  onSubtaskCreated(task: Task): void {
+    this.successMessage =
+    'Subtarea creada correctamente.';
+
+    this.subtaskModalMode = 'list';
+    this.editingSubtask = null;
+
+    // Recargar las tareas para obtener inmediatamente
+    // la subtarea recién creada y actualizar el contador.
+    this.loadTasks();
+    }
+
+
+  // =========================================================
+  // SUBTAREA EDITADA
+  // =========================================================
+
+  onSubtaskSaved(updatedTask: Task): void {
+    this.tasks = this.tasks.map(
+      (currentTask) =>
+        currentTask.id === updatedTask.id
+          ? updatedTask
+          : currentTask
+    );
+
+    this.successMessage =
+      'Subtarea actualizada correctamente.';
+
+    this.subtaskModalMode = 'list';
+    this.editingSubtask = null;
+
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+  // COLOR DE LAS TARJETAS
+  // =========================================================
+
+  getTaskColorClass(taskId: number): string {
+    const colors = [
+      'postit-blue',
+      'postit-green',
+      'postit-purple',
+      'postit-burgundy',
+      'postit-brown',
+      'postit-slate',
+      'postit-teal',
+      'postit-indigo'
+    ];
+
+    const index =
+      Math.abs(taskId * 17 + 11) %
+      colors.length;
+
+    return colors[index];
+  }
+
+  // =========================================================
+  // BUSCAR
+  // =========================================================
+
+  searchTasks(): void {
+    const term =
+      this.searchTerm.trim();
+
+    if (!term) {
+      this.loadTasks();
+      return;
+    }
+
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.taskService.listTasks(term).subscribe({
+      next: (tasks) => {
+        this.tasks = tasks;
+        this.loading = false;
+
+        this.changeDetector.markForCheck();
+      },
+
+      error: (error) => {
+        console.error(
+          'Error buscando tareas:',
+          error
+        );
+
+        this.errorMessage =
+          'No se pudieron buscar las tareas.';
+
+        this.loading = false;
+
+        this.changeDetector.markForCheck();
+      }
+    });
+  }
+
+  // =========================================================
+// SWIPE
+// =========================================================
+
+startSwipe(event: PointerEvent, task: Task): void {
+  if (this.actionsDisabled(task)) {
+    return;
+  }
+
+  const target = event.target as HTMLElement | null;
+
+  /*
+   * Si el usuario está interactuando con un botón,
+   * no iniciar ningún swipe.
+   */
+  if (
+    target?.closest(
+      'button, input, select, textarea, a'
+    )
+  ) {
+    return;
+  }
+
+  this.activeSwipeTaskId = task.id;
+  this.swipeStartX = event.clientX;
+  this.swipeMoved = false;
+
+  const element = event.currentTarget as HTMLElement;
+
+  try {
+    element.setPointerCapture(event.pointerId);
+  } catch {
+    // El navegador puede no permitir pointer capture.
+  }
+}
+
+moveSwipe(
+  event: PointerEvent,
+  task: Task
+): void {
+  if (
+    this.activeSwipeTaskId !== task.id
+  ) {
+    return;
+  }
+
+  const deltaX =
+    event.clientX - this.swipeStartX;
+
+  if (Math.abs(deltaX) < 5) {
+    return;
+  }
+
+  this.swipeMoved = true;
+
+  const offset = Math.max(
+    -this.maxSwipeDistance,
+    Math.min(
+      this.maxSwipeDistance,
+      deltaX
+    )
+  );
+
+  this.swipeOffsets = {
+    ...this.swipeOffsets,
+    [task.id]: offset,
+  };
+
+  event.preventDefault();
+
+  this.changeDetector.markForCheck();
+}
+
+endSwipe(
+  event: PointerEvent,
+  task: Task
+): void {
+  if (
+    this.activeSwipeTaskId !== task.id
+  ) {
+    return;
+  }
+
+  const offset =
+    this.getSwipeOffset(task.id);
+
+  this.releasePointer(event);
+
+  this.activeSwipeTaskId = null;
+
+  if (
+    offset <= -this.swipeThreshold
+  ) {
+    this.resetSwipe(task.id);
+    this.requestDelete(task);
+    return;
+  }
+
+  if (
+    offset >= this.swipeThreshold
+  ) {
+    this.resetSwipe(task.id);
+
+    if (task.status === 'ACTIVA') {
+      this.complete(task);
+    }
+
+    return;
+  }
+
+  this.resetSwipe(task.id);
+}
+
+cancelSwipe(
+  taskId: number
+): void {
+  if (
+    this.activeSwipeTaskId === taskId
+  ) {
+    this.activeSwipeTaskId = null;
+  }
+
+  this.resetSwipe(taskId);
+}
+
+resetSwipe(
+  taskId: number
+): void {
+  this.swipeOffsets = {
+    ...this.swipeOffsets,
+    [taskId]: 0,
+  };
+
+  this.swipeMoved = false;
+
+  this.changeDetector.markForCheck();
+}
+
+getSwipeOffset(
+  taskId: number
+): number {
+  return this.swipeOffsets[taskId] ?? 0;
+}
+
+isSwiping(
+  taskId: number
+): boolean {
+  return (
+    this.activeSwipeTaskId === taskId &&
+    this.swipeMoved
+  );
+}
+
+private releasePointer(
+  event: PointerEvent
+): void {
+  const element =
+    event.currentTarget as HTMLElement;
+
+  try {
+    if (
+      element.hasPointerCapture(
+        event.pointerId
+      )
+    ) {
+      element.releasePointerCapture(
+        event.pointerId
+      );
+    }
+  } catch {}
+}
+  // =========================================================
+  // ACTIVAR
+  // =========================================================
+
+  activate(task: Task): void {
+
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.busyTaskId = task.id;
+    this.clearMessages();
+
+    this.taskService
+      .activate(task)
+      .subscribe({
+
+        next: () => {
+
+          this.successMessage =
+            'Tarea activada correctamente.';
+
+          this.busyTaskId = null;
+
+          this.loadTasks();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error activando tarea:',
+            error
+          );
+
+          this.errorMessage =
+            'No se pudo activar la tarea.';
+
+          this.busyTaskId = null;
+
+          this.changeDetector.markForCheck();
+        }
+      });
+  }
+
+  // =========================================================
+  // PAUSAR
+  // =========================================================
+
+  pause(task: Task): void {
+
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.busyTaskId = task.id;
+    this.clearMessages();
+
+    this.taskService
+      .pause(task)
+      .subscribe({
+
+        next: () => {
+
+          this.successMessage =
+            'Tarea pausada correctamente.';
+
+          this.busyTaskId = null;
+
+          this.loadTasks();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error pausando tarea:',
+            error
+          );
+
+          this.errorMessage =
+            'No se pudo pausar la tarea.';
+
+          this.busyTaskId = null;
+
+          this.changeDetector.markForCheck();
+        }
+      });
+  }
+
+  // =========================================================
+  // COMPLETAR
+  // =========================================================
+
+  complete(task: Task): void {
+
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    if (task.status !== 'ACTIVA') {
+      return;
+    }
+
+    this.busyTaskId = task.id;
+    this.clearMessages();
+
+    this.taskService
+      .complete(task)
+      .subscribe({
+
+        next: () => {
+
+          this.successMessage =
+            'Tarea completada correctamente.';
+
+          this.busyTaskId = null;
+
+          if (task.parentTaskId) {
+            this.completedAsideOpen = true;
+          }
+
+          this.loadTasks();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error completando tarea:',
+            error
+          );
+
+          this.errorMessage =
+            'No se pudo completar la tarea.';
+
+          this.busyTaskId = null;
+
+          this.changeDetector.markForCheck();
+        }
+      });
+  }
+
+  // =========================================================
+  // REABRIR
+  // =========================================================
+
+  reopen(task: Task): void {
+
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.busyTaskId = task.id;
+    this.clearMessages();
+
+    this.taskService
+      .reopen(task)
+      .subscribe({
+
+        next: (updatedTask) => {
+
+          // Actualizar la tarea dentro de la lista
+          this.tasks = this.tasks.map(
+            (currentTask) =>
+              currentTask.id === updatedTask.id
+                ? updatedTask
+                : currentTask
+          );
+
+          // La tarea reabierta pasa al principio
+          this.tasks = [
+            updatedTask,
+            ...this.tasks.filter(
+              (currentTask) =>
+                currentTask.id !== updatedTask.id
+            )
+          ];
+
+          this.successMessage =
+            'Tarea reabierta correctamente.';
+
+          this.busyTaskId = null;
+
+          this.changeDetector.markForCheck();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error reabriendo tarea:',
+            error
+          );
+
+          this.errorMessage =
+            'No se pudo reabrir la tarea.';
+
+          this.busyTaskId = null;
+
+          this.changeDetector.markForCheck();
+        }
+      });
+  }
+
+  // =========================================================
+  // ELIMINAR
+  // =========================================================
 
   requestDelete(task: Task): void {
-    if (this.actionsDisabled) return;
-    this.clearFeedback();
-    this.confirmingDelete = task;
+
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.confirmingDelete = task.id;
+    this.clearMessages();
+
+    this.changeDetector.markForCheck();
   }
 
   cancelDelete(): void {
-    if (this.busyTaskId !== null) return;
+
     this.confirmingDelete = null;
-    this.feedback = 'Eliminación cancelada. La tarea se conserva.';
+
+    this.changeDetector.markForCheck();
   }
 
-  confirmDelete(): void {
-    const task = this.confirmingDelete;
-    if (!task || this.busyTaskId !== null) return;
-    this.busyTaskId = task.id;
-    this.error = null;
-    this.taskService.deleteTask(task).subscribe({
-      next: () => {
-        this.tasks = this.tasks.filter((current) => current.id !== task.id);
-        this.confirmingDelete = null;
-        this.busyTaskId = null;
-        this.feedback = `Tarea "${task.title}" eliminada.`;
-        this.changeDetector.markForCheck();
-        this.historyChanged.emit();
-      },
-      error: (err) => {
-        this.busyTaskId = null;
-        this.confirmingDelete = null;
-        this.handleError(err);
-      },
-    });
-  }
+  deleteTask(task: Task): void {
 
-  scrollToTask(taskId: number): void {
-    if (this.activeSearch) {
-        this.clearSearch();
+    if (
+      this.busyTaskId === task.id
+    ) {
+      return;
     }
 
-    setTimeout(() => {
-        const taskElement = document.getElementById('task-card-' + taskId);
-        if (taskElement) {
-            taskElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    this.busyTaskId = task.id;
+    this.clearMessages();
 
-            taskElement.style.transition = 'background-color 0.5s ease';
-            taskElement.style.backgroundColor = '#dbeafe';
-            setTimeout(() => {
-                taskElement.style.backgroundColor = '';
-            }, 1500);
+    this.taskService
+      .deleteTask(task)
+      .subscribe({
 
-            const taskToEdit = this.tasks.find(t => t.id === taskId);
-            if (taskToEdit) {
-                this.editingTask = null;
-                this.edit(taskToEdit);
-                this.changeDetector.markForCheck();
-            }
-        } else {
-            this.error = `La tarea relacionada #${taskId} no está cargada en esta vista.`;
-            this.changeDetector.markForCheck();
+        next: () => {
+
+          this.successMessage =
+            'Tarea eliminada correctamente.';
+
+          this.confirmingDelete = null;
+          this.busyTaskId = null;
+
+          this.loadTasks();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error eliminando tarea:',
+            error
+          );
+
+          this.errorMessage =
+            'No se pudo eliminar la tarea.';
+
+          this.busyTaskId = null;
+          this.confirmingDelete = null;
+
+          this.changeDetector.markForCheck();
         }
-    }, 50);
+      });
   }
 
-  clearFeedback(): void {
-    this.feedback = null;
-    this.error = null;
+  // =========================================================
+  // EDITAR TAREA PRINCIPAL
+  // =========================================================
+
+  editTask(task: Task): void {
+
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+
+    this.editRequested.emit(task);
   }
 
-  private handleError(err: unknown): void {
-    const response = err as { status?: number; error?: { message?: string; error?: string } };
-    switch (response?.status) {
-    case 400:
-      this.error = response?.error?.message ?? 'Los datos ingresados no son válidos. Por favor verifica e intenta de nuevo.';
-      break;
+  // =========================================================
+  // CREAR SUBTAREA DESDE LA TARJETA PRINCIPAL
+  // =========================================================
 
-    case 404:
-      if (response?.error?.error === 'CATEGORY_NOT_FOUND') {
-        this.error = 'La categoría seleccionada ya no existe. La lista se ha actualizado.';
-      } else {
-        this.error = 'La tarea seleccionada ya no existe. La lista se ha actualizado.';
-      }
-      this.loadTasks();
-      break;
+  createSubtask(task: Task): void {
 
-    case 409:
-      this.error = 'La operación no es compatible con el estado actual de la tarea.';
-      break;
+    if (this.actionsDisabled(task)) {
+      return;
+    }
 
-    case 412:
-      this.error = 'La tarea cambió de estado en el servidor. La lista se ha actualizado.';
-      this.loadTasks();
-      break;
-
-    default:
-      this.error = response?.error?.message ?? 'Ocurrió un error inesperado. Inténtalo nuevamente.';
-      break;
+    this.subtaskRequested.emit(task);
   }
+
+  // =========================================================
+  // EDITAR CATEGORÍA
+  // =========================================================
+
+  startCategoryEdit(
+    task: Task
+  ): void {
+
+    this.editingCategoryId = task.id;
+
+    this.selectedCategoryName =
+      task.categoryName ?? null;
+  }
+
+  cancelCategoryEdit(): void {
+
+    this.editingCategoryId = null;
+    this.selectedCategoryName = null;
+  }
+
+  saveCategory(
+    task: Task
+  ): void {
+
+    if (
+      this.busyTaskId !== null
+    ) {
+      return;
+    }
+
+    this.busyTaskId = task.id;
+    this.clearMessages();
+
+    this.taskService
+      .changeCategory(
+        task,
+        this.selectedCategoryName
+      )
+      .subscribe({
+
+        next: () => {
+
+          this.successMessage =
+            'Categoría actualizada.';
+
+          this.editingCategoryId = null;
+          this.selectedCategoryName = null;
+          this.busyTaskId = null;
+
+          this.loadTasks();
+        },
+
+        error: (error) => {
+
+          console.error(
+            'Error actualizando categoría:',
+            error
+          );
+
+          this.errorMessage =
+            'No se pudo actualizar la categoría.';
+
+          this.busyTaskId = null;
+
+          this.changeDetector.markForCheck();
+        }
+      });
+  }
+
+  // =========================================================
+  // DESHABILITAR ACCIONES
+  // =========================================================
+
+  actionsDisabled(
+    task: Task
+  ): boolean {
+
+    return (
+      this.loading ||
+
+      this.busyTaskId === task.id ||
+
+      (
+        this.confirmingDelete !== null &&
+        this.confirmingDelete !== task.id
+      ) ||
+
+      (
+        this.editingCategoryId !== null &&
+        this.editingCategoryId !== task.id
+      )
+    );
+  }
+
+  // =========================================================
+  // TIEMPO ACTIVO
+  // =========================================================
+
+  formatActiveTime(seconds: number): string {
+    if (!seconds || seconds <= 0) {
+      return '00:00:00';
+    }
+
+    const hours = Math.floor(seconds / 3600);
+
+    const minutes = Math.floor(
+      (seconds % 3600) / 60
+    );
+
+    const remainingSeconds =
+      seconds % 60;
+
+    return [
+      hours.toString().padStart(2, '0'),
+      minutes.toString().padStart(2, '0'),
+      remainingSeconds.toString().padStart(2, '0')
+    ].join(':');
+  }
+
+  getActiveSeconds(task: Task): number {
+    const storedSeconds = task.totalActiveSeconds ?? 0;
+
+    if (
+      task.status !== 'ACTIVA' ||
+      !task.activatedAt
+    ) {
+      return storedSeconds;
+    }
+
+    const activatedAt =
+      new Date(task.activatedAt).getTime();
+
+    const elapsedSeconds =
+      Math.max(
+        0,
+        Math.floor(
+          (this.currentTime - activatedAt) / 1000
+        )
+      );
+
+    return storedSeconds + elapsedSeconds;
+  }
+
+  // =========================================================
+  // MENSAJES
+  // =========================================================
+
+  private clearMessages(): void {
+    this.successMessage = '';
+    this.errorMessage = '';
+  }
+
+  // =========================================================
+  // TAREA CREADA DESDE EL FORMULARIO PRINCIPAL
+  // =========================================================
+
+  showCreatedTask(
+    task: Task
+  ): void {
+
+    const exists =
+      this.tasks.some(
+        (currentTask) =>
+          currentTask.id === task.id
+      );
+
+    if (!exists) {
+      this.tasks = [
+        task,
+        ...this.tasks
+      ];
+    }
+
+    this.changeDetector.markForCheck();
+  }
+
+  // =========================================================
+// ACTUALIZAR TAREA DESDE EL EDITOR
+// =========================================================
+
+  updateTaskInList(updatedTask: Task): void {
+    this.tasks = this.tasks.map(
+      (task) =>
+        task.id === updatedTask.id
+          ? updatedTask
+          : task
+    );
+
+    this.successMessage =
+      'Tarea actualizada correctamente.';
+
     this.changeDetector.markForCheck();
   }
 }

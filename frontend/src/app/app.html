@@ -1,26 +1,48 @@
 <div class="app-container">
+
   <header class="app-header">
-    <div>
-      <h1>Gestor de Tareas</h1>
-      <p>Organiza y administra tus tareas personales</p>
+
+    <div class="app-header-left">
+
+      <div class="app-logo">
+        ✓
+      </div>
+
+      <div class="app-brand">
+        <h1>Gestor de Tareas</h1>
+        <p>Organiza y administra tus tareas personales</p>
+      </div>
+
     </div>
-    <nav aria-label="Secciones de tareas" class="section-nav">
-      <a href="#my-tasks">Mis tareas</a>
-      <a href="#task-history">Historial de tareas</a>
+
+    <nav
+      aria-label="Secciones de tareas"
+      class="section-nav"
+    >
+
+      <a
+        routerLink="/"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="nav-link"
+      >
+        Mis tareas
+      </a>
+
+      <a
+        routerLink="/history"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        Historial
+      </a>
+
     </nav>
+
   </header>
 
   <main>
-    <section class="create-section">
-      <app-task-form (taskCreated)="onTaskCreated(taskList, $event)"></app-task-form>
-    </section>
-
-    <section id="my-tasks" class="tasks-section">
-      <app-task-list #taskList (historyChanged)="taskHistory.loadHistory()"></app-task-list>
-    </section>
-
-    <section id="task-history" class="history-section" aria-labelledby="history-heading">
-      <app-task-history #taskHistory></app-task-history>
-    </section>
+    <router-outlet></router-outlet>
   </main>
+
 </div>

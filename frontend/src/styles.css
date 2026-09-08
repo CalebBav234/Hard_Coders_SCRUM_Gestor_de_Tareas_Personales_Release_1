@@ -1,44 +1,199 @@
-/* You can add global styles to this file, and also import other style files */
-/* Estilos globales mínimos para la búsqueda de tareas (evita duplicarlos en el componente). */
-.tasks-section .search-controls input:focus {
-  outline: 3px solid rgba(37, 99, 235, 0.18);
-  border-color: #2563eb;
+:root {
+/* =========================================================
+PALETA PRINCIPAL
+========================================================= */
+
+--espejismo: #121226;
+--arcilla-ebano: #21213B;
+--martinica: #363659;
+--cometa: #505077;
+--scampi: #6868A6;
+
+/* =========================================================
+COLORES SEMÁNTICOS
+========================================================= */
+
+--priority-alta: #63A77C;
+--priority-media: #C49A5B;
+--priority-baja: #B96767;
+
+/* =========================================================
+TEXTOS
+========================================================= */
+
+--text-primary: #F2F2F7;
+--text-secondary: #C5C5D6;
+--text-muted: #9090AA;
+--text-placeholder: #747491;
+
+/* =========================================================
+BORDES
+========================================================= */
+
+--border: #363659;
+--border-light: #505077;
+
+/* =========================================================
+FONDOS DERIVADOS
+========================================================= */
+
+--surface-hover: #363659;
+--surface-active: #505077;
 }
 
-.tasks-section .search-summary {
-  margin: 10px 0 0;
-  color: #475569;
-  font-size: 13px;
+/* =========================================================
+RESET
+========================================================= */
+
+* {
+  box-sizing: border-box;
+  }
+
+html,
+body {
+margin: 0;
+padding: 0;
+min-height: 100%;
 }
 
-.tasks-section .search-form {
-  margin: 0 0 22px;
-  padding: 16px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+/* =========================================================
+HTML
+========================================================= */
+
+html {
+background: var(--espejismo);
 }
 
-.tasks-section .search-form label {
-  display: block;
-  margin-bottom: 8px;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 700;
+/* =========================================================
+BODY
+========================================================= */
+
+body {
+min-height: 100vh;
+
+background:
+radial-gradient(
+circle at top left,
+rgba(80, 80, 119, 0.12),
+transparent 35%
+),
+radial-gradient(
+circle at bottom right,
+rgba(104, 104, 166, 0.08),
+transparent 35%
+),
+var(--espejismo);
+
+color: var(--text-primary);
+
+font-family:
+Inter,
+-apple-system,
+BlinkMacSystemFont,
+"Segoe UI",
+Roboto,
+Helvetica,
+Arial,
+sans-serif;
+
+-webkit-font-smoothing: antialiased;
+text-rendering: optimizeLegibility;
 }
 
-.tasks-section .search-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* =========================================================
+ANGULAR ROOT
+========================================================= */
+
+app-root {
+display: block;
+min-height: 100vh;
+background: transparent;
 }
 
-.tasks-section .search-controls input {
-  flex: 1 1 260px;
-  min-width: 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 10px 12px;
-  color: #1f2937;
-  background: #fff;
+/* =========================================================
+SCROLLBAR
+========================================================= */
+
+::-webkit-scrollbar {
+width: 9px;
+height: 9px;
 }
+
+::-webkit-scrollbar-track {
+background: var(--espejismo);
+}
+
+::-webkit-scrollbar-thumb {
+background: var(--martinica);
+border-radius: 10px;
+border: 2px solid var(--espejismo);
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: var(--cometa);
+}
+
+/* =========================================================
+SELECCIÓN DE TEXTO
+========================================================= */
+
+::selection {
+background: rgba(104, 104, 166, 0.28);
+color: #FFFFFF;
+}
+
+/* =========================================================
+FORMULARIOS
+========================================================= */
+
+input,
+textarea,
+select,
+button {
+font-family: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+color: var(--text-placeholder);
+}
+
+/* =========================================================
+FOCUS GLOBAL
+========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+outline: 2px solid rgba(104, 104, 166, 0.55);
+outline-offset: 2px;
+}
+
+/* =========================================================
+LINKS
+========================================================= */
+
+a {
+color: inherit;
+text-decoration: none;
+}
+
+/* =========================================================
+BUTTONS
+========================================================= */
+
+button {
+-webkit-tap-highlight-color: transparent;
+}
+
+/* =========================================================
+MOVIMIENTO REDUCIDO
+========================================================= */
+
+@media (prefers-reduced-motion: no-preference) {
+
+* {
+  scroll-behavior: smooth;
+  }
+  }

@@ -49,12 +49,40 @@
       <article class="history-card">
         <header>
           <div>
+            <div class="history-task-type">
+              @if (isSubtask(task)) {
+                <span class="task-type-badge subtask">
+                  SUBTAREA
+                </span>
+              } @else {
+                <span class="task-type-badge main-task">
+                  TAREA PRINCIPAL
+                </span>
+              }
+            </div>
+
             <h3>{{ task.title }}</h3>
+
+            @if (isSubtask(task)) {
+              <p class="history-parent-task">
+                Tarea principal:
+                <strong>
+                  {{ getParentTaskTitle(task) }}
+                </strong>
+              </p>
+            }
+
             @if (task.description) {
-              <p class="history-description">{{ task.description }}</p>
+              <p class="history-description">
+                {{ task.description }}
+              </p>
             }
           </div>
-          <span class="archive-badge" [class.deleted]="task.deletedAt">
+
+          <span
+            class="archive-badge"
+            [class.deleted]="task.deletedAt"
+          >
             {{ archiveLabel(task) }}
           </span>
         </header>

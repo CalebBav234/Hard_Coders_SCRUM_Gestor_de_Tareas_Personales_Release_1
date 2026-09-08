@@ -1,6 +1,11 @@
 .task-form {
-  padding: 28px;
+  width: 100%;
+  padding: 30px 32px 32px;
 }
+
+/* =========================================================
+   FORM HEADER
+   ========================================================= */
 
 .form-header {
   margin-bottom: 24px;
@@ -8,93 +13,237 @@
 
 .form-header h2 {
   margin: 0;
-  font-size: 22px;
-  color: #111827;
+  color: var(--text-primary);
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: -0.3px;
 }
 
 .form-header p {
   margin: 6px 0 0;
-  color: #6b7280;
-  font-size: 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
+
+/* =========================================================
+   FORM GROUP
+   ========================================================= */
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: 7px;
+  margin-bottom: 18px;
 }
 
 .form-group label {
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.3;
   font-weight: 600;
-  color: #374151;
+  letter-spacing: 0.1px;
 }
 
-.form-group input {
+/* =========================================================
+   INPUTS + SELECT
+   ========================================================= */
+
+.form-group input,
+.form-group select {
   width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 15px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+  height: 44px;
+  padding: 0 13px;
 
-.form-group input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  border: 1px solid var(--cometa);
+  border-radius: 6px;
+
+  background: var(--espejismo);
+  color: var(--text-primary);
+
+  font-family: inherit;
+  font-size: 13px;
+
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .form-group input::placeholder {
-  color: #9ca3af;
+  color: var(--text-placeholder);
 }
 
-.form-group select {
-  width: 100%;
-  padding: 10px 14px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 15px;
-  background: #ffffff;
-  color: #1f2937;
-  cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s;
+.form-group input:hover,
+.form-group select:hover {
+  border-color: var(--scampi);
+  background: var(--espejismo);
 }
 
+.form-group input:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+
+  border-color: var(--scampi);
+  background: var(--espejismo);
+
+  box-shadow:
+    0 0 0 1px var(--scampi),
+    0 0 0 3px rgba(104, 104, 166, 0.12);
 }
 
-.form-group select[disabled] {
+/* =========================================================
+   SELECT
+   ========================================================= */
+
+.form-group select {
+  appearance: auto;
+  cursor: pointer;
+}
+
+.form-group select option {
+  background: var(--arcilla-ebano);
+  color: var(--text-primary);
+}
+
+.form-group select[disabled],
+.form-group input[disabled] {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
+/* =========================================================
+   PRIORITY + CATEGORY
+   ========================================================= */
+
+.form-group:nth-of-type(2),
+.form-group:nth-of-type(3) {
+  width: calc(50% - 8px);
+  display: inline-flex;
+  vertical-align: top;
+}
+
+.form-group:nth-of-type(2) {
+  margin-right: 12px;
+}
+
+/* =========================================================
+   ERROR
+   ========================================================= */
+
 .error-message {
-  margin: 0;
-  color: #dc2626;
+  margin: 7px 0 0;
+  color: var(--priority-baja);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   ACTIONS
+   ========================================================= */
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.form-actions button {
+  min-height: 40px;
+  padding: 0 18px;
+
+  border: 1px solid var(--scampi);
+  border-radius: 6px;
+
+  background: var(--scampi);
+  color: #ffffff;
+
+  font-family: inherit;
   font-size: 13px;
-}
-
-button {
-  border: none;
-  border-radius: 8px;
-  padding: 11px 20px;
-  background: #2563eb;
-  color: white;
-  font-size: 14px;
   font-weight: 600;
+
   cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
+
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
 }
 
-button:hover {
-  background: #1d4ed8;
+.form-actions button:hover:not(:disabled) {
+  background: var(--cometa);
+  border-color: var(--scampi);
+
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
-button:active {
+.form-actions button:focus-visible {
+  outline: 2px solid rgba(104, 104, 166, 0.65);
+  outline-offset: 2px;
+}
+
+.form-actions button:active:not(:disabled) {
   transform: translateY(1px);
+  box-shadow: none;
+}
+
+.form-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   CANCEL BUTTON
+   ========================================================= */
+
+.form-actions .btn-cancel {
+  border-color: var(--cometa);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.form-actions .btn-cancel:hover:not(:disabled) {
+  background: var(--martinica);
+  border-color: var(--scampi);
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .task-form {
+    padding: 28px 26px 30px;
+  }
+}
+
+@media (max-width: 650px) {
+  .task-form {
+    padding: 26px 22px 28px;
+  }
+
+  .form-header h2 {
+    font-size: 20px;
+  }
+
+  .form-group:nth-of-type(2),
+  .form-group:nth-of-type(3) {
+    width: 100%;
+    display: flex;
+    margin-right: 0;
+  }
+
+  .form-actions {
+    flex-wrap: wrap;
+  }
+
+  .form-actions button {
+    flex: 1;
+  }
 }
