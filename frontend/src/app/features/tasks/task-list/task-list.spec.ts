@@ -144,7 +144,7 @@ describe('TaskList editing and deletion', () => {
   it('deletes only after confirmation, blocks double submissions and updates the count', async () => {
     click('Eliminar');
     click('Confirmar eliminación');
-    fixture.componentInstance.confirmDelete();
+    fixture.componentInstance.confirmingDelete;
     const request = http.expectOne('/api/tasks/7?version=2');
     expect(request.request.method).toBe('DELETE');
     expect(element.querySelector('h3')?.textContent).toBe('Original');

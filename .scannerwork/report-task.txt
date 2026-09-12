@@ -2,5 +2,5 @@ projectKey=hard-coders-gestor-tareas
 serverUrl=http://localhost:9000
 serverVersion=26.9.0.129388
 dashboardUrl=http://localhost:9000/dashboard?id=hard-coders-gestor-tareas
-ceTaskId=98e1e2d3-deb0-4bcd-88f8-cd9b3e5d8912
-ceTaskUrl=http://localhost:9000/api/ce/task?id=98e1e2d3-deb0-4bcd-88f8-cd9b3e5d8912
+ceTaskId=fd288cd8-bcf9-49cb-ae8b-a87926d98d2b
+ceTaskUrl=http://localhost:9000/api/ce/task?id=fd288cd8-bcf9-49cb-ae8b-a87926d98d2b

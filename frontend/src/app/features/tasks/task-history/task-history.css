@@ -224,7 +224,7 @@ border-color: #505077;
 .search-summary {
 margin: 9px 0 0;
 
-color: #9090aa;
+color: #b6b6ca;
 
 font-size: 11px;
 }
@@ -238,12 +238,12 @@ margin-bottom: 18px;
 
 padding: 11px 13px;
 
-border: 1px solid rgba(215, 123, 123, 0.28);
+border: 1px solid #98505e;
 border-radius: 7px;
 
-background: rgba(180, 74, 74, 0.12);
+background: #4a252d;
 
-color: #e49a9a;
+color: #ffffff;
 
 font-size: 11px;
 line-height: 1.5;
@@ -384,19 +384,19 @@ letter-spacing: 0.06em;
 }
 
 .task-type-badge.main-task {
-background: rgba(104, 104, 166, 0.16);
+background: #363659;
 
-border: 1px solid rgba(104, 104, 166, 0.28);
+border: 1px solid #6868a6;
 
-color: #b8b8dc;
+color: #ffffff;
 }
 
 .task-type-badge.subtask {
-background: rgba(196, 154, 91, 0.14);
+background: #51401f;
 
-border: 1px solid rgba(196, 154, 91, 0.30);
+border: 1px solid #c49a5b;
 
-color: #d8b77c;
+color: #ffffff;
 }
 
 .history-parent-task {
@@ -426,23 +426,23 @@ align-items: center;
 
 padding: 0 8px;
 
-border: 1px solid rgba(99, 167, 124, 0.25);
+border: 1px solid #63a77c;
 border-radius: 999px;
 
-background: rgba(99, 167, 124, 0.12);
+background: #254332;
 
-color: #72c391;
+color: #ffffff;
 
 font-size: 9px;
 font-weight: 700;
 }
 
 .archive-badge.deleted {
-border-color: rgba(215, 123, 123, 0.25);
+border-color: #b96767;
 
-background: rgba(185, 103, 103, 0.12);
+background: #4a252d;
 
-color: #df7d7d;
+color: #ffffff;
 }
 
 /* =========================================================

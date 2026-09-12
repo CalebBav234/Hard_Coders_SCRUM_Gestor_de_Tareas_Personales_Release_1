@@ -28,7 +28,9 @@ describe('Task list / history integration', () => {
     http.expectOne('/api/tasks').flush([active]);
     const initialHistory = http.expectOne('/api/tasks/history');
     fixture.detectChanges();
-    const list = fixture.debugElement.query(By.directive(TaskList)).componentInstance as TaskList;
+    const list = fixture.debugElement.query(By.directive(TaskList)).componentInstance as TaskList & {
+      liveTimes: Record<number, number>;
+    };
     expect(list.liveTimes[42]).toBeGreaterThanOrEqual(65);
     expect(element.querySelector('.active-time')?.textContent).toContain('01:');
     expect(element.querySelector('a[href="#task-history"]')).not.toBeNull();
@@ -52,7 +54,12 @@ describe('Task list / history integration', () => {
     expect(element.querySelector('.history-card')).toBeNull();
 
     list.requestDelete(reopened);
-    list.confirmDelete();
+    fixture.detectChanges();
+    const confirmDeleteButton = Array.from(element.querySelectorAll('button')).find((button) =>
+      /confirmar|eliminar/i.test(button.textContent ?? ''),
+    );
+    expect(confirmDeleteButton).not.toBeUndefined();
+    confirmDeleteButton?.click();
     http
       .expectOne('/api/tasks/42?version=3')
       .flush(null, { status: 204, statusText: 'No Content' });

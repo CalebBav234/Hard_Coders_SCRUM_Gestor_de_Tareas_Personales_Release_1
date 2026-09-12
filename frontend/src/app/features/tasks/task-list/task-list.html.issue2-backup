@@ -79,10 +79,8 @@
       class="search-form"
       (ngSubmit)="searchTasks()"
     >
-      <label for="task-search">Buscar tareas</label>
 
       <input
-        id="task-search"
         type="text"
         class="search-input"
         [(ngModel)]="searchTerm"
@@ -665,21 +663,18 @@
 
     <div
       class="subtasks-modal-overlay"
-      (click)="
-        $event.target === $event.currentTarget &&
-        closeSubtasksModal()
-      "
+      (click)="closeSubtasksModal()"
     >
 
-      <dialog
+      <section
         class="subtasks-modal"
-        open
+        role="dialog"
         aria-modal="true"
         [attr.aria-label]="
           'Subtareas de ' +
           subtasksModalParent.title
         "
-        
+        (click)="$event.stopPropagation()"
       >
 
         <!-- =====================================================
@@ -875,12 +870,8 @@
                     @if (editingCategoryId === subtask.id) {
 
                       <div class="subtask-category-editor">
-                        <label for="subtask-category-{{ subtask.id }}">
-                          Categoría
-                        </label>
 
                         <select
-                          id="subtask-category-{{ subtask.id }}"
                           [(ngModel)]="selectedCategoryName"
                           name="subtask-category-{{ subtask.id }}"
                         >
@@ -1173,7 +1164,7 @@
 
         }
 
-      </dialog>
+      </section>
 
     </div>
 

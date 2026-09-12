@@ -319,15 +319,15 @@
 }
 
 .alert-success {
-  background: rgba(88, 145, 110, 0.12);
-  border: 1px solid rgba(114, 182, 141, 0.28);
-  color: #9bd0ad;
+  background: #254332;
+  border: 1px solid #63a77c;
+  color: #ffffff;
 }
 
 .alert-error {
-  background: rgba(180, 74, 74, 0.12);
-  border: 1px solid rgba(215, 123, 123, 0.28);
-  color: #e49a9a;
+  background: #4a252d;
+  border: 1px solid #b96767;
+  color: #ffffff;
 }
 
 /* =========================================================
@@ -933,8 +933,8 @@
 
   border-radius: 8px;
 
-  background: rgba(215, 123, 123, 0.13);
-  color: #e58b8b;
+  background: #4a252d;
+  color: #ffffff;
 
   font-size: 17px;
 }
@@ -984,11 +984,11 @@
 }
 
 .btn-cancel-delete {
-  background: rgba(255, 255, 255, 0.05);
+  background: #363659;
 
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid #505077;
 
-  color: #c8c8d4;
+  color: #ffffff;
 }
 
 .btn-cancel-delete:hover {
@@ -1606,7 +1606,7 @@
   border-radius: 7px;
 
   background: rgba(104, 104, 166, 0.14);
-  color: #eeeeF5;
+  color: #ffffff;
 
   font-family: inherit;
 
@@ -2119,6 +2119,8 @@
   .tasks {
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .page-header {
@@ -2130,11 +2132,6 @@
   .empty-state {
     margin-left: 0;
     margin-right: 0;
-  }
-
-  .tasks {
-    padding-left: 0;
-    padding-right: 0;
   }
 
 }

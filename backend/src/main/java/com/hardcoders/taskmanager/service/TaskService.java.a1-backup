@@ -32,9 +32,6 @@ import java.util.Map;
 @Transactional
 public class TaskService {
 
-    private static final String STATUS_ACTIVE = "ACTIVA";
-    private static final String STATUS_INACTIVE = "INACTIVA";
-
     private final TaskRepository taskRepository;
     private final CategoryService categoryService;
     private final TaskRelationRepository taskRelationRepository;
@@ -48,7 +45,7 @@ public class TaskService {
     public TaskResponse create(String title, String priority, String categoryName, Long parentTaskId) {
         Task task = new Task();
         task.setTitle(title);
-        task.setStatus(STATUS_INACTIVE);
+        task.setStatus("INACTIVA");
         task.setPriority(priority != null && !priority.isBlank() ? priority : "MEDIA");
         task.setCategoryId(categoryService.findOrCreateVisibleByName(categoryName));
         task.setTotalActiveSeconds(0L);
@@ -70,10 +67,10 @@ public class TaskService {
     public TaskResponse activate(Long taskId, Long expectedVersion) {
         Task task = findVisibleTask(taskId);
         verifyVersion(taskId, expectedVersion, task.getVersion());
-        if (!STATUS_INACTIVE.equals(task.getStatus())) {
-            throw new InvalidTaskStateException(task.getStatus(), STATUS_ACTIVE);
+        if (!"INACTIVA".equals(task.getStatus())) {
+            throw new InvalidTaskStateException(task.getStatus(), "ACTIVA");
         }
-        task.setStatus(STATUS_ACTIVE);
+        task.setStatus("ACTIVA");
         task.setActivatedAt(Instant.now());
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
@@ -84,7 +81,7 @@ public class TaskService {
     public TaskResponse complete(Long taskId, Long expectedVersion) {
         Task task = findVisibleTask(taskId);
         verifyVersion(taskId, expectedVersion, task.getVersion());
-        if (!STATUS_ACTIVE.equals(task.getStatus())) {
+        if (!"ACTIVA".equals(task.getStatus())) {
             throw new InvalidTaskStateException(task.getStatus(), "TERMINADA");
         }
         long elapsedSeconds = Instant.now().getEpochSecond() - task.getActivatedAt().getEpochSecond();
@@ -102,10 +99,10 @@ public class TaskService {
         Task task = findVisibleTask(taskId);
         verifyVersion(taskId, expectedVersion, task.getVersion());
         if (!"TERMINADA".equals(task.getStatus())) {
-            throw new InvalidTaskStateException(task.getStatus(), STATUS_ACTIVE);
+            throw new InvalidTaskStateException(task.getStatus(), "ACTIVA");
         }
         Instant now = Instant.now();
-        task.setStatus(STATUS_ACTIVE);
+        task.setStatus("ACTIVA");
         task.setActivatedAt(now);
         task.setCompletedAt(null);
         task.setUpdatedAt(now);
@@ -117,13 +114,13 @@ public class TaskService {
     public TaskResponse pause(Long taskId, Long expectedVersion) {
         Task task = findVisibleTask(taskId);
         verifyVersion(taskId, expectedVersion, task.getVersion());
-        if (!STATUS_ACTIVE.equals(task.getStatus())) {
-            throw new InvalidTaskStateException(task.getStatus(), STATUS_INACTIVE);
+        if (!"ACTIVA".equals(task.getStatus())) {
+            throw new InvalidTaskStateException(task.getStatus(), "INACTIVA");
         }
         long elapsedSeconds = Instant.now().getEpochSecond() - task.getActivatedAt().getEpochSecond();
         task.setTotalActiveSeconds(task.getTotalActiveSeconds() + elapsedSeconds);
         task.setActivatedAt(null);
-        task.setStatus(STATUS_INACTIVE);
+        task.setStatus("INACTIVA");
         task.setUpdatedAt(Instant.now());
         taskRepository.save(task);
         taskRepository.flush();
@@ -273,7 +270,7 @@ public class TaskService {
         String type = request.relationType() != null ? request.relationType() : "RELACIONADA";
 
         if (taskRelationRepository.existsBySourceTaskIdAndTargetTaskIdAndRelationType(sourceTaskId, targetTask.getId(), type)) {
-            throw new IllegalArgumentException("Esta relaciÃ³n ya existe");
+            throw new IllegalArgumentException("Esta relación ya existe");
         }
 
         TaskRelation relation = new TaskRelation();
@@ -317,10 +314,10 @@ public class TaskService {
 
     public void removeRelation(Long taskId, Long relationId) {
         TaskRelation relation = taskRelationRepository.findById(relationId)
-                .orElseThrow(() -> new IllegalArgumentException("RelaciÃ³n no encontrada"));
+                .orElseThrow(() -> new IllegalArgumentException("Relación no encontrada"));
                 
         if (!relation.getSourceTaskId().equals(taskId)) {
-            throw new IllegalArgumentException("La relaciÃ³n no pertenece a esta tarea");
+            throw new IllegalArgumentException("La relación no pertenece a esta tarea");
         }
         
         taskRelationRepository.delete(relation);
@@ -373,4 +370,3 @@ public class TaskService {
         throw new IllegalArgumentException("Tipo de timestamp no soportado: " + value.getClass().getName());
     }
 }
-

@@ -49,7 +49,6 @@ export class TaskList implements OnInit {
   busyTaskId: number | null = null;
   pausingSubtasksForParentId: number | null = null;
   confirmingDelete: number | null = null;
-
   editingCategoryId: number | null = null;
   selectedCategoryName: string | null = null;
 
