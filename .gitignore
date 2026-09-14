@@ -18,6 +18,10 @@ frontend/node_modules/
 frontend/dist/
 .angular/
 
+# SonarQube scanner output and local server credentials
+.scannerwork/
+.env.sonarqube
+
 # Sistema operativo
 .DS_Store
 Thumbs.db
