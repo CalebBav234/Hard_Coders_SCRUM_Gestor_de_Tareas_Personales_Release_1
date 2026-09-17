@@ -1,0 +1,42 @@
+services:
+  sonarqube-db:
+    image: postgres:18
+    container_name: gestor-tareas-sonarqube-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sonarqube
+      POSTGRES_USER: sonarqube
+      POSTGRES_PASSWORD: ${SONARQUBE_DB_PASSWORD:?Copia .env.sonarqube.example como .env.sonarqube y define una contraseña local}
+    volumes:
+      # PostgreSQL 18 stores clusters below this directory. Mounting the old
+      # /var/lib/postgresql/data path makes the official image refuse to start.
+      - sonarqube_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonarqube -d sonarqube"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: gestor-tareas-sonarqube
+    restart: unless-stopped
+    depends_on:
+      sonarqube-db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonarqube
+      SONAR_JDBC_PASSWORD: ${SONARQUBE_DB_PASSWORD}
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
+volumes:
+  sonarqube_db_data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:

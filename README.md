@@ -30,6 +30,10 @@ Los scripts solicitan las contraseñas de forma interactiva. No guardes credenci
 - Ramas cortas: `feature/US-XX-descripcion`, `fix/...`, `docs/...` o una rama técnica equivalente.
 - Cada cambio llega a `develop` mediante Pull Request y revisión de otro integrante.
 
+## Calidad estática con SonarQube
+
+El proyecto incorpora una pila local reproducible de SonarQube Community Build y PostgreSQL 18, completamente separada de la base de datos de tareas. Consulta [la guía de SonarQube](docs/sonarqube.md) para iniciarla, crear un token local, ejecutar los análisis A1/A2/A3 y configurar el Quality Profile y Quality Gate de la práctica.
+
 ## Backend (Spring Boot)
 
 API REST sobre el esquema existente en `task_manager` (sin migraciones desde la app: `ddl-auto: validate`).
