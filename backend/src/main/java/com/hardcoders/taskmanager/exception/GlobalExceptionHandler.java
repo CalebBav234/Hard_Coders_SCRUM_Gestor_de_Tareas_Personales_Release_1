@@ -1,13 +1,15 @@
 package com.hardcoders.taskmanager.exception;
 
 import com.hardcoders.taskmanager.dto.ErrorResponse;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.OptimisticLockException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
-import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -20,47 +22,25 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    @ExceptionHandler(TaskNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(TaskNotFoundException ex) {
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(EntityNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of("TASK_NOT_FOUND", ex.getMessage()));
+                .body(ErrorResponse.of("NOT_FOUND", ex.getMessage()));
     }
 
-    @ExceptionHandler(CategoryNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleCategoryNotFound(CategoryNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ErrorResponse.of("CATEGORY_NOT_FOUND", ex.getMessage()));
-    }
-
-    @ExceptionHandler(InvalidTaskStateException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidState(InvalidTaskStateException ex) {
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleIntegrity(DataIntegrityViolationException ex) {
+        log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of("INVALID_STATE_TRANSITION", ex.getMessage()));
-    }
-
-    @ExceptionHandler(TaskHasSubtasksException.class)
-    public ResponseEntity<ErrorResponse> handleSubtasks(TaskHasSubtasksException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ErrorResponse.of("TASK_HAS_SUBTASKS", ex.getMessage()));
-    }
-
-    @ExceptionHandler(InvalidParentTaskException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidParent(InvalidParentTaskException ex) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ErrorResponse.of("INVALID_PARENT_TASK", ex.getMessage()));
-    }
-
-    @ExceptionHandler(OptimisticLockConflictException.class)
-    public ResponseEntity<ErrorResponse> handleOptimisticConflict(OptimisticLockConflictException ex) {
-        return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
-                .body(ErrorResponse.of("VERSION_CONFLICT", ex.getMessage()));
+                .body(ErrorResponse.of("DATA_INTEGRITY_VIOLATION",
+                        "La operación viola una restricción de la base de datos."));
     }
 
     @ExceptionHandler({OptimisticLockException.class, OptimisticLockingFailureException.class})
-    public ResponseEntity<ErrorResponse> handleHibernateOptimistic(Exception ex) {
+    public ResponseEntity<ErrorResponse> handleOptimistic(Exception ex) {
         return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED)
                 .body(ErrorResponse.of("VERSION_CONFLICT",
-                        "La tarea fue modificada por otro proceso. Vuelva a intentarlo."));
+                        "El registro fue modificado por otro proceso. Vuelva a intentarlo."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -78,7 +58,7 @@ public class GlobalExceptionHandler {
             HandlerMethodValidationException.class})
     public ResponseEntity<ErrorResponse> handleInvalidRequest(Exception ex) {
         return ResponseEntity.badRequest().body(ErrorResponse.of("VALIDATION_ERROR",
-                "Datos de entrada inválidos. Revisa el identificador, los campos y la versión de la tarea."));
+                "Datos de entrada inválidos. Revisa el identificador y los campos enviados."));
     }
 
     @ExceptionHandler(Exception.class)

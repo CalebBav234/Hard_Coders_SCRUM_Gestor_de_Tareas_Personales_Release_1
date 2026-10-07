@@ -8,10 +8,9 @@ Esta carpeta implementa la fundación de datos del manual operativo y añade las
 - Esquema: `task_manager`.
 - Rol propietario de migraciones: `gestor_tareas_owner`.
 - Rol del backend con permisos limitados: `gestor_tareas_app`.
-- Siete tablas, cuatro vistas, índices, restricciones y triggers.
+- Modelo de Gestor de Proyectos (V004): quince tablas, índices, restricciones y triggers. Las tablas del modelo anterior (V001-V003) quedan archivadas en `task_manager_legacy`.
 - Migraciones ordenadas y protegidas por versión + checksum.
-- Borrado lógico para US-07 e historial unificado de terminadas/eliminadas para US-12.
-- Búsqueda por título o descripción para US-13 mediante consultas parametrizadas.
+- Migración automática de las tareas existentes a un "Proyecto legado" (ver [docs/data-dictionary.md](docs/data-dictionary.md)).
 
 El diagrama está en [diagram/erd.mmd](diagram/erd.mmd) y el detalle de columnas en [docs/data-dictionary.md](docs/data-dictionary.md).
 
@@ -62,9 +61,9 @@ El resultado correcto debe mostrar:
 
 - PostgreSQL mayor 18.
 - Zona horaria `UTC`.
-- Migraciones V1, V2 y V3.
-- Permisos de lectura, inserción y actualización sobre `tasks`.
-- `can_hard_delete_tasks = false`.
+- Migraciones V1, V2, V3 y V4.
+- Permisos de lectura, inserción y actualización sobre `task`.
+- `can_rewrite_history = false` y `can_edit_catalogs = false`.
 
 Esta verificación comprueba la instalación y los permisos; no reemplaza las pruebas funcionales de historias de usuario, que pertenecen a una fase posterior.
 
@@ -114,16 +113,13 @@ El runner crea `public.database_schema_migrations` y guarda versión, descripci�
 
 ## 7. Reglas para el backend
 
-- Crear una tarea como `INACTIVA`, prioridad inicial `MEDIA`, `activated_at = NULL` y `completed_at = NULL`.
-- Al activar: cambiar a `ACTIVA`, definir `activated_at` y abrir un `task_time_entry`.
-- Al pausar: sumar el segmento a `total_active_seconds`, cerrar el registro de tiempo, limpiar `activated_at` y cambiar a `INACTIVA` dentro de una misma transacción.
-- Al completar: cerrar el segmento, acumular tiempo, limpiar `activated_at`, definir `completed_at` y cambiar a `TERMINADA` en una misma transacción.
-- Al reabrir: limpiar `completed_at`, definir `activated_at`, abrir segmento y cambiar a `ACTIVA`.
-- Para eliminar en US-07: actualizar `deleted_at`; no emitir `DELETE FROM task_manager.tasks`.
-- Usar `version` con `@Version` para evitar sobrescribir cambios concurrentes.
-- Mostrar tareas normales desde `v_tasks`; pendientes desde `v_pending_tasks`.
-- `v_task_archive` permite consultar terminadas y eliminadas desde pgAdmin. Para mantener compatibilidad con bases V001/V002, el backend obtiene ese mismo archivo desde `tasks` y `categories`; sus transiciones provienen de `v_task_history`.
-- Aplicar la búsqueda en PostgreSQL sobre título y descripción, sin concatenar SQL recibido del usuario.
+- Crear proyecto + revisión 1 de `project_plan_history` en la misma transacción (`@Transactional`).
+- Crear tarea + revisión 1 de `task_plan_history` + estado inicial en `task_status_history` (`previous_status_id = NULL`) en la misma transacción. Triggers diferidos lo exigen al hacer `COMMIT`.
+- Cada cambio de presupuesto/duración agrega una revisión (`revision_number` siguiente); cada cambio de estado agrega una fila en `task_status_history`. Los historiales no se editan.
+- Al completar una tarea o subtarea, definir `completed_at` y `completed_by_user_id` juntos; al reabrir, limpiar ambos.
+- Buscar estados y prioridades por `name` (`PENDIENTE`, `EN_PROGRESO`, `COMPLETADA`, `CANCELADA`; `ALTA`, `MEDIA`, `BAJA`).
+- Guardar `email` en minúsculas y `password_hash` con BCrypt. Los usuarios se desactivan (`is_active = false`), no se borran.
+- Montos en BOB con `BigDecimal`; tiempos en minutos.
 
 ## 8. Pasos para cada integrante
 

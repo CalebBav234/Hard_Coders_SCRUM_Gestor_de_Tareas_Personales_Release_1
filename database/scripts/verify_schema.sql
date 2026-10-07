@@ -16,25 +16,26 @@ BEGIN
     SELECT count(*)
     INTO missing_tables
     FROM unnest(ARRAY[
-        'task_manager.categories',
-        'task_manager.tags',
-        'task_manager.tasks',
-        'task_manager.task_tags',
-        'task_manager.task_relations',
-        'task_manager.task_status_history',
-        'task_manager.task_time_entries'
+        'task_manager.app_user',
+        'task_manager.project_status',
+        'task_manager.work_status',
+        'task_manager.task_priority',
+        'task_manager.exchange_rate_source',
+        'task_manager.exchange_rate_quote',
+        'task_manager.project',
+        'task_manager.stage',
+        'task_manager.activity',
+        'task_manager.task',
+        'task_manager.subtask',
+        'task_manager.task_assignment',
+        'task_manager.project_plan_history',
+        'task_manager.task_plan_history',
+        'task_manager.task_status_history'
     ]) AS expected_table(name)
     WHERE to_regclass(expected_table.name) IS NULL;
 
     IF missing_tables > 0 THEN
         RAISE EXCEPTION 'Faltan % tablas obligatorias', missing_tables;
-    END IF;
-
-    IF to_regclass('task_manager.v_tasks') IS NULL
-       OR to_regclass('task_manager.v_pending_tasks') IS NULL
-       OR to_regclass('task_manager.v_task_history') IS NULL
-       OR to_regclass('task_manager.v_task_archive') IS NULL THEN
-        RAISE EXCEPTION 'Falta una o más vistas obligatorias';
     END IF;
 END;
 $verification$;
@@ -51,13 +52,15 @@ ORDER BY version;
 
 SELECT
     has_schema_privilege(current_user, 'task_manager', 'USAGE') AS can_use_schema,
-    has_table_privilege(current_user, 'task_manager.tasks', 'SELECT') AS can_read_tasks,
-    has_table_privilege(current_user, 'task_manager.tasks', 'INSERT') AS can_create_tasks,
-    has_table_privilege(current_user, 'task_manager.tasks', 'UPDATE') AS can_update_tasks,
-    has_table_privilege(current_user, 'task_manager.tasks', 'DELETE') AS can_hard_delete_tasks;
+    has_table_privilege(current_user, 'task_manager.task', 'SELECT') AS can_read_tasks,
+    has_table_privilege(current_user, 'task_manager.task', 'INSERT') AS can_create_tasks,
+    has_table_privilege(current_user, 'task_manager.task', 'UPDATE') AS can_update_tasks,
+    has_table_privilege(current_user, 'task_manager.task_status_history', 'UPDATE') AS can_rewrite_history,
+    has_table_privilege(current_user, 'task_manager.work_status', 'INSERT') AS can_edit_catalogs;
 
 SELECT
-    (SELECT count(*) FROM task_manager.v_tasks) AS visible_tasks,
-    (SELECT count(*) FROM task_manager.v_pending_tasks) AS pending_tasks,
-    (SELECT count(*) FROM task_manager.v_task_history) AS history_events,
-    (SELECT count(*) FROM task_manager.v_task_archive) AS archived_tasks;
+    (SELECT count(*) FROM task_manager.project) AS projects,
+    (SELECT count(*) FROM task_manager.task) AS tasks,
+    (SELECT count(*) FROM task_manager.subtask) AS subtasks,
+    (SELECT count(*) FROM task_manager.work_status) AS work_statuses,
+    (SELECT count(*) FROM task_manager.task_priority) AS priorities;

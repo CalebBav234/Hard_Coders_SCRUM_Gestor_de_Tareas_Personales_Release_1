@@ -2,66 +2,74 @@ package com.hardcoders.taskmanager.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
+import java.math.BigDecimal;
 import java.time.Instant;
 
+/** Tarea de una actividad. Tabla {@code task_manager.task}. */
 @Entity
-@Table(name = "tasks", schema = "task_manager")
-public class Task {
+@Table(name = "task", schema = "task_manager")
+public class Task extends AuditedEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "task_id")
+    private Integer taskId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "activity_id", nullable = false)
+    private Activity activity;
 
     @Column(name = "title", nullable = false, length = 160)
     private String title;
 
-    @Column(name = "description", length = 4000)
+    @Column(name = "description", length = 2000)
     private String description;
 
-    @Column(name = "status", nullable = false, length = 16)
-    private String status;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "work_status_id", nullable = false)
+    private WorkStatus status;
 
-    @Column(name = "priority", nullable = false, length = 8)
-    private String priority;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "task_priority_id", nullable = false)
+    private TaskPriority priority;
 
-    @Column(name = "category_id")
-    private Long categoryId;
+    @Column(name = "allocated_budget_bob", nullable = false, precision = 15, scale = 2)
+    private BigDecimal allocatedBudgetBob = BigDecimal.ZERO.setScale(2);
 
-    @Column(name = "parent_task_id")
-    private Long parentTaskId;
+    @Column(name = "estimated_duration_minutes", nullable = false)
+    private Integer estimatedDurationMinutes = 0;
 
-    @Column(name = "activated_at")
-    private Instant activatedAt;
+    @Column(name = "actual_duration_minutes")
+    private Integer actualDurationMinutes;
 
     @Column(name = "completed_at")
     private Instant completedAt;
 
-    @Column(name = "total_active_seconds", nullable = false)
-    private Long totalActiveSeconds = 0L;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "completed_by_user_id")
+    private AppUser completedBy;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
-
-    @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
-
-    @Column(name = "deleted_at")
-    private Instant deletedAt;
-
-    @Version
-    private Long version = 0L;
-
-    public Long getId() {
-        return id;
+    public Integer getTaskId() {
+        return taskId;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setTaskId(Integer taskId) {
+        this.taskId = taskId;
+    }
+
+    public Activity getActivity() {
+        return activity;
+    }
+
+    public void setActivity(Activity activity) {
+        this.activity = activity;
     }
 
     public String getTitle() {
@@ -80,44 +88,44 @@ public class Task {
         this.description = description;
     }
 
-    public String getStatus() {
+    public WorkStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(WorkStatus status) {
         this.status = status;
     }
 
-    public String getPriority() {
+    public TaskPriority getPriority() {
         return priority;
     }
 
-    public void setPriority(String priority) {
+    public void setPriority(TaskPriority priority) {
         this.priority = priority;
     }
 
-    public Long getCategoryId() {
-        return categoryId;
+    public BigDecimal getAllocatedBudgetBob() {
+        return allocatedBudgetBob;
     }
 
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
+    public void setAllocatedBudgetBob(BigDecimal allocatedBudgetBob) {
+        this.allocatedBudgetBob = allocatedBudgetBob;
     }
 
-    public Long getParentTaskId() {
-        return parentTaskId;
+    public Integer getEstimatedDurationMinutes() {
+        return estimatedDurationMinutes;
     }
 
-    public void setParentTaskId(Long parentTaskId) {
-        this.parentTaskId = parentTaskId;
+    public void setEstimatedDurationMinutes(Integer estimatedDurationMinutes) {
+        this.estimatedDurationMinutes = estimatedDurationMinutes;
     }
 
-    public Instant getActivatedAt() {
-        return activatedAt;
+    public Integer getActualDurationMinutes() {
+        return actualDurationMinutes;
     }
 
-    public void setActivatedAt(Instant activatedAt) {
-        this.activatedAt = activatedAt;
+    public void setActualDurationMinutes(Integer actualDurationMinutes) {
+        this.actualDurationMinutes = actualDurationMinutes;
     }
 
     public Instant getCompletedAt() {
@@ -128,43 +136,11 @@ public class Task {
         this.completedAt = completedAt;
     }
 
-    public Long getTotalActiveSeconds() {
-        return totalActiveSeconds;
+    public AppUser getCompletedBy() {
+        return completedBy;
     }
 
-    public void setTotalActiveSeconds(Long totalActiveSeconds) {
-        this.totalActiveSeconds = totalActiveSeconds;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public Instant getDeletedAt() {
-        return deletedAt;
-    }
-
-    public void setDeletedAt(Instant deletedAt) {
-        this.deletedAt = deletedAt;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
+    public void setCompletedBy(AppUser completedBy) {
+        this.completedBy = completedBy;
     }
 }

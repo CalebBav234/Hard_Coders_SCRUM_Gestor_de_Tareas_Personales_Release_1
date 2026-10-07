@@ -4,6 +4,8 @@ Aplicación web académica gestionada con Scrum, con frontend Angular, API Sprin
 
 ## Estado actual
 
+> **Rama `feature/db-migracion-gestor-proyectos` (V004):** la base pasa al modelo de Gestor de Proyectos (proyecto → etapa → actividad → tarea → subtarea, usuarios, asignaciones, historiales y tipo de cambio). El backend solo contiene entidades y repositorios JPA del modelo nuevo; los endpoints `/api/tasks` del modelo anterior se retiraron y deben reimplementarse. Guía: [docs/migracion-v004.md](docs/migracion-v004.md).
+
 - PostgreSQL objetivo: 18.
 - Esquema relacional versionado y reproducible.
 - Scripts locales para crear roles, base de datos, aplicar migraciones y verificar la instalación.
@@ -119,7 +121,7 @@ npm install              # la primera vez
 npm start                # -> http://localhost:4200
 ```
 
-> El contenedor `db` crea los roles `gestor_tareas_owner` (dueño) y `gestor_tareas_app` (backend) con contraseñas de **desarrollo local solamente** (`ownerpass`/`apppass`/`secret`), la base `gestor_tareas` y aplica `V001`/`V002` sobre el esquema `task_manager`.
+> El contenedor `db` crea los roles `gestor_tareas_owner` (dueño) y `gestor_tareas_app` (backend) con contraseñas de **desarrollo local solamente** (`ownerpass`/`apppass`/`secret`), la base `gestor_tareas` y aplica `V001`…`V004` sobre el esquema `task_manager`.
 
 Verifica la base:
 
@@ -128,7 +130,7 @@ docker cp database\scripts\verify_schema.sql gestor-tareas-db:/tmp/
 docker compose exec -T db psql "host=localhost port=5432 user=gestor_tareas_app dbname=gestor_tareas" -f /tmp/verify_schema.sql
 ```
 
-Resultado esperado: PostgreSQL 18.6, zona horaria `UTC`, migraciones `V1` y `V2`, y `can_hard_delete_tasks = false`.
+Resultado esperado: PostgreSQL 18, zona horaria `UTC`, migraciones `V1` a `V4`, `can_rewrite_history = false` y `can_edit_catalogs = false`.
 
 > Si tienes PostgreSQL 18 instalado localmente en vez de Docker, usa `.\database\scripts\setup-local.ps1` y `.\database\scripts\verify-local.ps1` (piden las contraseñas de forma interactiva).
 

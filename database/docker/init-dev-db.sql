@@ -1,7 +1,7 @@
 -- bootstrap dev/test DB inside the official postgres:18 container.
 -- Runs AS superuser during docker-entrypoint-initdb.d (only on a fresh data dir).
 -- Replicates database/scripts/setup-local.ps1 + migrate.ps1: creates roles, the
--- gestor_tareas database, and applies V001/V002/V003 as the owner role.
+-- gestor_tareas database, and applies V001..V004 as the owner role.
 -- DEV ONLY: passwords below are local/test defaults. Do not use in production.
 
 -- 1. Roles
@@ -52,3 +52,12 @@ ON CONFLICT (version) DO NOTHING;
 INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
 VALUES (3, 'task archive', 'a5b8d1568195c6ea03e58babd4f41ee4ed0b38207ab6c89c287e98a1c4b31772', CURRENT_USER)
 ON CONFLICT (version) DO NOTHING;
+
+-- V004 must run in ONE transaction: its deferred constraint triggers require the
+-- initial plan/status history rows to be inserted together with each project/task.
+BEGIN;
+\i /migrations/V004__project_management_model.sql
+INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
+VALUES (4, 'project management model', 'dd55ed8ca35a66eb96221efa330941db84c17bfdac29b7e7826dff3b0498b5ac', CURRENT_USER)
+ON CONFLICT (version) DO NOTHING;
+COMMIT;

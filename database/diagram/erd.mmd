@@ -1,73 +1,185 @@
 erDiagram
-    CATEGORY ||--o{ TASK : clasifica
-    TASK ||--o{ TASK : contiene_subtarea
-    TASK ||--o{ TASK_TAG : tiene
-    TAG ||--o{ TASK_TAG : asignada
-    TASK ||--o{ TASK_RELATION : origen
-    TASK ||--o{ TASK_RELATION : destino
-    TASK ||--o{ TASK_STATUS_HISTORY : registra
-    TASK ||--o{ TASK_TIME_ENTRY : mide
+    direction TB
 
-    CATEGORY {
-        bigint id PK
-        varchar name UK
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz deleted_at
+    %% V4: modelo propuesto; PK y FK INTEGER, cadenas VARCHAR(n).
+    %% Implementado por database/migrations/V004__project_management_model.sql.
+    %% PK compuestas: TASK_ASSIGNMENT y ambos historiales de plan.
+    %% Moneda fija BOB; tiempos INTEGER expresados en minutos.
+
+    PROJECT ||..o{ STAGE : "contiene etapas (1:N)"
+    STAGE ||..o{ ACTIVITY : "contiene actividades (1:N)"
+    ACTIVITY ||..o{ TASK : "contiene tareas (1:N)"
+    TASK ||..o{ SUBTASK : "contiene subtareas (1:N)"
+    TASK ||--o{ TASK_ASSIGNMENT : "tiene asignaciones (1:N)"
+    APP_USER ||..o{ PROJECT : "dirige (1:N)"
+    PROJECT_STATUS ||..o{ PROJECT : "define estado (1:N)"
+    APP_USER ||..o{ PROJECT : "crea (1:N)"
+    WORK_STATUS ||..o{ STAGE : "define estado (1:N)"
+    WORK_STATUS ||..o{ ACTIVITY : "define estado (1:N)"
+    WORK_STATUS ||..o{ TASK : "define estado (1:N)"
+    TASK_PRIORITY ||..o{ TASK : "prioriza (1:N)"
+    APP_USER |o..o{ TASK : "completa (1:N)"
+    WORK_STATUS ||..o{ SUBTASK : "define estado (1:N)"
+    APP_USER |o..o{ SUBTASK : "completa (1:N)"
+    APP_USER ||--o{ TASK_ASSIGNMENT : "recibe asignacion (1:N)"
+    APP_USER ||..o{ TASK_ASSIGNMENT : "delega (1:N)"
+    PROJECT ||--|{ PROJECT_PLAN_HISTORY : "registra revisiones (1:N)"
+    EXCHANGE_RATE_QUOTE |o..o{ PROJECT_PLAN_HISTORY : "fundamenta revision (1:N)"
+    APP_USER ||..o{ PROJECT_PLAN_HISTORY : "registra cambio (1:N)"
+    TASK ||--|{ TASK_PLAN_HISTORY : "registra revisiones (1:N)"
+    EXCHANGE_RATE_QUOTE |o..o{ TASK_PLAN_HISTORY : "fundamenta revision (1:N)"
+    APP_USER ||..o{ TASK_PLAN_HISTORY : "registra cambio (1:N)"
+    TASK ||..|{ TASK_STATUS_HISTORY : "registra estados (1:N)"
+    WORK_STATUS |o..o{ TASK_STATUS_HISTORY : "estado anterior (1:N)"
+    WORK_STATUS ||..o{ TASK_STATUS_HISTORY : "estado nuevo (1:N)"
+    APP_USER ||..o{ TASK_STATUS_HISTORY : "registra cambio (1:N)"
+    EXCHANGE_RATE_SOURCE ||..o{ EXCHANGE_RATE_QUOTE : "publica (1:N)"
+
+    PROJECT {
+        integer project_id PK "NOT NULL; IDENTITY"
+        varchar(160) name "NOT NULL"
+        varchar(2000) description "NULL"
+        integer manager_user_id FK "NOT NULL"
+        integer project_status_id FK "NOT NULL"
+        decimal budget_bob "NOT NULL; DECIMAL(15,2); >= 0; finito; DEFAULT 0.00"
+        integer estimated_duration_minutes "NOT NULL; minutos; >= 0; DEFAULT 0"
+        integer created_by_user_id FK "NOT NULL"
+        timestamptz created_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        timestamptz updated_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    STAGE {
+        integer stage_id PK "NOT NULL; IDENTITY"
+        integer project_id FK "NOT NULL"
+        varchar(160) name "NOT NULL"
+        varchar(2000) description "NULL"
+        integer work_status_id FK "NOT NULL"
+        timestamptz created_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        timestamptz updated_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    ACTIVITY {
+        integer activity_id PK "NOT NULL; IDENTITY"
+        integer stage_id FK "NOT NULL"
+        varchar(160) name "NOT NULL"
+        varchar(2000) description "NULL"
+        integer work_status_id FK "NOT NULL"
+        timestamptz created_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        timestamptz updated_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
     }
 
     TASK {
-        bigint id PK
-        varchar title
-        text description
-        varchar status
-        varchar priority
-        bigint category_id FK
-        bigint parent_task_id FK
-        timestamptz activated_at
-        timestamptz completed_at
-        bigint total_active_seconds
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz deleted_at
-        bigint version
+        integer task_id PK "NOT NULL; IDENTITY"
+        integer activity_id FK "NOT NULL"
+        varchar(160) title "NOT NULL"
+        varchar(2000) description "NULL"
+        integer work_status_id FK "NOT NULL"
+        integer task_priority_id FK "NOT NULL"
+        decimal allocated_budget_bob "NOT NULL; DECIMAL(15,2); >= 0; finito; DEFAULT 0.00"
+        integer estimated_duration_minutes "NOT NULL; minutos; >= 0; DEFAULT 0"
+        integer actual_duration_minutes "NULL; minutos; >= 0"
+        timestamptz completed_at "NULL"
+        integer completed_by_user_id FK "NULL"
+        timestamptz created_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        timestamptz updated_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
     }
 
-    TAG {
-        bigint id PK
-        varchar name UK
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz deleted_at
+    SUBTASK {
+        integer subtask_id PK "NOT NULL; IDENTITY"
+        integer task_id FK "NOT NULL"
+        varchar(160) title "NOT NULL"
+        varchar(2000) description "NULL"
+        integer work_status_id FK "NOT NULL"
+        timestamptz completed_at "NULL"
+        integer completed_by_user_id FK "NULL"
+        timestamptz created_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        timestamptz updated_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
     }
 
-    TASK_TAG {
-        bigint task_id PK,FK
-        bigint tag_id PK,FK
-        timestamptz assigned_at
+    APP_USER {
+        integer user_id PK "NOT NULL; IDENTITY"
+        varchar(254) email UK "NOT NULL"
+        varchar(255) password_hash "NOT NULL"
+        varchar(100) given_names "NOT NULL"
+        varchar(100) family_names "NOT NULL"
+        boolean is_chief "NOT NULL; DEFAULT false"
+        boolean is_active "NOT NULL; DEFAULT true"
+        timestamptz created_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        timestamptz updated_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
     }
 
-    TASK_RELATION {
-        bigint id PK
-        bigint source_task_id FK
-        bigint target_task_id FK
-        varchar relation_type
-        timestamptz created_at
+    TASK_ASSIGNMENT {
+        integer task_id PK, FK "NOT NULL"
+        integer worker_user_id PK, FK "NOT NULL"
+        timestamptz assigned_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        integer assigned_by_user_id FK "NOT NULL"
+    }
+
+    PROJECT_STATUS {
+        integer project_status_id PK "NOT NULL; IDENTITY"
+        varchar(40) name UK "NOT NULL"
+        boolean is_closed "NOT NULL; DEFAULT false"
+        boolean is_enabled "NOT NULL; DEFAULT true"
+    }
+
+    WORK_STATUS {
+        integer work_status_id PK "NOT NULL; IDENTITY"
+        varchar(40) name UK "NOT NULL"
+        boolean is_completed "NOT NULL; DEFAULT false"
+        boolean is_enabled "NOT NULL; DEFAULT true"
+    }
+
+    TASK_PRIORITY {
+        integer task_priority_id PK "NOT NULL; IDENTITY"
+        varchar(30) name UK "NOT NULL"
+        integer sort_order UK "NOT NULL; > 0"
+        boolean is_enabled "NOT NULL; DEFAULT true"
+    }
+
+    PROJECT_PLAN_HISTORY {
+        integer project_id PK, FK "NOT NULL"
+        integer revision_number PK "NOT NULL; >= 1"
+        decimal budget_bob "NOT NULL; DECIMAL(15,2); >= 0; finito"
+        integer estimated_duration_minutes "NOT NULL; minutos; >= 0"
+        integer exchange_rate_quote_id FK "NULL"
+        timestamptz changed_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        integer changed_by_user_id FK "NOT NULL"
+        varchar(500) reason "NOT NULL"
+    }
+
+    TASK_PLAN_HISTORY {
+        integer task_id PK, FK "NOT NULL"
+        integer revision_number PK "NOT NULL; >= 1"
+        decimal allocated_budget_bob "NOT NULL; DECIMAL(15,2); >= 0; finito"
+        integer estimated_duration_minutes "NOT NULL; minutos; >= 0"
+        integer exchange_rate_quote_id FK "NULL"
+        timestamptz changed_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        integer changed_by_user_id FK "NOT NULL"
+        varchar(500) reason "NOT NULL"
     }
 
     TASK_STATUS_HISTORY {
-        bigint id PK
-        bigint task_id FK
-        varchar from_status
-        varchar to_status
-        varchar change_reason
-        timestamptz changed_at
+        integer task_status_history_id PK "NOT NULL; IDENTITY"
+        integer task_id FK "NOT NULL"
+        integer previous_status_id FK "NULL"
+        integer new_status_id FK "NOT NULL"
+        timestamptz changed_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
+        integer changed_by_user_id FK "NOT NULL"
+        varchar(500) reason "NOT NULL"
     }
 
-    TASK_TIME_ENTRY {
-        bigint id PK
-        bigint task_id FK
-        timestamptz started_at
-        timestamptz ended_at
-        timestamptz created_at
+    EXCHANGE_RATE_SOURCE {
+        integer exchange_rate_source_id PK "NOT NULL; IDENTITY"
+        varchar(120) name UK "NOT NULL"
+        varchar(2048) website_url "NOT NULL"
+        boolean is_enabled "NOT NULL; DEFAULT true"
+    }
+
+    EXCHANGE_RATE_QUOTE {
+        integer exchange_rate_quote_id PK "NOT NULL; IDENTITY"
+        integer exchange_rate_source_id FK "NOT NULL"
+        varchar(12) rate_kind "NOT NULL; COMPRA, VENTA, REFERENCIA"
+        decimal bob_per_usd "NOT NULL; DECIMAL(18,6); > 0; finito"
+        timestamptz quoted_at "NOT NULL"
+        timestamptz recorded_at "NOT NULL; DEFAULT CURRENT_TIMESTAMP"
     }
