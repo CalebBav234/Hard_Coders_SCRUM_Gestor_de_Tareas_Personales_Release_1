@@ -1,0 +1,289 @@
+classDiagram
+    direction TB
+
+    %% ==========================================
+    %% ENUMERACIONES
+    %% ==========================================
+    class TaskStatus {
+        <<enumeration>>
+        INACTIVA
+        ACTIVA
+        TERMINADA
+    }
+
+    class TaskPriority {
+        <<enumeration>>
+        ALTA
+        MEDIA
+        BAJA
+    }
+
+    class BudgetMode {
+        <<enumeration>>
+        AUTOMATICO
+        MANUAL
+    }
+
+    class ProjectRole {
+        <<enumeration>>
+        JEFE
+        ENCARGADO
+        PERSONAL
+    }
+
+    class RelationType {
+        <<enumeration>>
+        RELACIONADA
+        BLOQUEA
+        DEPENDE_DE
+    }
+
+    class ProjectStatus {
+        <<enumeration>>
+        BORRADOR
+        ACTIVO
+        FINALIZADO
+        ARCHIVADO
+    }
+
+    %% ==========================================
+    %% ENTIDADES EXISTENTES VERIFICADAS
+    %% ==========================================
+
+    class Category {
+        bigint id PK
+        varchar(80) name
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    class Tag {
+        bigint id PK
+        varchar(60) name
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+    }
+
+    class Task {
+        bigint id PK
+        varchar(160) title
+        text description
+        TaskStatus status
+        TaskPriority priority
+        bigint category_id FK
+        bigint parent_task_id FK
+        bigint activity_id FK
+        timestamptz activated_at
+        timestamptz completed_at
+        bigint total_active_seconds
+        bigint estimated_duration_seconds
+        bigint actual_duration_seconds
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+        bigint version
+    }
+
+    class TaskTag {
+        bigint task_id PK,FK
+        bigint tag_id PK,FK
+        timestamptz assigned_at
+    }
+
+    class TaskRelation {
+        bigint id PK
+        bigint source_task_id FK
+        bigint target_task_id FK
+        RelationType relation_type
+        timestamptz created_at
+    }
+
+    class TaskStatusHistory {
+        bigint id PK
+        bigint task_id FK
+        TaskStatus from_status
+        TaskStatus to_status
+        varchar(500) change_reason
+        timestamptz changed_at
+    }
+
+    class TaskTimeEntry {
+        bigint id PK
+        bigint task_id FK
+        timestamptz started_at
+        timestamptz ended_at
+        timestamptz created_at
+    }
+
+    %% ==========================================
+    %% ENTIDADES NUEVAS PROPUESTAS
+    %% ==========================================
+
+    class User {
+        bigint id PK
+        varchar(50) username
+        varchar(255) email
+        varchar(100) display_name
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+        bigint version
+    }
+
+    class Project {
+        bigint id PK
+        varchar(160) name
+        text description
+        varchar(3) currency
+        numeric(15,2) initial_budget
+        numeric(15,2) current_budget
+        BudgetMode budget_mode
+        bigint estimated_duration_seconds
+        bigint actual_duration_seconds
+        ProjectStatus status
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+        bigint version
+        bigint created_by FK
+    }
+
+    class Stage {
+        bigint id PK
+        varchar(160) name
+        text description
+        TaskStatus status
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+        bigint version
+        bigint project_id FK
+        bigint created_by FK
+    }
+
+    class Activity {
+        bigint id PK
+        varchar(160) name
+        text description
+        TaskStatus status
+        timestamptz created_at
+        timestamptz updated_at
+        timestamptz deleted_at
+        bigint version
+        bigint stage_id FK
+        bigint project_id FK
+        bigint created_by FK
+    }
+
+    class ProjectAssignment {
+        bigint project_id PK,FK
+        bigint user_id PK,FK
+        ProjectRole role
+        timestamptz assigned_at
+    }
+
+    class StageAssignment {
+        bigint stage_id PK,FK
+        bigint user_id PK,FK
+        ProjectRole role
+        timestamptz assigned_at
+    }
+
+    class ActivityAssignment {
+        bigint activity_id PK,FK
+        bigint user_id PK,FK
+        ProjectRole role
+        timestamptz assigned_at
+    }
+
+    class TaskAssignment {
+        bigint task_id PK,FK
+        bigint user_id PK,FK
+        ProjectRole role
+        timestamptz assigned_at
+    }
+
+    class ProjectBudgetHistory {
+        bigint id PK
+        bigint project_id FK
+        numeric(15,2) previous_amount
+        numeric(15,2) new_amount
+        varchar(3) currency
+        timestamptz changed_at
+        bigint changed_by FK
+        varchar(500) reason
+    }
+
+    %% ==========================================
+    %% RELACIONES - JERARQUIA FUNCIONAL
+    %% ==========================================
+
+    Project "1" *-- "0..*" Stage : contiene
+    Stage "1" *-- "0..*" Activity : contiene
+    Activity "1" *-- "0..*" Task : contiene
+    Task "0..1" *-- "0..*" Task : subtarea (parent_task_id)
+
+    %% ==========================================
+    %% RELACIONES - CATEGORIA Y ETIQUETAS
+    %% ==========================================
+
+    Category "1" o-- "0..*" Task : clasifica
+    Task "0..*" *-- "0..*" Tag : etiqueta
+    Tag "1" o-- "0..*" TaskTag : asignada
+
+    %% ==========================================
+    %% RELACIONES - TAREA USUARIO
+    %% ==========================================
+
+    User "1" -- "*" ProjectAssignment : asignado a
+    Project "1" -- "*" ProjectAssignment : tiene asignado
+    User "1" -- "*" StageAssignment : asignado a
+    Stage "1" -- "*" StageAssignment : tiene asignado
+    User "1" -- "*" ActivityAssignment : asignado a
+    Activity "1" -- "*" ActivityAssignment : tiene asignado
+    User "1" -- "*" TaskAssignment : asignado a
+    Task "1" -- "*" TaskAssignment : tiene asignado
+
+    %% ==========================================
+    %% RELACIONES - HISTORIAL Y AUDITORIA
+    %% ==========================================
+
+    Task "1" -- "*" TaskStatusHistory : genera
+    Task "1" -- "*" TaskTimeEntry : registra
+    Task "1" -- "*" TaskRelation : origen
+    Task "1" -- "*" TaskRelation : destino
+
+    %% ==========================================
+    %% RELACIONES - PRESUPUESTO
+    %% ==========================================
+
+    Project "1" -- "*" ProjectBudgetHistory : historial_de
+    User "1" -- "*" ProjectBudgetHistory : modifica
+
+    %% ==========================================
+    %% RELACIONES - PROPIEDAD
+    %% ==========================================
+
+    User "1" -- "*" Project : crea
+    User "1" -- "*" Stage : crea
+    User "1" -- "*" Activity : crea
+
+    %% ==========================================
+    %% ENUMERACIONES - ASOCIACIONES
+    %% ==========================================
+
+    Task ..> TaskStatus : estatus
+    Task ..> TaskPriority : prioridad
+    Task ..> RelationType : tipo_relacion
+    TaskAssignment ..> ProjectRole : rol
+    StageAssignment ..> ProjectRole : rol
+    ActivityAssignment ..> ProjectRole : rol
+    ProjectAssignment ..> ProjectRole : rol
+    Project ..> BudgetMode : modo_presupuesto
+    Project ..> ProjectStatus : estado
+    TaskRelation ..> RelationType : tipo
+    ProjectBudgetHistory ..> BudgetMode : modo_al_ajustar
+
+    TaskStatus ..> ProjectStatus : puede_convertirse_a

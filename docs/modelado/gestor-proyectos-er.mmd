@@ -1,0 +1,250 @@
+erDiagram
+
+    %% ==========================================
+    %% CATEGORIA
+    %% ==========================================
+    CATEGORY ||--o{ TASK : "clasifica (1:N)"
+    CATEGORY {
+        bigint id PK
+        varchar(80) name UK
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+    }
+
+    %% ==========================================
+    %% ETIQUETAS
+    %% ==========================================
+    TAG ||--o{ TASK_TAG : "asignada (N:N via)"
+    TAG {
+        bigint id PK
+        varchar(60) name UK
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+    }
+
+    %% ==========================================
+    %% PROYECTO
+    %% ==========================================
+    PROJECT ||--o{ STAGE : "contiene (1:N)"
+    PROJECT ||--o{ ACTIVITY : "contiene via etapa (1:N)"
+    PROJECT ||--o{ PROJECT_ASSIGNMENT : "asigna (1:N)"
+    PROJECT ||--o{ PROJECT_BUDGET_HISTORY : "historial (1:N)"
+    USER ||--o{ PROJECT : "crea (1:N)"
+    PROJECT {
+        bigint id PK
+        varchar(160) name NOT NULL
+        text description
+        varchar(3) currency NOT NULL DEFAULT 'EUR'
+        numeric(15,2) initial_budget NOT NULL DEFAULT 0
+        numeric(15,2) current_budget NOT NULL DEFAULT 0
+        varchar(12) budget_mode NOT NULL DEFAULT 'AUTOMATICO'
+        bigint estimated_duration_seconds NOT NULL DEFAULT 0
+        bigint actual_duration_seconds NOT NULL DEFAULT 0
+        varchar(16) status NOT NULL DEFAULT 'BORRADOR'
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+        bigint version NOT NULL DEFAULT 0
+        bigint created_by FK NOT NULL
+    }
+
+    %% ==========================================
+    %% ETAPA
+    %% ==========================================
+    STAGE ||--o{ ACTIVITY : "contiene (1:N)"
+    STAGE ||--o{ STAGE_ASSIGNMENT : "asigna personal (1:N)"
+    USER ||--o{ STAGE_ASSIGNMENT : "asignado (1:N)"
+    PROJECT ||--o{ STAGE : "depende (N:1)"
+    STAGE {
+        bigint id PK
+        varchar(160) name NOT NULL
+        text description
+        varchar(16) status NOT NULL DEFAULT 'INACTIVA'
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+        bigint version NOT NULL DEFAULT 0
+        bigint project_id FK NOT NULL
+        bigint created_by FK NOT NULL
+    }
+
+    %% ==========================================
+    %% ACTIVIDAD
+    %% ==========================================
+    ACTIVITY ||--o{ TASK : "contiene (1:N)"
+    ACTIVITY ||--o{ ACTIVITY_ASSIGNMENT : "asigna personal (1:N)"
+    USER ||--o{ ACTIVITY_ASSIGNMENT : "asignado (1:N)"
+    STAGE ||--o{ ACTIVITY : "depende (N:1)"
+    PROJECT ||--o{ ACTIVITY : "depende via etapa (N:1)"
+    ACTIVITY {
+        bigint id PK
+        varchar(160) name NOT NULL
+        text description
+        varchar(16) status NOT NULL DEFAULT 'INACTIVA'
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+        bigint version NOT NULL DEFAULT 0
+        bigint stage_id FK NOT NULL
+        bigint project_id FK NOT NULL
+        bigint created_by FK NOT NULL
+    }
+
+    %% ==========================================
+    %% TAREA (EXISTENTE - NIVEL 4 EN JERARQUIA)
+    %% ==========================================
+    TASK ||--o{ TASK : "subtarea via parent_task_id (1:N)"
+    TASK ||--o{ TASK_TAG : "tiene (1:N)"
+    TASK ||--o{ TASK_STATUS_HISTORY : "genera (1:N)"
+    TASK ||--o{ TASK_TIME_ENTRY : "registra (1:N)"
+    TASK ||--o{ TASK_RELATION : "origen (1:N)"
+    TASK ||--o{ TASK_RELATION : "destino (1:N)"
+    TASK ||--o{ TASK_ASSIGNMENT : "asigna personal (1:N)"
+    USER ||--o{ TASK_ASSIGNMENT : "asignado (1:N)"
+    ACTIVITY ||--o{ TASK : "depende (N:1)"
+    CATEGORY ||--o{ TASK : "clasifica (N:1)"
+    TASK {
+        bigint id PK
+        varchar(160) title NOT NULL
+        text description
+        varchar(16) status NOT NULL DEFAULT 'INACTIVA'
+        varchar(8) priority NOT NULL DEFAULT 'MEDIA'
+        bigint category_id FK
+        bigint parent_task_id FK
+        bigint activity_id FK
+        timestamptz activated_at
+        timestamptz completed_at
+        bigint total_active_seconds NOT NULL DEFAULT 0
+        bigint estimated_duration_seconds NOT NULL DEFAULT 0
+        bigint actual_duration_seconds NOT NULL DEFAULT 0
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+        bigint version NOT NULL DEFAULT 0
+    }
+
+    %% ==========================================
+    %% TAGS ASIGNADAS A TAREAS (N:N)
+    %% ==========================================
+    TASK_TAG {
+        bigint task_id PK,FK NOT NULL
+        bigint tag_id PK,FK NOT NULL
+        timestamptz assigned_at NOT NULL
+    }
+
+    %% ==========================================
+    %% RELACIONES ENTRE TAREAS (N:N)
+    %% ==========================================
+    TASK ||--o{ TASK_RELATION : "origen (1:N)"
+    TASK ||--o{ TASK_RELATION : "destino (1:N)"
+    TASK_RELATION {
+        bigint id PK
+        bigint source_task_id FK NOT NULL
+        bigint target_task_id FK NOT NULL
+        varchar(20) relation_type NOT NULL DEFAULT 'RELACIONADA'
+        timestamptz created_at NOT NULL
+    }
+
+    %% ==========================================
+    %% HISTORIAL DE ESTADOS
+    %% ==========================================
+    TASK ||--o{ TASK_STATUS_HISTORY : "genera (1:N)"
+    TASK_STATUS_HISTORY {
+        bigint id PK
+        bigint task_id FK NOT NULL
+        varchar(16) from_status
+        varchar(16) to_status NOT NULL
+        varchar(500) change_reason
+        timestamptz changed_at NOT NULL
+    }
+
+    %% ==========================================
+    %% ENTRADAS DE TIEMPO
+    %% ==========================================
+    TASK ||--o{ TASK_TIME_ENTRY : "registra (1:N)"
+    TASK_TIME_ENTRY {
+        bigint id PK
+        bigint task_id FK NOT NULL
+        timestamptz started_at NOT NULL
+        timestamptz ended_at
+        timestamptz created_at NOT NULL
+    }
+
+    %% ==========================================
+    %% USUARIO
+    %% ==========================================
+    USER ||--o{ PROJECT_ASSIGNMENT : "asignado (1:N)"
+    USER ||--o{ STAGE_ASSIGNMENT : "asignado (1:N)"
+    USER ||--o{ ACTIVITY_ASSIGNMENT : "asignado (1:N)"
+    USER ||--o{ TASK_ASSIGNMENT : "asignado (1:N)"
+    USER ||--o{ PROJECT_BUDGET_HISTORY : "modifica (1:N)"
+    USER ||--o{ PROJECT : "crea (1:N)"
+    USER ||--o{ STAGE : "crea (1:N)"
+    USER ||--o{ ACTIVITY : "crea (1:N)"
+    USER {
+        bigint id PK
+        varchar(50) username NOT NULL
+        varchar(255) email
+        varchar(100) display_name NOT NULL
+        timestamptz created_at NOT NULL
+        timestamptz updated_at NOT NULL
+        timestamptz deleted_at
+        bigint version NOT NULL DEFAULT 0
+    }
+
+    %% ==========================================
+    %% ASIGNACIONES N:N RESUELTAS (Tablas intermedias)
+    %% ==========================================
+    PROJECT_ASSIGNMENT {
+        bigint project_id PK,FK NOT NULL
+        bigint user_id PK,FK NOT NULL
+        varchar(12) role NOT NULL
+        timestamptz assigned_at NOT NULL
+    }
+    PROJECT ||--|{ PROJECT_ASSIGNMENT : "tiene asignado (1:N)"
+    USER ||--|{ PROJECT_ASSIGNMENT : "tiene asignacion (1:N)"
+
+    STAGE_ASSIGNMENT {
+        bigint stage_id PK,FK NOT NULL
+        bigint user_id PK,FK NOT NULL
+        varchar(12) role NOT NULL
+        timestamptz assigned_at NOT NULL
+    }
+    STAGE ||--|{ STAGE_ASSIGNMENT : "tiene asignado (1:N)"
+    USER ||--|{ STAGE_ASSIGNMENT : "tiene asignacion (1:N)"
+
+    ACTIVITY_ASSIGNMENT {
+        bigint activity_id PK,FK NOT NULL
+        bigint user_id PK,FK NOT NULL
+        varchar(12) role NOT NULL
+        timestamptz assigned_at NOT NULL
+    }
+    ACTIVITY ||--|{ ACTIVITY_ASSIGNMENT : "tiene asignado (1:N)"
+    USER ||--|{ ACTIVITY_ASSIGNMENT : "tiene asignacion (1:N)"
+
+    TASK_ASSIGNMENT {
+        bigint task_id PK,FK NOT NULL
+        bigint user_id PK,FK NOT NULL
+        varchar(12) role NOT NULL
+        timestamptz assigned_at NOT NULL
+    }
+    TASK ||--|{ TASK_ASSIGNMENT : "tiene asignado (1:N)"
+    USER ||--|{ TASK_ASSIGNMENT : "tiene asignacion (1:N)"
+
+    %% ==========================================
+    %% HISTORIAL DE PRESUPUESTO
+    %% ==========================================
+    PROJECT_BUDGET_HISTORY {
+        bigint id PK
+        bigint project_id FK NOT NULL
+        numeric(15,2) previous_amount NOT NULL
+        numeric(15,2) new_amount NOT NULL
+        varchar(3) currency NOT NULL
+        timestamptz changed_at NOT NULL
+        bigint changed_by FK NOT NULL
+        varchar(500) reason
+    }
+    PROJECT ||--|{ PROJECT_BUDGET_HISTORY : "historial (1:N)"
+    USER ||--|{ PROJECT_BUDGET_HISTORY : "modifica (1:N)"
