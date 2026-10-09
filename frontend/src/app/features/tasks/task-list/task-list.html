@@ -595,6 +595,7 @@
 
               <div class="completed-task-meta">
 
+                @if (!task.parentTaskId) {
                 <span
                   class="completed-priority"
                   [class.priority-alta]="task.priority === 'ALTA'"
@@ -603,6 +604,7 @@
                 >
                   {{ task.priority }}
                 </span>
+                }
 
                 @if (task.categoryName) {
 
@@ -836,6 +838,8 @@
 
                     <!-- INFORMACIÓN -->
 
+                    <!-- En V4 las subtareas no tienen prioridad ni cronómetro propios. -->
+                    @if (subtask.kind !== 'SUBTASK') {
                     <div class="task-meta">
 
                       <span
@@ -849,6 +853,7 @@
                       </span>
 
                     </div>
+                    }
 
 
                     <!-- TIEMPO ACTIVO -->

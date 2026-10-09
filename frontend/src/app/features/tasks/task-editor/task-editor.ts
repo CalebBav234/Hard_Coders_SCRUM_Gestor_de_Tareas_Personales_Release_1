@@ -16,6 +16,7 @@ import {
 import {
   Task,
   TaskPriority,
+  isSubtask,
 } from '../../../core/models/task';
 
 import { TaskService } from '../../../core/services/task.service';
@@ -72,6 +73,11 @@ export class TaskEditor implements OnInit {
   error: string | null = null;
   categoryError: string | null = null;
 
+  /** Las subtareas (V4) no tienen prioridad ni categoría propias. */
+  get isSubtask(): boolean {
+    return isSubtask(this.task);
+  }
+
   ngOnInit(): void {
     this.form.setValue({
       title: this.task.title,
@@ -80,7 +86,9 @@ export class TaskEditor implements OnInit {
       categoryName: this.task.categoryName ?? '',
     });
 
-    this.loadCategories();
+    if (!this.isSubtask) {
+      this.loadCategories();
+    }
   }
 
   loadCategories(): void {
@@ -148,6 +156,7 @@ export class TaskEditor implements OnInit {
         next: (updatedTask) => {
 
           const categoryChanged =
+            !this.isSubtask &&
             (this.task.categoryName ?? null) !== categoryName;
 
           if (!categoryChanged) {
@@ -169,6 +178,16 @@ export class TaskEditor implements OnInit {
 
                 this.saving = false;
                 this.saved.emit(finalTask);
+
+                this.changeDetector.markForCheck();
+              },
+
+              error: () => {
+                // Los datos ya se guardaron; solo falló el cambio de categoría.
+                this.saving = false;
+                this.form.enable();
+                this.error =
+                  'Se guardaron los cambios, pero no se pudo actualizar la categoría.';
 
                 this.changeDetector.markForCheck();
               },

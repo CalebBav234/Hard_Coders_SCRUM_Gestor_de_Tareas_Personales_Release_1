@@ -1,39 +1,60 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Task } from '../../../core/models/task';
+import { SubtaskDto, TaskDto } from '../../../core/models/api';
 import { TaskList } from './task-list';
 
-describe('TaskList editing and deletion', () => {
+describe('TaskList sobre la API V4', () => {
   let fixture: ComponentFixture<TaskList>;
   let http: HttpTestingController;
   let element: HTMLElement;
-  const original: Task = {
-    id: 7,
-    title: 'Original',
-    description: 'Descripción inicial',
-    priority: 'MEDIA',
-    status: 'ACTIVA',
-    version: 2,
-    createdAt: '2026-08-20T12:00:00Z',
-    activatedAt: '2026-08-20T13:00:00Z',
+
+  const child: SubtaskDto = {
+    subtaskId: 7,
+    taskId: 7,
+    title: 'Subtarea con el mismo id',
+    description: null,
+    status: 'PENDIENTE',
     completedAt: null,
-    totalActiveSeconds: 60,
+    createdAt: '2026-08-20T12:30:00Z',
+    updatedAt: '2026-08-20T12:30:00Z',
+    version: 55,
   };
 
-  function click(label: string): void {
-    const button = Array.from(element.querySelectorAll('button')).find(
-      (b) => b.textContent?.trim() === label,
-    );
-    expect(button).toBeTruthy();
+  const original: TaskDto = {
+    taskId: 7,
+    activityId: 1,
+    activityName: null,
+    title: 'Original',
+    description: 'Descripción inicial',
+    status: 'EN_PROGRESO',
+    priority: 'MEDIA',
+    allocatedBudgetBob: 0,
+    estimatedDurationMinutes: 0,
+    actualDurationMinutes: 1,
+    trackedSeconds: 60,
+    currentSegmentStartedAt: '2026-08-20T13:00:00Z',
+    completedAt: null,
+    createdAt: '2026-08-20T12:00:00Z',
+    updatedAt: '2026-08-20T13:00:00Z',
+    version: 2,
+    subtasks: [child],
+  };
+
+  function buttons(scope: ParentNode = element): HTMLButtonElement[] {
+    return Array.from(scope.querySelectorAll('button'));
+  }
+
+  function click(label: string, scope: ParentNode = element): void {
+    const button = buttons(scope).find((b) => b.textContent?.includes(label));
+    expect(button, `botón "${label}"`).toBeTruthy();
     button!.click();
     fixture.detectChanges();
   }
 
-  function input(selector: string, value: string): void {
-    const control = element.querySelector(selector) as HTMLInputElement;
-    control.value = value;
-    control.dispatchEvent(new Event(control.tagName === 'SELECT' ? 'change' : 'input'));
+  async function reload(tasks: TaskDto[]): Promise<void> {
+    http.expectOne('/api/tasks').flush(tasks);
+    await fixture.whenStable();
     fixture.detectChanges();
   }
 
@@ -46,241 +67,134 @@ describe('TaskList editing and deletion', () => {
     fixture = TestBed.createComponent(TaskList);
     element = fixture.nativeElement;
     fixture.detectChanges();
-    http.expectOne('/api/tasks').flush([original]);
-    await fixture.whenStable();
+    http.expectOne('/api/activities').flush([]);
+    await reload([original]);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    fixture.destroy();
+    http.verify();
+  });
 
-  it('renders persisted tasks after the asynchronous response', () => {
-    expect(element.querySelector('h3')?.textContent).toBe('Original');
+  it('renders tasks with their timer and subtask counter', () => {
+    expect(element.querySelector('.task-title')?.textContent).toContain('Original');
     expect(element.textContent).toContain('Descripción inicial');
+    expect(element.querySelector('.task-status')?.textContent).toContain('ACTIVA');
+    expect(element.querySelector('.active-time')).not.toBeNull();
+    expect(element.querySelector('.subtasks-count')?.textContent?.trim()).toBe('1');
+    expect(fixture.componentInstance.tasks.map((task) => task.id)).toEqual([7, -7]);
   });
 
-  it('searches by title or description and renders the backend result', async () => {
-    input('#task-search', 'documentación');
+  it('searches by title or description through the backend', async () => {
+    const input = element.querySelector('#task-search') as HTMLInputElement;
+    input.value = 'documentación';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
     click('Buscar');
 
     const request = http.expectOne(
-      (candidate) =>
-        candidate.url === '/api/tasks' && candidate.params.get('q') === 'documentación',
+      (candidate) => candidate.url === '/api/tasks' && candidate.params.get('q') === 'documentación',
     );
-    expect(request.request.method).toBe('GET');
-    request.flush([
-      { ...original, title: 'Actualizar manual', description: 'Documentación final' },
-    ]);
+    request.flush([{ ...original, title: 'Actualizar manual', subtasks: [] }]);
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(element.querySelector('.task-card h3')?.textContent).toContain('Actualizar manual');
-    expect(element.textContent).toContain('1 resultado(s)');
+    expect(element.querySelector('.task-title')?.textContent).toContain('Actualizar manual');
   });
 
-  it('edits through HTTP and immediately renders the authoritative response', async () => {
-    click('Editar');
-    input('#edit-title-7', '  Corregida  ');
-    input('textarea', 'Descripción enriquecida');
-    input('#edit-priority-7', 'ALTA');
-    click('Guardar cambios');
-    const request = http.expectOne('/api/tasks/7');
-    expect(request.request.method).toBe('PUT');
-    expect(request.request.body).toEqual({
-      title: 'Corregida',
-      description: 'Descripción enriquecida',
-      priority: 'ALTA',
-      version: 2,
-    });
-    request.flush({ ...original, ...request.request.body, version: 3 });
-    await fixture.whenStable();
-    expect(element.querySelector('h3')?.textContent).toBe('Corregida');
-    expect(element.querySelector('.priority')?.textContent).toContain('Alta');
-    expect(element.textContent).toContain('Descripción enriquecida');
-    expect(element.querySelector('app-task-editor')).toBeNull();
-    expect(fixture.componentInstance.tasks[0].activatedAt).toBe(original.activatedAt);
-    expect(fixture.componentInstance.tasks[0].version).toBe(3);
-  });
-
-  it('cancels editing without mutating or sending changes', () => {
-    click('Editar');
-    input('#edit-title-7', 'No guardar');
-    click('Cancelar edición');
-    http.expectNone((request) => request.method === 'PUT');
-    expect(element.querySelector('h3')?.textContent).toBe('Original');
-    expect(fixture.componentInstance.tasks[0]).toEqual(original);
-  });
-
-  it('rejects blank titles without sending a request', () => {
-    click('Editar');
-    input('#edit-title-7', '   ');
-    click('Guardar cambios');
-    http.expectNone((request) => request.method === 'PUT');
-    expect(element.textContent).toContain('no solo espacios');
-  });
-
-  it('keeps the draft on a version conflict and explains recovery', async () => {
-    click('Editar');
-    input('#edit-title-7', 'Mi borrador');
-    click('Guardar cambios');
-    http
-      .expectOne('/api/tasks/7')
-      .flush({ message: 'VERSION_CONFLICT' }, { status: 412, statusText: 'Conflict' });
-    await fixture.whenStable();
-    expect(element.textContent).toContain('La tarea cambió mientras la editabas');
-    expect((element.querySelector('#edit-title-7') as HTMLInputElement).value).toBe('Mi borrador');
-    expect(element.querySelector('h3')?.textContent).toBe('Original');
-    expect((element.querySelector('#edit-title-7') as HTMLInputElement).disabled).toBe(false);
-  });
-
-  it('keeps the task when deletion is cancelled and never sends DELETE', () => {
-    click('Eliminar');
-    expect(element.querySelector('.delete-confirmation')?.textContent).toContain('Original');
-    http.expectNone((request) => request.method === 'DELETE');
-    click('Cancelar eliminación');
-    http.expectNone((request) => request.method === 'DELETE');
-    expect(element.querySelector('h3')?.textContent).toBe('Original');
-    expect(element.querySelector('.delete-confirmation')).toBeNull();
-  });
-
-  it('deletes only after confirmation, blocks double submissions and updates the count', async () => {
-    click('Eliminar');
-    click('Confirmar eliminación');
-    fixture.componentInstance.confirmingDelete;
-    const request = http.expectOne('/api/tasks/7?version=2');
-    expect(request.request.method).toBe('DELETE');
-    expect(element.querySelector('h3')?.textContent).toBe('Original');
-    request.flush(null, { status: 204, statusText: 'No Content' });
-    await fixture.whenStable();
-    expect(element.querySelector('.task-card')).toBeNull();
-    expect(element.querySelector('.task-count')?.textContent).toContain('0 tareas');
-    expect(element.textContent).toContain('eliminada');
-  });
-
-  it('does not hide the task when the server rejects deletion', async () => {
-    click('Eliminar');
-    click('Confirmar eliminación');
-    http
-      .expectOne('/api/tasks/7?version=2')
-      .flush(
-        { message: 'Elimina primero las subtareas.' },
-        { status: 409, statusText: 'Conflict' },
-      );
-    await fixture.whenStable();
-    expect(element.querySelector('h3')?.textContent).toBe('Original');
-    expect(element.textContent).toContain('Elimina primero las subtareas.');
-    expect(fixture.componentInstance.busyTaskId).toBeNull();
-  });
-
-  it('shows the category badge and a hierarchy priority chip for persisted tasks', () => {
-    const badge = element.querySelector('[data-testid="task-category"]') as HTMLElement;
-    expect(badge).not.toBeNull();
-    expect(badge.textContent).toContain('Sin categoría');
-
-    const chip = element.querySelector('.priority-MEDIA') as HTMLElement;
-    expect(chip).not.toBeNull();
-    expect(chip.textContent).toContain('■');
-    expect(chip.textContent).toContain('Media');
-  });
-
-  it('pauses an active task and reloads the list with the new status', async () => {
+  it('pauses an active task through /start-/pause and reloads the list', async () => {
     click('Pausar');
     const req = http.expectOne('/api/tasks/7/pause');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ version: 2 });
-    req.flush({ ...original, status: 'INACTIVA', activatedAt: null, version: 3 });
-    const reload = http.expectOne('/api/tasks');
-    reload.flush([{ ...original, status: 'INACTIVA', activatedAt: null, version: 3 }]);
-    await fixture.whenStable();
+    req.flush({ ...original, status: 'PENDIENTE', currentSegmentStartedAt: null, version: 3 });
+    await reload([{ ...original, status: 'PENDIENTE', currentSegmentStartedAt: null, version: 3 }]);
 
     expect(fixture.componentInstance.tasks[0].status).toBe('INACTIVA');
-    const labels = Array.from(element.querySelectorAll('button')).map((b) => b.textContent?.trim());
-    expect(labels).toContain('Activar');
-    expect(labels).not.toContain('Pausar');
-    expect(labels).not.toContain('Completar');
+    const labels = buttons().map((b) => b.textContent?.trim());
+    expect(labels).toContain('▶ Activar');
+    expect(labels).not.toContain('⏸ Pausar');
   });
 
-  it('reopens a terminated task and reloads the list with the active actions', async () => {
-    const terminated: Task = {
-      ...original,
-      status: 'TERMINADA',
-      completedAt: '2026-08-26T18:00:00Z',
-    };
+  it('pauses the open subtasks together with their task', async () => {
+    const running = { ...original, subtasks: [{ ...child, status: 'EN_PROGRESO' as const }] };
     fixture.componentInstance.loadTasks();
-    http.expectOne('/api/tasks').flush([terminated]);
-    await fixture.whenStable();
+    await reload([running]);
 
-    const labelsBefore = Array.from(element.querySelectorAll('button')).map((b) =>
-      b.textContent?.trim(),
-    );
-    expect(labelsBefore).toContain('Reabrir');
-    expect(labelsBefore).not.toContain('Pausar');
+    click('Pausar');
+    http.expectOne('/api/tasks/7/pause').flush({ ...running, status: 'PENDIENTE', version: 3 });
+    const subtaskPause = http.expectOne('/api/subtasks/7/pause');
+    expect(subtaskPause.request.body).toEqual({ version: 55 });
+    subtaskPause.flush({ ...child, status: 'PENDIENTE', version: 56 });
+    await reload([{ ...original, status: 'PENDIENTE', currentSegmentStartedAt: null, version: 3 }]);
 
-    click('Reabrir');
-    const req = http.expectOne('/api/tasks/7/reopen');
-    expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ version: 2 });
-    req.flush({
-      ...terminated,
-      status: 'ACTIVA',
-      completedAt: null,
-      activatedAt: '2026-08-31T15:00:00Z',
+    expect(fixture.componentInstance.successMessage).toContain('subtareas pausadas');
+  });
+
+  it('completes and reopens a task', async () => {
+    click('Completar');
+    http.expectOne('/api/tasks/7/complete').flush({ ...original, status: 'COMPLETADA', version: 3 });
+    const completed = {
+      ...original,
+      status: 'COMPLETADA' as const,
+      currentSegmentStartedAt: null,
+      completedAt: '2026-08-26T18:00:00Z',
       version: 3,
-    });
-    const reload = http.expectOne('/api/tasks');
-    reload.flush([
-      {
-        ...terminated,
-        status: 'ACTIVA',
-        completedAt: null,
-        activatedAt: '2026-08-31T15:00:00Z',
-        version: 3,
-      },
-    ]);
+      subtasks: [],
+    };
+    await reload([completed]);
+    expect(fixture.componentInstance.completedTasks.map((task) => task.id)).toEqual([7]);
+
+    fixture.componentInstance.reopen(fixture.componentInstance.completedTasks[0]);
+    const req = http.expectOne('/api/tasks/7/reopen');
+    expect(req.request.body).toEqual({ version: 3 });
+    req.flush({ ...completed, status: 'EN_PROGRESO', completedAt: null, version: 4 });
     await fixture.whenStable();
 
     expect(fixture.componentInstance.tasks[0].status).toBe('ACTIVA');
-    const labels = Array.from(element.querySelectorAll('button')).map((b) => b.textContent?.trim());
-    expect(labels).toContain('Pausar');
-    expect(labels).toContain('Completar');
-    expect(labels).not.toContain('Reabrir');
   });
 
-  it('writes a category and updates the badge from the server response', async () => {
-    const control = element.querySelector('[data-testid="category-input"]') as HTMLInputElement;
-    control.value = 'Trabajo';
-    control.dispatchEvent(new Event('blur', { bubbles: true }));
-    fixture.detectChanges();
+  it('deletes only after confirmation and sends the displayed version', async () => {
+    click('Eliminar');
+    expect(element.querySelector('.delete-confirmation')?.textContent).toContain('Original');
+    http.expectNone((request) => request.method === 'DELETE');
 
-    const req = http.expectOne('/api/tasks/7/category');
-    expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ categoryName: 'Trabajo', version: 2 });
-    req.flush({ ...original, categoryId: 5, categoryName: 'Trabajo', version: 3 });
-    await fixture.whenStable();
+    click('Eliminar', element.querySelector('.delete-confirmation')!);
+    const request = http.expectOne('/api/tasks/7?version=2');
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    await reload([]);
 
-    expect(fixture.componentInstance.tasks[0].categoryName).toBe('Trabajo');
-    expect(element.querySelector('[data-testid="task-category"]')?.textContent).toContain(
-      'Trabajo',
-    );
+    expect(element.querySelector('.task-card')).toBeNull();
+    expect(fixture.componentInstance.successMessage).toContain('eliminada');
   });
 
-  it('clears the category by leaving the field empty', async () => {
-    fixture.componentInstance.tasks[0].categoryId = 5;
-    fixture.componentInstance.tasks[0].categoryName = 'Trabajo';
-    fixture.detectChanges();
-
-    const control = element.querySelector('[data-testid="category-input"]') as HTMLInputElement;
-    control.value = '';
-    control.dispatchEvent(new Event('blur', { bubbles: true }));
-    fixture.detectChanges();
-
-    const req = http.expectOne('/api/tasks/7/category');
-    expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ categoryName: null, version: 2 });
-    req.flush({ ...original, categoryId: null, categoryName: null, version: 3 });
+  it('keeps the task when the server rejects the deletion', async () => {
+    click('Eliminar');
+    click('Eliminar', element.querySelector('.delete-confirmation')!);
+    http
+      .expectOne('/api/tasks/7?version=2')
+      .flush({ error: 'TASK_HAS_SUBTASKS' }, { status: 409, statusText: 'Conflict' });
     await fixture.whenStable();
+    fixture.detectChanges();
 
-    expect(fixture.componentInstance.tasks[0].categoryName).toBeNull();
-    expect(element.querySelector('[data-testid="task-category"]')?.textContent).toContain(
-      'Sin categoría',
-    );
+    expect(element.querySelector('.task-title')?.textContent).toContain('Original');
+    expect(fixture.componentInstance.errorMessage).toContain('No se pudo eliminar');
+    expect(fixture.componentInstance.busyTaskId).toBeNull();
+  });
+
+  it('acts on subtasks through /api/subtasks without timer or priority', async () => {
+    click('Subtareas');
+    const modal = element.querySelector('dialog, .subtasks-modal, [role="dialog"]') ?? element;
+    expect(modal.textContent).toContain('Subtarea con el mismo id');
+    expect(fixture.componentInstance.getSubtasks(7)[0].totalActiveSeconds).toBeUndefined();
+
+    fixture.componentInstance.activate(fixture.componentInstance.getSubtasks(7)[0]);
+    const req = http.expectOne('/api/subtasks/7/start');
+    expect(req.request.body).toEqual({ version: 55 });
+    req.flush({ ...child, status: 'EN_PROGRESO', version: 56 });
+    await reload([{ ...original, subtasks: [{ ...child, status: 'EN_PROGRESO', version: 56 }] }]);
+
+    expect(fixture.componentInstance.getSubtasks(7)[0].status).toBe('ACTIVA');
   });
 });

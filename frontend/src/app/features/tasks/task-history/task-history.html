@@ -89,9 +89,11 @@
 
         <div class="history-meta">
           <span>Fecha: {{ archiveDate(task) }}</span>
-          <span>Prioridad: {{ task.priority }}</span>
-          <span>Categoría: {{ task.categoryName ?? 'Sin categoría' }}</span>
-          <span>Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}</span>
+          @if (!isSubtask(task)) {
+            <span>Prioridad: {{ task.priority }}</span>
+            <span>Categoría: {{ task.categoryName ?? 'Sin categoría' }}</span>
+            <span>Tiempo activo: {{ formatDuration(task.effectiveActiveSeconds) }}</span>
+          }
         </div>
 
         <details class="timeline">

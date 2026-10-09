@@ -2,73 +2,106 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { App } from './app';
-import { Task } from './core/models/task';
+import { TaskDto } from './core/models/api';
+import { TaskForm } from './features/tasks/task-form/task-form';
+import { TaskHome } from './features/tasks/task-home/task-home';
 import { TaskList } from './features/tasks/task-list/task-list';
 
-describe('Task list / history integration', () => {
-  it('keeps the live timer and refreshes history after complete, reopen and delete', async () => {
+describe('Pantalla de tareas integrada con la API V4', () => {
+  const created: TaskDto = {
+    taskId: 42,
+    activityId: 3,
+    activityName: 'Trabajo',
+    title: 'Tarea integrada',
+    description: null,
+    status: 'PENDIENTE',
+    priority: 'ALTA',
+    allocatedBudgetBob: 0,
+    estimatedDurationMinutes: 0,
+    actualDurationMinutes: null,
+    trackedSeconds: 0,
+    currentSegmentStartedAt: null,
+    completedAt: null,
+    createdAt: '2026-10-09T12:00:00Z',
+    updatedAt: '2026-10-09T12:00:00Z',
+    version: 1,
+    subtasks: [],
+  };
+
+  it('creates a task and then a subtask, showing both without reloading the page', async () => {
     await TestBed.configureTestingModule({
-      imports: [App],
+      imports: [TaskHome],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     const http = TestBed.inject(HttpTestingController);
-    const fixture = TestBed.createComponent(App);
+    const fixture = TestBed.createComponent(TaskHome);
     const element: HTMLElement = fixture.nativeElement;
-    const active: Task = {
-      id: 42,
-      title: 'Tarea con historial',
-      status: 'ACTIVA',
-      priority: 'MEDIA',
-      version: 1,
-      activatedAt: new Date(Date.now() - 5000).toISOString(),
-      totalActiveSeconds: 60,
-    };
     fixture.detectChanges();
-    http.expectOne('/api/tasks').flush([active]);
-    const initialHistory = http.expectOne('/api/tasks/history');
+    http.expectOne('/api/tasks').flush([]);
+    http.expectOne('/api/activities').flush([]);
+    await fixture.whenStable();
+
+    const form = fixture.debugElement.query(By.directive(TaskForm)).componentInstance as TaskForm;
+    form.title = 'Tarea integrada';
+    form.selectedPriority = 'ALTA';
+    form.selectedCategoryName = 'Trabajo';
+    form.crearTarea();
+
+    const post = http.expectOne('/api/tasks');
+    expect(post.request.method).toBe('POST');
+    expect(post.request.body).toEqual({ title: 'Tarea integrada', priority: 'ALTA', activityName: 'Trabajo' });
+    post.flush(created);
+    await fixture.whenStable();
     fixture.detectChanges();
-    const list = fixture.debugElement.query(By.directive(TaskList)).componentInstance as TaskList & {
-      liveTimes: Record<number, number>;
-    };
-    expect(list.liveTimes[42]).toBeGreaterThanOrEqual(65);
-    expect(element.querySelector('.active-time')?.textContent).toContain('01:');
-    expect(element.querySelector('a[href="#task-history"]')).not.toBeNull();
 
-    // Finish the task while the initial history request is still pending.
-    list.complete(active);
-    const completed: Task = { ...active, status: 'TERMINADA', activatedAt: null, version: 2 };
-    http.expectOne('/api/tasks/42/complete').flush(completed);
-    expect(initialHistory.cancelled).toBe(true);
-    http.expectOne('/api/tasks/history').flush([{ ...completed, events: [] }]);
-    http.expectOne('/api/tasks').flush([completed]);
-    await fixture.whenStable();
-    expect(element.querySelector('.history-card h3')?.textContent).toContain(active.title);
+    expect(element.querySelector('.task-title')?.textContent).toContain('Tarea integrada');
 
-    list.reopen(completed);
-    const reopened = { ...active, version: 3 };
-    http.expectOne('/api/tasks/42/reopen').flush(reopened);
-    http.expectOne('/api/tasks/history').flush([]);
-    http.expectOne('/api/tasks').flush([reopened]);
-    await fixture.whenStable();
-    expect(element.querySelector('.history-card')).toBeNull();
-
-    list.requestDelete(reopened);
+    const list = fixture.debugElement.query(By.directive(TaskList)).componentInstance as TaskList;
+    list.createSubtask(list.parentTasks[0]);
     fixture.detectChanges();
-    const confirmDeleteButton = Array.from(element.querySelectorAll('button')).find((button) =>
-      /confirmar|eliminar/i.test(button.textContent ?? ''),
-    );
-    expect(confirmDeleteButton).not.toBeUndefined();
-    confirmDeleteButton?.click();
-    http
-      .expectOne('/api/tasks/42?version=3')
-      .flush(null, { status: 204, statusText: 'No Content' });
-    http
-      .expectOne('/api/tasks/history')
-      .flush([{ ...reopened, deletedAt: new Date().toISOString(), events: [] }]);
+
+    const subtaskForm = fixture.debugElement
+      .queryAll(By.directive(TaskForm))
+      .map((debug) => debug.componentInstance as TaskForm)
+      .find((candidate) => candidate.parentTaskId === 42)!;
+    subtaskForm.title = 'Paso 1';
+    subtaskForm.crearTarea();
+
+    const subtaskPost = http.expectOne('/api/tasks/42/subtasks');
+    expect(subtaskPost.request.body).toEqual({ title: 'Paso 1', description: null });
+    subtaskPost.flush({
+      subtaskId: 1,
+      taskId: 42,
+      title: 'Paso 1',
+      description: null,
+      status: 'PENDIENTE',
+      completedAt: null,
+      createdAt: '2026-10-09T12:01:00Z',
+      updatedAt: '2026-10-09T12:01:00Z',
+      version: 2,
+    });
+    http.expectOne('/api/tasks').flush([
+      {
+        ...created,
+        subtasks: [
+          {
+            subtaskId: 1,
+            taskId: 42,
+            title: 'Paso 1',
+            description: null,
+            status: 'PENDIENTE',
+            completedAt: null,
+            createdAt: '2026-10-09T12:01:00Z',
+            updatedAt: '2026-10-09T12:01:00Z',
+            version: 2,
+          },
+        ],
+      },
+    ]);
     await fixture.whenStable();
-    expect(element.querySelector('.archive-badge')?.textContent).toContain('Eliminada');
-    expect(element.querySelector('.task-card')).toBeNull();
+    fixture.detectChanges();
+
+    expect(element.querySelector('.subtasks-count')?.textContent?.trim()).toBe('1');
     http.verify();
     fixture.destroy();
   });

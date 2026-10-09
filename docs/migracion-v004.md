@@ -82,13 +82,10 @@ npm install
 npm start
 ```
 
-> El frontend todavía llama a los endpoints `/api/tasks` del modelo anterior, que se retiraron en esta rama. Mostrará errores hasta que se implementen los nuevos servicios y controladores.
 
-## Estado del backend en esta rama
+## Estado del backend
 
-- Entidades JPA en `backend/.../entity` (una por tabla, según el UML) y repositorios Spring Data en `backend/.../repository`.
-- Se retiraron los servicios, controladores, DTOs y pruebas del modelo anterior porque dependían de tablas que ya no existen; siguen disponibles en el historial de `develop`.
-- Reglas que deben respetar los nuevos servicios: ver la sección 7 de `database/README.md`.
+La API V4 y la adaptación del frontend están descritas en [api-v4.md](api-v4.md). El backend sigue la arquitectura hexagonal del plan (`domain` / `application` / `adapter` / `configuration`).
 
 ## Borrar el archivo del modelo anterior
 

@@ -1,6 +1,12 @@
+/**
+ * Modelo de vista de la interfaz. Conserva el vocabulario de la pantalla (INACTIVA / ACTIVA /
+ * TERMINADA, "categoría") y TaskService lo construye a partir del contrato V4 (api.ts).
+ */
 export type TaskStatus = 'INACTIVA' | 'ACTIVA' | 'TERMINADA';
 export type TaskPriority = 'ALTA' | 'MEDIA' | 'BAJA';
-export type RelationType = 'RELACIONADA' | 'BLOQUEA' | 'DEPENDE_DE';
+
+/** TASK = fila de task; SUBTASK = fila de subtask. */
+export type TaskKind = 'TASK' | 'SUBTASK';
 
 export interface CategorySummary {
   id: number;
@@ -15,7 +21,14 @@ export interface UpdateTaskRequest {
 }
 
 export interface Task {
+  /**
+   * Identificador en la interfaz: el id de la tarea, o el id de la subtarea en negativo
+   * (task y subtask tienen secuencias independientes y sus ids pueden coincidir).
+   */
   id: number;
+  kind?: TaskKind;
+  /** Id real en su tabla (task_id o subtask_id). */
+  entityId?: number;
   title: string;
   description?: string | null;
   status: TaskStatus;
@@ -25,6 +38,7 @@ export interface Task {
   parentTaskId?: number | null;
   activatedAt?: string | null;
   completedAt?: string | null;
+  /** Solo las tareas registran tiempo; en subtareas queda indefinido y el cronómetro no se muestra. */
   totalActiveSeconds?: number;
   effectiveActiveSeconds?: number;
   createdAt?: string | null;
@@ -45,15 +59,6 @@ export interface TaskHistory extends Task {
   events: TaskStatusHistory[];
 }
 
-export interface TaskRelationResponse {
-  id: number;
-  targetTaskId: number;
-  targetTaskTitle: string;
-  relationType: RelationType;
-  createdAt: string;
-}
-
-export interface CreateTaskRelationRequest {
-  targetTaskId: number;
-  relationType: RelationType;
+export function isSubtask(task: Pick<Task, 'id' | 'kind'>): boolean {
+  return task.kind === 'SUBTASK' || task.id < 0;
 }

@@ -4,7 +4,7 @@ Aplicación web académica gestionada con Scrum, con frontend Angular, API Sprin
 
 ## Estado actual
 
-> **Rama `feature/db-migracion-gestor-proyectos` (V004):** la base pasa al modelo de Gestor de Proyectos (proyecto → etapa → actividad → tarea → subtarea, usuarios, asignaciones, historiales y tipo de cambio). El backend solo contiene entidades y repositorios JPA del modelo nuevo; los endpoints `/api/tasks` del modelo anterior se retiraron y deben reimplementarse. Guía: [docs/migracion-v004.md](docs/migracion-v004.md).
+> **Modelo V4:** la base usa el modelo de Gestor de Proyectos (V004) y el backend sigue la arquitectura hexagonal del plan `.kilo/plans/hexagonal_restructure_plan.md`. La interfaz funciona como antes (tareas, subtareas, categorías, cronómetro, historial y búsqueda) sobre la API V4. Guías: [docs/migracion-v004.md](docs/migracion-v004.md) y [docs/api-v4.md](docs/api-v4.md).
 
 - PostgreSQL objetivo: 18.
 - Esquema relacional versionado y reproducible.
@@ -67,18 +67,7 @@ El servidor queda en `http://localhost:8080`.
 
 ### Endpoints
 
-| Método | URL | Cuerpo | Respuesta |
-|--------|-----|--------|-----------|
-| POST | `/api/tasks` | `{ "title": "..." }` | `201` + `TaskResponse` |
-| GET | `/api/tasks` | — | `200` + `TaskResponse[]` (desde `v_tasks`) |
-| GET | `/api/tasks?q=texto` | — | `200` + tareas cuyo título o descripción coincide |
-| GET | `/api/tasks/history?q=texto` | — | `200` + tareas terminadas/eliminadas con transiciones |
-| PUT | `/api/tasks/{id}` | `{ "title": "...", "description": null, "priority": "MEDIA", "version": 0 }` | `200` + `TaskResponse` |
-| DELETE | `/api/tasks/{id}?version=0` | — | `204` (borrado lógico) |
-| POST | `/api/tasks/{id}/activate` | `{ "version": 0 }` | `200` + `TaskResponse` |
-| POST | `/api/tasks/{id}/complete` | `{ "version": 0 }` | `200` + `TaskResponse` |
-
-Errores: `404` tarea inexistente o eliminada, `409` transición inválida o tarea con subtareas visibles, `412` conflicto de versión (concurrencia), `400` validación.
+API V4 bajo `/api/tasks`, `/api/subtasks` y `/api/activities`. La tabla completa y los códigos de error están en [docs/api-v4.md](docs/api-v4.md).
 
 ## Frontend (Angular)
 
@@ -134,69 +123,35 @@ Resultado esperado: PostgreSQL 18, zona horaria `UTC`, migraciones `V1` a `V4`, 
 
 > Si tienes PostgreSQL 18 instalado localmente en vez de Docker, usa `.\database\scripts\setup-local.ps1` y `.\database\scripts\verify-local.ps1` (piden las contraseñas de forma interactiva).
 
-### 2. Pruebas manuales (US-01 a US-04)
+### 2. Pruebas manuales rápidas
 
-#### US-01 — Crear tarea -> `INACTIVA`, prioridad `MEDIA`, `version:0`
 ```bash
-curl -i -X POST http://localhost:8080/api/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Mi primera tarea"}'
-```
-- `201 Created` con `TaskResponse`: `status:"INACTIVA"`, `priority:"MEDIA"`, `version:0`, `activatedAt:null`, `completedAt:null`.
-- En la UI: escribes el titulo en el formulario y envias; la tarjeta aparece en gris.
-- En base: la fila esta en `task_manager.tasks` y en `v_tasks`; el trigger inserta `null -> INACTIVA` en `task_status_history`.
+# Crear (queda PENDIENTE = "INACTIVA" en la interfaz) y guardar taskId y version de la respuesta
+curl -i -X POST http://localhost:8080/api/tasks -H "Content-Type: application/json" \
+  -d '{"title":"Mi primera tarea","priority":"ALTA","activityName":"Trabajo"}'
 
-#### US-02 — Listar tareas
-```bash
+# Listar con subtareas, iniciar y completar (usa la version de la última respuesta)
 curl -s http://localhost:8080/api/tasks
+curl -i -X POST http://localhost:8080/api/tasks/1/start    -H "Content-Type: application/json" -d '{"version":<version>}'
+curl -i -X POST http://localhost:8080/api/tasks/1/complete -H "Content-Type: application/json" -d '{"version":<version>}'
 ```
-- `200` con el array `TaskResponse[]`. La vista `v_tasks` incluye `effectiveActiveSeconds` y `totalActiveSeconds`.
 
-#### US-03 — Activar (`INACTIVA -> ACTIVA`)
-```bash
-curl -i -X POST http://localhost:8080/api/tasks/1/activate \
-  -H "Content-Type: application/json" \
-  -d '{"version":0}'
-```
-- `200`: `status:"ACTIVA"`, `activatedAt` definido, `version:1`.
-- En base: `activated_at` pasa de `NULL` a timestamp; trigger registra `INACTIVA -> ACTIVA`.
-
-#### US-04 — Completar (`ACTIVA -> TERMINADA`)
-```bash
-curl -i -X POST http://localhost:8080/api/tasks/1/complete \
-  -H "Content-Type: application/json" \
-  -d '{"version":1}'
-```
-- `200`: `status:"TERMINADA"`, `completedAt` definido, `activatedAt:null`, `totalActiveSeconds` consolidado (segundos enteros), `version:2`.
-- En base: trigger registra `ACTIVA -> TERMINADA`; la constraint `ck_tasks_state_timestamps` exige `activated_at=NULL` cuando esta `TERMINADA`.
-
-#### Campos de error controlados
-| Accion | Codigo | Error | Causa |
-|---|---|---|---|
-| Activar/Completar una `TERMINADA` | `409` | `INVALID_STATE_TRANSITION` | `TERMINADA -> ACTIVA` / `TERMINADA -> TERMINADA` |
-| Completar una `INACTIVA` | `409` | `INVALID_STATE_TRANSITION` | `INACTIVA -> TERMINADA` |
-| id inexistente | `404` | `TASK_NOT_FOUND` | — |
-| `version` enviado != `version` en base | `412` | `VERSION_CONFLICT` | bloqueo optimista (`@Version`) |
-| titulo en blanco | `400` | `VALIDATION_ERROR` | `@NotBlank` |
-
-> La regla de versiones se comprueba **antes** que el estado: con un `version` incorrecto devuelve `412`; con el `version` correcto pero estado invalido devuelve `409`.
+- Una `version` vieja devuelve `412 VERSION_CONFLICT`; completar una tarea PENDIENTE devuelve `409 INVALID_STATE_TRANSITION`.
+- Cada transición queda en `task_status_history` con su usuario y motivo.
 
 ### 3. Pruebas automáticas
 
 ```powershell
-# Backend: Mockito (sin base de datos). Cubre TaskService y el mapeo de timestamps de la vista v_tasks
+# Backend: dominio, casos de uso con dobles en memoria y reglas de arquitectura (sin base de datos)
 cd backend
 mvn test
 
-# Frontend: Angular + Vitest (requiere Node >= 24.15)
+# Frontend: Angular + Vitest (requiere Node >= 24.15 o >= 22.22.3)
 cd frontend
 npx ng test --watch=false
 ```
 
-- `mvn test`: cubre crear/listar/activar/completar, edición sin modificar el ciclo de vida, borrado lógico y errores de concurrencia/estado/no encontrado.
-- `ng test`: cubre creación visible, contrato HTTP de edición/borrado, validaciones, cancelación, confirmación y actualización inmediata de la interfaz.
-
-> El backend valida el esquema en arranque con `spring.jpa.hibernate.ddl-auto: validate`; si la entidad `Task` no cuadra con `task_manager.tasks`, la aplicacion no arranca.
+> El backend valida el esquema al arrancar (`spring.jpa.hibernate.ddl-auto: validate`): si las entidades no coinciden con V004, no arranca. Si cambias de rama, compila con `mvn clean` para que no queden clases viejas en `target`.
 
 ### 4. Acceso directo a la base de datos
 
@@ -204,26 +159,28 @@ npx ng test --watch=false
 docker compose exec -T db psql "host=localhost port=5432 user=gestor_tareas_app dbname=gestor_tareas"
 ```
 
-Consultas de verificacion:
+Consultas de verificación:
 
 ```sql
--- Tareas visibles (la vista que consume el backend)
-SELECT id, title, status, activated_at, completed_at, total_active_seconds, version
-FROM task_manager.v_tasks;
+-- Tareas con su estado y actividad ("categoría")
+SELECT t.task_id, t.title, ws.name AS estado, a.name AS actividad, t.actual_duration_minutes
+FROM task_manager.task t
+JOIN task_manager.work_status ws ON ws.work_status_id = t.work_status_id
+JOIN task_manager.activity a ON a.activity_id = t.activity_id
+ORDER BY t.task_id;
 
--- Auditoria de transiciones (generada por el trigger trg_tasks_status_history, NO por el codigo)
-SELECT task_id, from_status, to_status, changed_at
+-- Historial de estados (lo escribe el backend, con usuario y motivo)
+SELECT task_id, previous_status_id, new_status_id, reason, changed_at
 FROM task_manager.task_status_history
 ORDER BY task_id, changed_at;
 
--- El rol de app NO puede borrar fisicamente (can_hard_delete_tasks = false)
-DELETE FROM task_manager.tasks WHERE id = 1;  -- -> ERROR de permisos
+-- El rol de la app no puede reescribir historiales
+UPDATE task_manager.task_status_history SET reason = 'x';  -- -> ERROR de permisos
 ```
 
 > Usa `gestor_tareas_app` siempre para consultas y para el backend. Usa `gestor_tareas_owner` solo para nuevas migraciones (`.\database\scripts\migrate.ps1`).
 
 ### 5. Notas de prueba
 
-- El tiempo activo se consolida en **segundos enteros** (`Instant.now().getEpochSecond() - activatedAt.getEpochSecond()`); activar y completar en menos de 1 s dejan `total_active_seconds = 0`.
-- La columna `effectiveActiveSeconds` de la vista puede salir `-1` en el instante de activar si el reloj del contenedor y de PostgreSQL estan desincronizados; no afecta al negocio y la UI lo filtra (`> 0`).
+- El cronómetro se calcula a partir del historial de estados (segmentos EN_PROGRESO), con precisión de segundos; `actual_duration_minutes` guarda el total redondeado hacia arriba.
 - Las contraseñas de desarrollo (`secret`, `ownerpass`, `apppass`) son solo para pruebas locales y **no** deben subirse a Git.

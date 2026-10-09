@@ -24,3 +24,8 @@ spring:
 
 server:
   port: 8080
+
+# Usuario al que se atribuyen los historiales mientras no exista autenticación (DEC-003).
+app:
+  local-user:
+    email: ${APP_LOCAL_USER_EMAIL:usuario.local@gestor-tareas.local}

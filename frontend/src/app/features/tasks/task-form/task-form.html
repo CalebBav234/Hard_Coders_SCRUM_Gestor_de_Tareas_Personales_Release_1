@@ -24,6 +24,8 @@
 
   </div>
 
+  <!-- Las subtareas (V4) no tienen prioridad ni categoría propias. -->
+  @if (!parentTaskId) {
   <div class="form-group">
     <label for="priority">Prioridad</label>
     <select id="priority" [(ngModel)]="selectedPriority" [disabled]="loading">
@@ -44,6 +46,7 @@
       [disabled]="loading"
     >
   </div>
+  }
 
   @if (error) {
     <p class="error-message">{{ error }}</p>
