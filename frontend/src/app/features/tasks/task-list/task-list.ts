@@ -3,14 +3,19 @@ import {
   Component,
   EventEmitter,
   OnInit,
-  Output
+  Output,
+  inject,
 } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { TaskService } from '../../../core/services/task.service';
+import { WbsService } from '../../../core/services/wbs.service';
+import { ProjectService } from '../../../core/services/project.service';
 import { Task } from '../../../core/models/task';
+import { Project } from '../../../core/models/project';
+import { StageDto } from '../../../core/models/api';
 
 import { TaskForm } from '../task-form/task-form';
 import { TaskEditor } from '../task-editor/task-editor';
@@ -32,8 +37,21 @@ export class TaskList implements OnInit {
   @Output() editRequested = new EventEmitter<Task>();
   @Output() subtaskRequested = new EventEmitter<Task>();
 
+  /**
+   * US2.2: el proyecto de trabajo lo elige el usuario y se guarda en esta misma sesión.
+   * Antes se tomaba "el primero" de la lista, lo que mezclaba datos de proyectos ajenos.
+   * Ahora, si no hay proyecto seleccionado, la pantalla no carga nada.
+   */
+  selectedProjectId: number | null = null;
+
+  projects: Project[] = [];
+  stages: StageDto[] = [];
+  selectedStageId: number | null = null;
+
   tasks: Task[] = [];
-  categories: any[] = [];
+  /** Actividades ("categorías") de la etapa seleccionada. */
+  categories: Array<{ id: number; name: string }> = [];
+  progressRatio = 0;
 
   subtasksModalParent: Task | null = null;
 
@@ -69,18 +87,103 @@ export class TaskList implements OnInit {
 
   constructor(
     private readonly taskService: TaskService,
+    private readonly wbsService: WbsService,
+    private readonly projectService: ProjectService,
     private readonly changeDetector: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
-    this.loadTasks();
-    this.loadCategories();
+    this.loadProjects();
     this.startTimer();
   }
 
   // =========================================================
-// RELOJ EN TIEMPO REAL
-// =========================================================
+  // PROYECTO SELECCIONADO (US2.2)
+  // =========================================================
+
+  loadProjects(): void {
+    this.projectService.list().subscribe({
+      next: (projects) => {
+        this.projects = projects;
+
+        // Sin sesión previa no se preselecciona ningún proyecto: es una decisión del usuario.
+        if (this.selectedProjectId === null && this.previousProjectId !== null) {
+          this.selectedProjectId = this.projects.some((p) => p.projectId === this.previousProjectId)
+            ? this.previousProjectId
+            : null;
+        }
+        this.changeDetector.markForCheck();
+      },
+      error: () => {
+        this.errorMessage = 'No se pudieron cargar los proyectos.';
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
+  /** Último proyecto elegido por el usuario en esta sesión (nunca el primero de la lista). */
+  private previousProjectId: number | null = null;
+
+  selectProject(projectId: number | null): void {
+    this.selectedProjectId = projectId;
+    this.previousProjectId = projectId;
+    this.selectedStageId = null;
+    this.stages = [];
+    this.tasks = [];
+
+    if (projectId === null) {
+      this.changeDetector.markForCheck();
+      return;
+    }
+    this.loadStages(projectId);
+    this.loadProgress(projectId);
+  }
+
+  loadStages(projectId: number): void {
+    this.wbsService.listStages(projectId).subscribe({
+      next: (stages) => {
+        this.stages = stages;
+        this.changeDetector.markForCheck();
+      },
+      error: () => {
+        this.stages = [];
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
+  selectStage(stageId: number): void {
+    this.selectedStageId = stageId;
+    this.loadCategories();
+    this.changeDetector.markForCheck();
+  }
+
+  loadProgress(projectId: number): void {
+    this.wbsService.progress(projectId).subscribe({
+      next: (progress) => {
+        this.progressRatio = Math.round(progress.root.ratio * 100);
+        this.changeDetector.markForCheck();
+      },
+      error: () => {
+        this.progressRatio = 0;
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
+  // =========================================================
+  // RELOJ EN TIEMPO REAL
+  // =========================================================
+
+  /** Etapa activa para los formularios de creación. */
+  get activeStageId(): number | null {
+    return this.selectedStageId;
+  }
+
+  /** El Personal solo ve "Mis tareas": no tiene proyectos que seleccionar. */
+  get usesPersonalScope(): boolean {
+    return this.projects.length === 0;
+  }
 
   private startTimer(): void {
     if (this.timerInterval) {
@@ -92,15 +195,18 @@ export class TaskList implements OnInit {
       this.changeDetector.markForCheck();
     }, 1000);
   }
-  // =========================================================
-  // CARGAR TAREAS
-  // =========================================================
 
   loadTasks(): void {
+    if (this.selectedProjectId === null) {
+      this.tasks = [];
+      this.changeDetector.markForCheck();
+      return;
+    }
+
     this.loading = true;
     this.errorMessage = '';
 
-    this.taskService.listTasks().subscribe({
+    this.taskService.listTasks(this.selectedProjectId, this.searchTerm).subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.loading = false;
@@ -123,21 +229,19 @@ export class TaskList implements OnInit {
     });
   }
 
-  // =========================================================
-  // CARGAR CATEGORÍAS
-  // =========================================================
-
   loadCategories(): void {
-    this.taskService.listCategories().subscribe({
-      next: (categories) => {
-        this.categories = categories;
+    if (this.selectedStageId === null) {
+      return;
+    }
 
+    this.taskService.listCategories(this.selectedStageId).subscribe({
+      next: () => {
         this.changeDetector.markForCheck();
       },
 
       error: (error) => {
         console.error(
-          'Error al cargar categorías:',
+          'Error al cargar las categorías:',
           error
         );
       }
@@ -367,7 +471,12 @@ export class TaskList implements OnInit {
     this.loading = true;
     this.errorMessage = '';
 
-    this.taskService.listTasks(term).subscribe({
+    if (this.selectedProjectId === null) {
+      this.loading = false;
+      return;
+    }
+
+    this.taskService.listTasks(this.selectedProjectId, term).subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.loading = false;
@@ -915,13 +1024,25 @@ private releasePointer(
       return;
     }
 
+    const activity = this.categories.find(
+      (category) => category.name === this.selectedCategoryName
+    );
+
+    if (!activity) {
+      this.errorMessage =
+        'Selecciona una actividad válida.';
+
+      this.changeDetector.markForCheck();
+      return;
+    }
+
     this.busyTaskId = task.id;
     this.clearMessages();
 
     this.taskService
-      .changeCategory(
+      .changeActivity(
         task,
-        this.selectedCategoryName
+        activity.id
       )
       .subscribe({
 
@@ -937,7 +1058,7 @@ private releasePointer(
           this.loadTasks();
         },
 
-        error: (error) => {
+        error: (error: unknown) => {
 
           console.error(
             'Error actualizando categoría:',

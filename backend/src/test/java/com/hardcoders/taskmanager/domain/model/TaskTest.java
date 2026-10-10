@@ -6,6 +6,7 @@ import com.hardcoders.taskmanager.domain.exception.OpenSubtasksException;
 import com.hardcoders.taskmanager.domain.exception.VersionConflictException;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,12 +17,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TaskTest {
 
     private static final Integer ACTOR = 7;
-    private static final Activity WORK = new Activity(3, "Trabajo");
     private static final Instant T0 = Instant.parse("2026-10-01T10:00:00Z");
+    private static final Activity WORK =
+            Activity.restore(3, 20, "Trabajo", null, WorkStatus.PENDIENTE, T0, T0);
 
     @Test
     void createsPendingTaskWithCreationRecord() {
-        Task task = Task.create("  Preparar informe  ", null, WORK, ACTOR, T0);
+        Task task = Task.create("  Preparar informe  ", null, WORK, ACTOR, T0, BigDecimal.ZERO, 60);
 
         assertThat(task.title()).isEqualTo("Preparar informe");
         assertThat(task.status()).isEqualTo(WorkStatus.PENDIENTE);
@@ -36,9 +38,9 @@ class TaskTest {
 
     @Test
     void rejectsBlankOrTooLongTitles() {
-        assertThatThrownBy(() -> Task.create("   ", TaskPriority.ALTA, WORK, ACTOR, T0))
+        assertThatThrownBy(() -> Task.create("   ", TaskPriority.ALTA, WORK, ACTOR, T0, BigDecimal.ZERO, 60))
                 .isInstanceOf(DomainValidationException.class);
-        assertThatThrownBy(() -> Task.create("x".repeat(161), TaskPriority.ALTA, WORK, ACTOR, T0))
+        assertThatThrownBy(() -> Task.create("x".repeat(161), TaskPriority.ALTA, WORK, ACTOR, T0, BigDecimal.ZERO, 60))
                 .isInstanceOf(DomainValidationException.class);
     }
 

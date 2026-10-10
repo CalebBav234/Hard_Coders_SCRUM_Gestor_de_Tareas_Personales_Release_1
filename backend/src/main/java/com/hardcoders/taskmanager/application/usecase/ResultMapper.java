@@ -21,7 +21,7 @@ final class ResultMapper {
     private ResultMapper() {
     }
 
-    static TaskResult toResult(Task task, List<Subtask> subtasks) {
+    static TaskResult toResult(Task task, List<Subtask> subtasks, List<Integer> assignedWorkerIds) {
         TimeTracking tracking = task.timeTracking();
         return new TaskResult(
                 task.id(),
@@ -37,9 +37,11 @@ final class ResultMapper {
                 tracking.trackedSeconds(),
                 tracking.currentSegmentStart(),
                 task.completedAt(),
+                task.completedByUserId(),
                 task.createdAt(),
                 task.updatedAt(),
                 task.version(),
+                assignedWorkerIds,
                 subtasks.stream().map(ResultMapper::toResult).toList());
     }
 
@@ -51,6 +53,7 @@ final class ResultMapper {
                 subtask.description(),
                 subtask.status().name(),
                 subtask.completedAt(),
+                subtask.completedByUserId(),
                 subtask.createdAt(),
                 subtask.updatedAt(),
                 subtask.version());
@@ -75,10 +78,11 @@ final class ResultMapper {
                         change.reason(),
                         change.changedAt()))
                 .toList();
-        return new TaskHistoryResult(toResult(task, List.of()), cancelledAt, events);
+        return new TaskHistoryResult(toResult(task, List.of(), List.of()), cancelledAt, events);
     }
 
     static ActivityResult toResult(Activity activity) {
-        return new ActivityResult(activity.id(), activity.name());
+        return new ActivityResult(activity.id(), activity.stageId(), activity.name(), activity.description(),
+                activity.status().name(), activity.createdAt(), activity.updatedAt(), activity.version());
     }
 }

@@ -41,6 +41,24 @@ class SubtaskPersistenceAdapter implements SubtaskRepository {
     }
 
     @Override
+    public Optional<Subtask> findForUpdate(Integer taskId, Integer subtaskId) {
+        SubtaskEntity entity = entityManager.find(SubtaskEntity.class, subtaskId, LockModeType.PESSIMISTIC_WRITE);
+        if (entity == null
+                || WorkStatus.CANCELADA.name().equals(entity.getStatus().getName())
+                || WorkStatus.CANCELADA.name().equals(entity.getTask().getStatus().getName())
+                || !entity.getTask().getTaskId().equals(taskId)) {
+            return Optional.empty();
+        }
+        return Optional.of(toDomain(entity));
+    }
+
+    @Override
+    public Optional<Integer> taskIdOf(Integer subtaskId) {
+        return Optional.ofNullable(entityManager.find(SubtaskEntity.class, subtaskId))
+                .map(entity -> entity.getTask().getTaskId());
+    }
+
+    @Override
     public List<Subtask> findVisibleByTaskIds(Collection<Integer> taskIds) {
         if (taskIds.isEmpty()) {
             return List.of();
@@ -52,7 +70,7 @@ class SubtaskPersistenceAdapter implements SubtaskRepository {
                         order by s.createdAt, s.subtaskId
                         """, SubtaskEntity.class)
                 .setParameter("ids", taskIds)
-                .getResultStream()
+                .getResultList().stream()
                 .map(SubtaskPersistenceAdapter::toDomain)
                 .toList();
     }
@@ -82,7 +100,7 @@ class SubtaskPersistenceAdapter implements SubtaskRepository {
         if (likePattern != null) {
             query.setParameter("pattern", likePattern);
         }
-        List<Integer> ids = ((List<?>) query.getResultList()).stream()
+        List<Integer> ids = ((List<?>) query.getResultList().stream()).stream()
                 .map(row -> ((Number) row).intValue())
                 .toList();
         if (ids.isEmpty()) {
@@ -92,7 +110,7 @@ class SubtaskPersistenceAdapter implements SubtaskRepository {
                         "select s from SubtaskEntity s join fetch s.status where s.subtaskId in :ids",
                         SubtaskEntity.class)
                 .setParameter("ids", ids)
-                .getResultStream()
+                .getResultList().stream()
                 .collect(java.util.stream.Collectors.toMap(SubtaskEntity::getSubtaskId, s -> s));
         return ids.stream().map(byId::get).filter(java.util.Objects::nonNull)
                 .map(SubtaskPersistenceAdapter::toDomain).toList();

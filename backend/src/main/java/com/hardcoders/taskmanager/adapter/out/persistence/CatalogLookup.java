@@ -20,7 +20,7 @@ class CatalogLookup {
         return entityManager.createQuery(
                         "select s from WorkStatusEntity s where s.name = :name", WorkStatusEntity.class)
                 .setParameter("name", status.name())
-                .getResultStream()
+                .getResultList().stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Falta el estado " + status + " en work_status"));
     }
@@ -29,7 +29,7 @@ class CatalogLookup {
         return entityManager.createQuery(
                         "select p from TaskPriorityEntity p where p.name = :name", TaskPriorityEntity.class)
                 .setParameter("name", priority.name())
-                .getResultStream()
+                .getResultList().stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Falta la prioridad " + priority + " en task_priority"));
     }
@@ -38,7 +38,7 @@ class CatalogLookup {
         return entityManager.createQuery(
                         "select p from ProjectStatusEntity p where p.name = :name", ProjectStatusEntity.class)
                 .setParameter("name", name)
-                .getResultStream()
+                .getResultList().stream()
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Falta el estado " + name + " en project_status"));
     }

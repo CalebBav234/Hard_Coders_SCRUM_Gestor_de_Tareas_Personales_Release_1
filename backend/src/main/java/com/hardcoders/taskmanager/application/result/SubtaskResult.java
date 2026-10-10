@@ -9,6 +9,7 @@ public record SubtaskResult(
         String description,
         String status,
         Instant completedAt,
+        Integer completedByUserId,
         Instant createdAt,
         Instant updatedAt,
         long version

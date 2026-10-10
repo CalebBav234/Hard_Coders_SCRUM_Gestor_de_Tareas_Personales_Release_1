@@ -39,6 +39,7 @@ public final class ProjectResponses {
             boolean canEditDetails,
             boolean canEditPlan,
             boolean canDelegate,
+            boolean canManageHierarchy,
             List<String> allowedStatuses
     ) {
         public static ProjectResponse from(ProjectResult result) {
@@ -47,7 +48,7 @@ public final class ProjectResponses {
                     result.estimatedDurationMinutes(), UserSummaryResponse.from(result.manager()),
                     UserSummaryResponse.from(result.createdBy()), result.currentRevision(), result.createdAt(),
                     result.updatedAt(), result.version(), result.canEditDetails(), result.canEditPlan(),
-                    result.canDelegate(), result.allowedStatuses());
+                    result.canDelegate(), result.canManageHierarchy(), result.allowedStatuses());
         }
     }
 

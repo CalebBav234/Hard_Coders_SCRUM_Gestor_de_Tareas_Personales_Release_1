@@ -67,6 +67,15 @@ export class TaskEditor implements OnInit {
 
   categories: Array<{ id: number; name: string }> = [];
 
+  /** Etapa cuyas actividades se ofrecen como "categorías" de la tarea. */
+  stageIdForCategories = 0;
+
+  /** Id de la actividad que corresponde al nombre elegido (se resuelve al guardar). */
+  private categoryActivityId(categoryName: string | null): number {
+    const found = this.categories.find((category) => category.name === categoryName);
+    return found ? found.id : 0;
+  }
+
   loadingCategories = false;
   saving = false;
 
@@ -95,7 +104,7 @@ export class TaskEditor implements OnInit {
     this.loadingCategories = true;
     this.categoryError = null;
 
-    this.taskService.listCategories().subscribe({
+    this.taskService.listCategories(this.stageIdForCategories).subscribe({
       next: (categories) => {
         this.categories = categories;
         this.loadingCategories = false;
@@ -168,7 +177,7 @@ export class TaskEditor implements OnInit {
           }
 
           this.taskService
-            .changeCategory(updatedTask, categoryName)
+            .changeActivity(updatedTask, this.categoryActivityId(categoryName))
             .subscribe({
               next: (categoryUpdatedTask) => {
                 const finalTask: Task = {

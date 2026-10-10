@@ -48,7 +48,7 @@ class ProjectPersistenceAdapter implements ProjectRepository {
                         select p from ProjectEntity p join fetch p.status
                         order by p.createdAt desc, p.projectId desc
                         """, ProjectEntity.class)
-                .getResultStream()
+                .getResultList().stream()
                 .map(this::toDomain)
                 .toList();
     }
@@ -61,7 +61,7 @@ class ProjectPersistenceAdapter implements ProjectRepository {
                         order by p.createdAt desc, p.projectId desc
                         """, ProjectEntity.class)
                 .setParameter("managerId", managerUserId)
-                .getResultStream()
+                .getResultList().stream()
                 .map(this::toDomain)
                 .toList();
     }
@@ -89,7 +89,7 @@ class ProjectPersistenceAdapter implements ProjectRepository {
                         order by h.id.revisionNumber desc
                         """, ProjectPlanHistoryEntity.class)
                 .setParameter("projectId", projectId)
-                .getResultStream()
+                .getResultList().stream()
                 .map(h -> new PlanRevision(h.getId().getRevisionNumber(), h.getBudgetBob(),
                         h.getEstimatedDurationMinutes(), h.getChangedAt(), h.getChangedBy().getUserId(),
                         h.getReason()))

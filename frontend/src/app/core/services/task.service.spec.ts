@@ -71,9 +71,9 @@ describe('TaskService (fachada sobre la API V4)', () => {
 
   it('flattens tasks and their subtasks, keeping subtask ids apart from task ids', () => {
     let result: Task[] = [];
-    service.listTasks('  informe ').subscribe((tasks) => (result = tasks));
+    service.listTasks(42, '  informe ').subscribe((tasks) => (result = tasks));
 
-    const req = http.expectOne((r) => r.url === '/api/tasks' && r.params.get('q') === 'informe');
+    const req = http.expectOne((r) => r.url === '/api/tasks' && r.params.get('projectId') === '42' && r.params.get('q') === 'informe');
     req.flush([
       taskDto({
         status: 'EN_PROGRESO',
@@ -104,22 +104,34 @@ describe('TaskService (fachada sobre la API V4)', () => {
     expect(result[1].totalActiveSeconds).toBeUndefined();
   });
 
-  it('creates a task in its activity and leaves blank categories as "Sin categoría"', () => {
-    service.createTask('Nueva', 'ALTA', 'Trabajo').subscribe();
+  it('creates a task in its activity with the budget and duration that the Encargado fija', () => {
+    service.createTask(3, 'Nueva', 'ALTA', 250.5, 120).subscribe();
     const categorized = http.expectOne('/api/tasks');
     expect(categorized.request.method).toBe('POST');
-    expect(categorized.request.body).toEqual({ title: 'Nueva', priority: 'ALTA', activityName: 'Trabajo' });
+    expect(categorized.request.body).toEqual({
+      activityId: 3,
+      title: 'Nueva',
+      priority: 'ALTA',
+      allocatedBudgetBob: 250.5,
+      estimatedDurationMinutes: 120,
+    });
     categorized.flush(taskDto());
 
-    service.createTask('Sin nada', 'MEDIA', '   ').subscribe();
+    service.createTask(3, 'Sin nada', 'MEDIA', 10, 30).subscribe();
     const plain = http.expectOne('/api/tasks');
-    expect(plain.request.body).toEqual({ title: 'Sin nada', priority: 'MEDIA', activityName: null });
+    expect(plain.request.body).toEqual({
+      activityId: 3,
+      title: 'Sin nada',
+      priority: 'MEDIA',
+      allocatedBudgetBob: 10,
+      estimatedDurationMinutes: 30,
+    });
     plain.flush(taskDto({ activityName: null }));
   });
 
   it('creates subtasks under their task', () => {
     let created: Task | undefined;
-    service.createTask('Hija', 'MEDIA', '', 7).subscribe((t) => (created = t));
+    service.createTask(3, 'Hija', 'MEDIA', 0, 0, 7).subscribe((t) => (created = t));
 
     const req = http.expectOne('/api/tasks/7/subtasks');
     expect(req.request.method).toBe('POST');
@@ -178,33 +190,83 @@ describe('TaskService (fachada sobre la API V4)', () => {
 
   it('changes the category through the task activity', () => {
     let updated: Task | undefined;
-    service.changeCategory(task, '  ').subscribe((t) => (updated = t));
+    service.changeActivity(task, 0).subscribe((t) => (updated = t));
 
     const req = http.expectOne('/api/tasks/7/activity');
     expect(req.request.method).toBe('PUT');
-    expect(req.request.body).toEqual({ activityName: null, version: 3 });
+    expect(req.request.body).toEqual({ activityId: 0, version: 3 });
     req.flush(taskDto({ activityName: null, activityId: 1 }));
 
     expect(updated?.categoryName).toBeNull();
     expect(updated?.categoryId).toBeNull();
   });
 
-  it('loads the categories from /api/activities', () => {
-    service.listCategories().subscribe((result) =>
+  it('loads the categories of the selected stage from /api/activities', () => {
+    service.listCategories(5).subscribe((result) =>
       expect(result).toEqual([
         { id: 1, name: 'Casa' },
         { id: 2, name: 'Trabajo' },
       ]),
     );
-    http.expectOne('/api/activities').flush([
-      { activityId: 1, name: 'Casa' },
-      { activityId: 2, name: 'Trabajo' },
+    http
+      .expectOne((r) => r.url === '/api/activities' && r.params.get('stageId') === '5')
+      .flush([
+        {
+          activityId: 1,
+          stageId: 5,
+          name: 'Casa',
+          description: null,
+          status: 'PENDIENTE',
+          createdAt: '2026-10-01T10:00:00Z',
+          updatedAt: '2026-10-01T10:00:00Z',
+          version: 1,
+        },
+        {
+          activityId: 2,
+          stageId: 5,
+          name: 'Trabajo',
+          description: null,
+          status: 'PENDIENTE',
+          createdAt: '2026-10-01T10:00:00Z',
+          updatedAt: '2026-10-01T10:00:00Z',
+          version: 1,
+        },
+      ]);
+  });
+
+  it('does not expose financial fields of assigned tasks to the Personal', () => {
+    let assigned: Task[] = [];
+    service.listAssignedTasks().subscribe((tasks) => (assigned = tasks));
+
+    http.expectOne('/api/tasks/assigned').flush([
+      {
+        taskId: 9,
+        projectId: 42,
+        activityId: 3,
+        activityName: 'Analisis',
+        title: 'Entrevistar usuarios',
+        description: null,
+        status: 'EN_PROGRESO',
+        priority: 'ALTA',
+        actualDurationMinutes: 30,
+        trackedSeconds: 90,
+        currentSegmentStartedAt: null,
+        completedAt: null,
+        createdAt: '2026-10-01T10:00:00Z',
+        updatedAt: '2026-10-01T10:00:00Z',
+        version: 7,
+        subtasks: [],
+      },
     ]);
+
+    expect(assigned).toHaveLength(1);
+    expect(assigned[0]).toMatchObject({ id: 9, title: 'Entrevistar usuarios', status: 'ACTIVA' });
+    expect(Object.keys(assigned[0] as unknown as Record<string, unknown>)).not.toContain('allocatedBudgetBob');
   });
 
   it('merges task and subtask history, showing cancellations as deletions', () => {
     let history: TaskHistory[] = [];
-    service.listHistory('reunión').subscribe((items) => (history = items));
+    service.listHistory(42, 'reunión').subscribe((items) => (history = items));
 
     const cancelled: TaskHistoryDto = {
       task: taskDto({ taskId: 1, title: 'Cancelada', status: 'CANCELADA', trackedSeconds: 90 }),

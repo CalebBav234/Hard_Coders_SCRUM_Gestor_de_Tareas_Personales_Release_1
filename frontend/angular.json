@@ -26,7 +26,8 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              "src/design-system.css"
             ]
           },
           "configurations": {

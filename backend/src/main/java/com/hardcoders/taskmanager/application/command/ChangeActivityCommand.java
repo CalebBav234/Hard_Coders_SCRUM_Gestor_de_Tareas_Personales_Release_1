@@ -1,4 +1,5 @@
 package com.hardcoders.taskmanager.application.command;
 
-public record ChangeActivityCommand(Integer taskId, String activityName, Long version) {
+/** US2.2: mover la tarea a otra actividad del mismo proyecto. */
+public record ChangeActivityCommand(Integer taskId, Integer activityId, Long version) {
 }

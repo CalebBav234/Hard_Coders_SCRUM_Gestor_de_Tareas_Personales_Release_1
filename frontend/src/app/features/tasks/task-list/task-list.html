@@ -70,6 +70,70 @@
 
 
   <!-- =========================================================
+       US2.2 — ESPACIO DE TRABAJO: PROYECTO + ETAPA
+       El usuario elige el proyecto. No hay proyecto por defecto:
+       si no hay ninguno seleccionado no se cargan datos.
+       ========================================================= -->
+
+  @if (!usesPersonalScope) {
+
+    <section class="workspace-bar">
+
+      <label for="workspace-project">Proyecto</label>
+
+      <select
+        id="workspace-project"
+        [(ngModel)]="selectedProjectId"
+        (ngModelChange)="selectProject($event)"
+      >
+        <option [ngValue]="null">— Selecciona un proyecto —</option>
+
+        @for (project of projects; track project.projectId) {
+          <option [ngValue]="project.projectId">
+            {{ project.name }}
+          </option>
+        }
+
+      </select>
+
+      @if (selectedStageId !== null || stages.length > 0) {
+        <label for="workspace-stage">Etapa</label>
+
+        <select
+          id="workspace-stage"
+          [(ngModel)]="selectedStageId"
+          (ngModelChange)="selectStage($event)"
+        >
+          @for (stage of stages; track stage.stageId) {
+            <option [ngValue]="stage.stageId">{{ stage.name }}</option>
+          }
+        </select>
+      }
+
+      @if (selectedProjectId !== null) {
+        <span class="ratio">{{ progressRatio }} % completado</span>
+      }
+
+    </section>
+
+    @if (selectedProjectId !== null) {
+
+      <section class="progress-panel">
+
+        <h3>Progreso en cascada del proyecto</h3>
+
+        <div class="progress-bar">
+          <span [style.width.%]="progressRatio"></span>
+        </div>
+
+      </section>
+
+    }
+
+  }
+
+
+  <!-- =========================================================
        BUSCADOR
        ========================================================= -->
 
@@ -133,7 +197,31 @@
        CARGANDO
        ========================================================= -->
 
-  @if (loading) {
+  <!-- =========================================================
+       ESTADO: NINGÚN PROYECTO SELECCIONADO
+       Antes aquí se cargaba el primer proyecto automáticamente.
+       ========================================================= -->
+
+  @if (!usesPersonalScope && selectedProjectId === null) {
+
+    <div class="empty-state">
+
+      <div class="empty-state-icon">
+        📁
+      </div>
+
+      <h3>
+        Selecciona un proyecto
+      </h3>
+
+      <p>
+        Elige el proyecto sobre el que quieres trabajar. Las tareas
+        siempre pertenecen a una etapa y una actividad de ese proyecto.
+      </p>
+
+    </div>
+
+  } @else if (loading) {
 
     <div class="empty-state">
 

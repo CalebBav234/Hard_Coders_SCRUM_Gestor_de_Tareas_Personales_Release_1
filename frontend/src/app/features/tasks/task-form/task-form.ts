@@ -14,6 +14,9 @@ private readonly taskService = inject(TaskService);
 private readonly changeDetector = inject(ChangeDetectorRef);
 
 @Input() parentTaskId: number | null = null;
+
+  /** US2.2: la tarea se crea en una actividad concreta del proyecto elegido. */
+  @Input() activityId: number | null = null;
 @Output() taskCreated = new EventEmitter<Task>();
 @Output() cancelled = new EventEmitter<void>();
 
@@ -38,11 +41,21 @@ if (this.title.trim() === '') {
 
 this.loading = true;
 
+// Sin actividad concreta no se puede crear la tarea: US2.2 exige pertenencia explícita.
+if (this.parentTaskId === null && this.activityId === null) {
+  this.loading = false;
+  this.error = 'Selecciona una etapa y una actividad antes de crear la tarea.';
+  this.changeDetector.markForCheck();
+  return;
+}
+
 this.taskService
   .createTask(
+    this.activityId ?? 0,
     this.title.trim(),
     this.selectedPriority,
-    this.selectedCategoryName,
+    0,
+    0,
     this.parentTaskId
   )
   .subscribe({

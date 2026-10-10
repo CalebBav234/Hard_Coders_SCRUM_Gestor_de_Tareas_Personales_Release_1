@@ -2,17 +2,20 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, throwError } from 'rxjs';
 import {
-  ActivityDto,
+  ActivityDetailDto,
+  AssignedTaskDto,
   CreateSubtaskBody,
   CreateTaskBody,
   SubtaskDto,
   TaskDto,
   TaskHistoryDto,
+  TransitionBody,
   UpdateSubtaskBody,
   UpdateTaskBody,
+  UpdateTaskPlanBody,
 } from '../models/api';
 import {
-  CategorySummary,
+  CategorySummary as CategoryView,
   Task,
   TaskHistory,
   TaskPriority,
@@ -27,12 +30,14 @@ import {
   taskHistoryToView,
   taskToView,
 } from './task-mapper';
+import { UserSummary } from '../models/project';
 
 type Lifecycle = 'start' | 'pause' | 'complete' | 'reopen';
 
 /**
- * Fachada entre la interfaz y la API V4. Mantiene la misma interfaz pública que antes para que
- * los componentes no cambien: decide si cada operación va a /api/tasks o /api/subtasks.
+ * Fachada entre la interfaz y la API V4. Todas las lecturas y escrituras van ligadas a un
+ * proyecto explícito o a una actividad concreta: ya no se deduce el "espacio de trabajo" del
+ * primer proyecto porque el backend rechaza cualquier cruce de proyectos con 404.
  */
 @Injectable({
   providedIn: 'root',
@@ -41,11 +46,32 @@ export class TaskService {
   private readonly http = inject(HttpClient);
   private readonly tasksUrl = '/api/tasks';
   private readonly subtasksUrl = '/api/subtasks';
+  private readonly activitiesUrl = '/api/activities';
 
-  listTasks(query = ''): Observable<Task[]> {
+  /** Tareas visibles del proyecto (Jefe o Encargado de ese proyecto). */
+  listTasks(projectId: number, query = ''): Observable<Task[]> {
     return this.http
-      .get<TaskDto[]>(this.tasksUrl, { params: this.searchParams(query) })
+      .get<TaskDto[]>(this.tasksUrl, { params: { projectId, ...this.searchParams(query) } })
       .pipe(map((tasks) => flattenTasks(tasks)), catchError(this.handleError));
+  }
+
+  /** US3.1: "Mis tareas"; el Personal solo ve lo que tiene asignado. */
+  listAssignedTasks(query = ''): Observable<Task[]> {
+    return this.http
+      .get<AssignedTaskDto[]>(`${this.tasksUrl}/assigned`, { params: this.searchParams(query) })
+      .pipe(
+        map((tasks) =>
+          tasks.map((assigned) => {
+            const taskDto: TaskDto = {
+              ...assigned,
+              allocatedBudgetBob: 0,
+              estimatedDurationMinutes: 0,
+            };
+            return taskToView(taskDto);
+          }),
+        ),
+        catchError(this.handleError),
+      );
   }
 
   getTask(id: number): Observable<Task> {
@@ -54,9 +80,9 @@ export class TaskService {
       .pipe(map((task) => taskToView(task)), catchError(this.handleError));
   }
 
-  /** Historial unificado: tareas y subtareas terminadas o eliminadas, de la más reciente a la más antigua. */
-  listHistory(query = ''): Observable<TaskHistory[]> {
-    const params = this.searchParams(query);
+  /** Historial unificado de un proyecto: tareas y subtareas terminadas o canceladas. */
+  listHistory(projectId: number, query = ''): Observable<TaskHistory[]> {
+    const params = { projectId, ...this.searchParams(query) };
     return forkJoin([
       this.http.get<TaskHistoryDto[]>(`${this.tasksUrl}/history`, { params }),
       this.http.get<SubtaskDto[]>(`${this.subtasksUrl}/history`, { params }),
@@ -70,11 +96,13 @@ export class TaskService {
     );
   }
 
-  /** Con {@code parentTaskId} crea una subtarea de esa tarea. */
+  /** Con {@code parentTaskId} crea una subtarea de esa tarea; si no, una tarea en la actividad. */
   createTask(
+    activityId: number,
     title: string,
     priority: TaskPriority,
-    categoryName: string,
+    allocatedBudgetBob: number,
+    estimatedDurationMinutes: number,
     parentTaskId?: number | null,
   ): Observable<Task> {
     if (parentTaskId != null) {
@@ -83,7 +111,7 @@ export class TaskService {
         .post<SubtaskDto>(`${this.tasksUrl}/${parentTaskId}/subtasks`, body)
         .pipe(map((subtask) => subtaskToView(subtask, priority)), catchError(this.handleError));
     }
-    const body: CreateTaskBody = { title, priority, activityName: this.categoryOrNull(categoryName) };
+    const body: CreateTaskBody = { activityId, title, priority, allocatedBudgetBob, estimatedDurationMinutes };
     return this.http
       .post<TaskDto>(this.tasksUrl, body)
       .pipe(map((task) => taskToView(task)), catchError(this.handleError));
@@ -106,6 +134,14 @@ export class TaskService {
       .pipe(map((task) => taskToView(task)), catchError(this.handleError));
   }
 
+  /** US2.2: presupuesto y duración de la tarea, con motivo obligatorio. */
+  updatePlan(taskId: number, budgetBob: number, minutes: number, reason: string, version: number): Observable<Task> {
+    const body: UpdateTaskPlanBody = { allocatedBudgetBob: budgetBob, estimatedDurationMinutes: minutes, reason, version };
+    return this.http
+      .put<TaskDto>(`${this.tasksUrl}/${taskId}/plan`, body)
+      .pipe(map((task) => taskToView(task)), catchError(this.handleError));
+  }
+
   /** Eliminar = cancelar en V4; la tarea pasa al historial. */
   deleteTask(task: Task): Observable<void> {
     return this.http
@@ -115,42 +151,50 @@ export class TaskService {
       .pipe(catchError(this.handleError));
   }
 
-  activate(task: Task): Observable<Task> {
-    return this.lifecycle(task, 'start');
+  activate(task: Task, reason?: string): Observable<Task> {
+    return this.lifecycle(task, 'start', reason);
   }
 
-  pause(task: Task): Observable<Task> {
-    return this.lifecycle(task, 'pause');
+  pause(task: Task, reason?: string): Observable<Task> {
+    return this.lifecycle(task, 'pause', reason);
   }
 
-  complete(task: Task): Observable<Task> {
-    return this.lifecycle(task, 'complete');
+  complete(task: Task, reason?: string): Observable<Task> {
+    return this.lifecycle(task, 'complete', reason);
   }
 
-  reopen(task: Task): Observable<Task> {
-    return this.lifecycle(task, 'reopen');
+  reopen(task: Task, reason?: string): Observable<Task> {
+    return this.lifecycle(task, 'reopen', reason);
   }
 
-  /** La categoría es la actividad de la tarea; las subtareas no tienen categoría propia. */
-  changeCategory(task: Task, categoryName: string | null): Observable<Task> {
+  /** US2.2: mover la tarea a otra actividad del mismo proyecto. */
+  changeActivity(task: Task, activityId: number): Observable<Task> {
     return this.http
       .put<TaskDto>(`${this.tasksUrl}/${this.entityId(task)}/activity`, {
-        activityName: this.categoryOrNull(categoryName),
+        activityId,
         version: task.version,
       })
       .pipe(map((updated) => taskToView(updated)), catchError(this.handleError));
   }
 
-  listCategories(): Observable<CategorySummary[]> {
-    return this.http.get<ActivityDto[]>('/api/activities').pipe(
-      map((activities) => activities.map((activity) => ({ id: activity.activityId, name: activity.name }))),
+  /** Las actividades ("categorías") de la etapa seleccionada; oculta "Sin categoría". */
+  listCategories(stageId: number): Observable<CategoryView[]> {
+    return this.http.get<ActivityDetailDto[]>(`${this.activitiesUrl}`, { params: { stageId } }).pipe(
+      map((activities) =>
+        activities
+          .filter((activity) => activity.name.toLowerCase() !== 'sin categoría')
+          .map((activity) => ({ id: activity.activityId, name: activity.name })),
+      ),
       catchError(this.handleError),
     );
   }
 
-  private lifecycle(task: Task, action: Lifecycle): Observable<Task> {
+  private lifecycle(task: Task, action: Lifecycle, reason?: string): Observable<Task> {
     const url = `${this.baseFor(task)}/${this.entityId(task)}/${action}`;
-    const body = { version: task.version };
+    const body: TransitionBody = { version: task.version };
+    if (reason && action === 'complete') {
+      body.reason = reason;
+    }
     if (isSubtask(task)) {
       return this.http
         .post<SubtaskDto>(url, body)
@@ -167,11 +211,6 @@ export class TaskService {
 
   private entityId(task: Task): number {
     return task.entityId ?? Math.abs(task.id);
-  }
-
-  private categoryOrNull(categoryName: string | null | undefined): string | null {
-    const trimmed = categoryName?.trim() ?? '';
-    return trimmed === '' ? null : trimmed;
   }
 
   private searchParams(query: string): Record<string, string> {

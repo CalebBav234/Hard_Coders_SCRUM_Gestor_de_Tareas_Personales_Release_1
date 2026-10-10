@@ -89,7 +89,15 @@ V4 no tiene una tabla de delegaciones; por eso la delegaciÃ³n se audita como una
 - **Backend:** `BudgetPolicyTest`, `DelegationPolicyTest`, `ProjectTest`, `ProjectUseCasesTest` (criterios de aceptaciÃ³n con dobles en memoria) y `JwtTokenServiceTest`.
 - **Frontend:** `auth.spec.ts` y `projects.spec.ts` (Vitest).
 
-## Pendiente para otras historias
 
-- US1.3 (excepciones del Jefe) y la Ã‰pica 2 (etapas, actividades y asignaciones) se apoyan en este actor y estas polÃ­ticas.
-- "Mis tareas" sigue usando como espacio de trabajo el primer proyecto (ver `docs/api-v4.md`). Cuando exista la Ã‰pica 2 (WBS), cada tarea deberÃ¡ crearse dentro de su proyecto.
+## Resolución de los huecos declarados (verificado en ejecución real)
+
+| Hueco declarado | Resolución |
+|---|---|
+| US1.3 (Jefe completa tareas de otros) | **Implementado.** `CompletionPolicy.canComplete`: el Jefe puede iniciar/pausar/completar/reabrir cualquier tarea o subtarea; el motivo ("Override del Jefe (US1.3): …") queda en `task_status_history` con `changed_by_user_id` del Jefe. E2E: paso 11 ? `200`, paso 12 ? evento con override. |
+| "Mis tareas" usaba el primer proyecto como espacio de trabajo | **Corregido.** Se eliminaron `WorkspacePersistenceAdapter`, `WorkspaceRepository` y `Workspace`. Hoy `CreateTaskRequest` exige `activityId`, y toda lectura exige `projectId`. El selector de proyecto/etapa de la pantalla obliga a elegir y, si no hay nada elegido, muestra un estado vacío en lugar de cargar datos de otro proyecto. |
+| `task-list.css` rompía el build de producción | **Corregido.** La hoja pasó de 22,08 kB a ~3 kB: las primitivas compartidas se movieron a `src/design-system.css` (hoja global, sin presupuesto de componente) y se eliminaron las reglas duplicadas y sin usar. `npx ng build --configuration production` termina sin errores ni avisos de presupuesto. |
+
+## Ruta del selector de proyectos para el Personal (verificado)
+
+`GET /api/projects` devuelve `200` con `[]` para `personal@gestor.local`: el backend ya no filtra los proyectos ajenos, así que la pantalla de proyectos aparece vacía y las guardas impiden entrar por URL directa.

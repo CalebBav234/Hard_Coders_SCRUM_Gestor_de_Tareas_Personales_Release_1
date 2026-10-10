@@ -43,10 +43,20 @@ describe('TaskHistory', () => {
 
   function flushHistory(tasks: TaskHistoryDto[] = [], query = ''): void {
     http
-      .expectOne((r) => r.url === '/api/tasks/history' && (r.params.get('q') ?? '') === query)
+      .expectOne(
+        (r) =>
+          r.url === '/api/tasks/history' &&
+          r.params.get('projectId') === '7' &&
+          (r.params.get('q') ?? '') === query,
+      )
       .flush(tasks);
     http
-      .expectOne((r) => r.url === '/api/subtasks/history' && (r.params.get('q') ?? '') === query)
+      .expectOne(
+        (r) =>
+          r.url === '/api/subtasks/history' &&
+          r.params.get('projectId') === '7' &&
+          (r.params.get('q') ?? '') === query,
+      )
       .flush([]);
   }
 
@@ -58,16 +68,18 @@ describe('TaskHistory', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TaskHistory);
     element = fixture.nativeElement;
+    // El histórico pertenece al proyecto que elige el usuario; nunca al "primero".
+    fixture.componentInstance.selectedProjectId = 7;
     fixture.detectChanges();
     // Títulos de las tareas principales (para mostrar a qué tarea pertenece una subtarea).
-    http.expectOne('/api/tasks').flush([]);
+    http.expectOne((r) => r.url === '/api/tasks' && r.params.get('projectId') === '7').flush([]);
   });
 
   afterEach(() => http.verify());
 
   it('replaces an in-flight load when a task changes instead of losing the refresh', async () => {
-    const stale = http.expectOne('/api/tasks/history');
-    http.expectOne('/api/subtasks/history');
+    const stale = http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7');
+    http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7');
     fixture.componentInstance.loadHistory();
     expect(stale.cancelled).toBe(true);
     flushHistory([archived]);
@@ -76,8 +88,8 @@ describe('TaskHistory', () => {
   });
 
   it('does not present a load error as an empty archive', async () => {
-    http.expectOne('/api/subtasks/history');
-    http.expectOne('/api/tasks/history').flush({}, { status: 500, statusText: 'Server Error' });
+    http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7');
+    http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7').flush({}, { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(element.querySelector('[role="alert"]')).not.toBeNull();
@@ -141,8 +153,8 @@ describe('TaskHistory', () => {
   });
 
   it('shows a useful message when history cannot be loaded', async () => {
-    http.expectOne('/api/subtasks/history');
-    http.expectOne('/api/tasks/history').flush({}, { status: 500, statusText: 'Server Error' });
+    http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7');
+    http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7').flush({}, { status: 500, statusText: 'Server Error' });
     await fixture.whenStable();
     fixture.detectChanges();
 
@@ -152,8 +164,8 @@ describe('TaskHistory', () => {
   });
 
   it('explains when the backend does not expose the history endpoint', async () => {
-    http.expectOne('/api/subtasks/history');
-    http.expectOne('/api/tasks/history').flush({}, { status: 404, statusText: 'Not Found' });
+    http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7');
+    http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7').flush({}, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
@@ -163,8 +175,8 @@ describe('TaskHistory', () => {
   });
 
   it('cancels the pending request when the component is destroyed', () => {
-    const pending = http.expectOne('/api/tasks/history');
-    const pendingSubtasks = http.expectOne('/api/subtasks/history');
+    const pending = http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7');
+    const pendingSubtasks = http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7');
     fixture.destroy();
     expect(pending.cancelled).toBe(true);
     expect(pendingSubtasks.cancelled).toBe(true);

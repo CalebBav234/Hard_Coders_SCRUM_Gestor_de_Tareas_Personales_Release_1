@@ -1,0 +1,171 @@
+/* =============================================================
+   SISTEMA DE DISEÑO COMPARTIDO (primitivas de interfaz)
+   -------------------------------------------------------------
+   Estas reglas viven en la hoja global porque las usan varios
+   features (Mis tareas, Histórico, Editor, Formulario). Antes
+   estaban duplicadas en cada hoja de componente, lo que hacía
+   que cada una superara el presupuesto de 8 kB de Angular
+   (`anyComponentStyle`) y rompiera `ng build --configuration
+   production`.
+   ============================================================= */
+
+/* ---------------- botones ---------------- */
+:is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-delete, .btn-new-subtask,
+    .btn-clear, .btn-cancel-delete, .btn-confirm-delete, .btn-editor-save, .btn-editor-cancel,
+    .task-actions button, .page-header-actions button, .subtask-postit-actions button,
+    .category-editor-actions button, .form-actions button, .editor-actions button, .subtasks-button) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 40px; padding: 0 15px;
+  border: 1px solid var(--martinica); border-radius: 6px;
+  background: var(--arcilla-ebano); color: #d8d8e8;
+  font-size: 12px; font-weight: 600; line-height: 1.2;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, transform .1s ease, opacity .15s ease;
+}
+
+:is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask, .btn-clear,
+    .btn-editor-save, .btn-editor-cancel, .task-actions button, .page-header-actions button,
+    .subtask-postit-actions button, .category-editor-actions button, .form-actions button,
+    .editor-actions button, .subtasks-button):hover:not(:disabled) {
+  background: var(--martinica); border-color: var(--cometa); transform: translateY(-1px);
+}
+
+:is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask, .btn-editor-save,
+    .task-actions button, .page-header-actions button, .subtask-postit-actions button,
+    .form-actions button, .editor-actions button):active:not(:disabled) { transform: translateY(0); }
+
+:is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask, .btn-clear,
+    .task-actions button, .page-header-actions button, .subtask-postit-actions button,
+    .category-editor-actions button, .form-actions button, .editor-actions button, .subtasks-button,
+    .btn-editor-save):disabled { opacity: .45; cursor: not-allowed; }
+
+:is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask):focus-visible,
+:is(.form-actions button, .editor-actions button):focus-visible { outline: 2px solid var(--scampi); outline-offset: 2px; }
+
+.btn-delete:hover:not(:disabled) { background: #b96767; border-color: #b96767; color: #fff; }
+.btn-confirm-delete { border-color: #b96767; background: #b96767; color: #fff; }
+.btn-confirm-delete:hover:not(:disabled) { background: #a35555; border-color: #a35555; }
+.btn-reopen { border-color: var(--priority-alta); color: var(--priority-alta); }
+.btn-editor-save { border-color: var(--priority-alta); color: var(--priority-alta); }
+.btn-new-subtask { min-height: 32px; padding: 0 9px; font-size: 10px; }
+.btn-search { min-height: 38px; padding: 0 14px; }
+
+/* ---------------- campos de formulario ---------------- */
+:is(.form-group, .editor-field) label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }
+:is(.form-group, .editor-field) :is(input, select, textarea) {
+  width: 100%; min-height: 38px; padding: 8px 12px;
+  border: 1px solid var(--martinica); border-radius: 6px;
+  background: var(--espejismo); color: var(--text-primary);
+  font-size: 13px; font-family: inherit; line-height: 1.5;
+}
+:is(.form-group, .editor-field) textarea { min-height: 92px; resize: vertical; }
+:is(.form-group, .editor-field) :is(input, select, textarea)::placeholder { color: var(--text-placeholder); }
+:is(.form-group, .editor-field) :is(input, select, textarea):hover,
+:is(.form-group, .editor-field) :is(input, select, textarea):focus { border-color: var(--cometa); outline: none; }
+:is(.form-group, .editor-field) :is(input, select, textarea):disabled { opacity: .6; cursor: not-allowed; }
+.editor-fields-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+
+/* ---------------- avisos y estados vacíos ---------------- */
+:is(.alert, .error-message, .editor-error, .field-error) {
+  margin: 0 0 18px; padding: 11px 14px;
+  border: 1px solid var(--martinica); border-radius: 6px;
+  background: var(--arcilla-ebano); color: var(--text-secondary); font-size: 13px;
+}
+.alert-error, .error-message, .editor-error, .field-error { border-color: #b96767; color: #eab8b8; }
+.alert-success { border-color: var(--priority-alta); color: #bfe3cc; }
+:is(.empty-state, .empty-message, .subtasks-empty-state) {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  margin: 32px 0; padding: 34px 20px;
+  border: 1px dashed var(--martinica); border-radius: 12px;
+  color: var(--text-muted); text-align: center;
+}
+:is(.empty-state, .empty-message, .subtasks-empty-state) :is(h3, h4, strong) { margin: 0; font-size: 16px; color: var(--text-secondary); }
+:is(.empty-state, .empty-message, .subtasks-empty-state) p { margin: 0; font-size: 13px; }
+.empty-state-icon { font-size: 30px; }
+
+/* ---------------- tarjetas de tarea ---------------- */
+:is(.task-card, .history-card) {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  min-width: 0; padding: 18px; box-sizing: border-box;
+  border: 1px solid var(--martinica); border-left: 4px solid var(--scampi); border-radius: 12px;
+  background: var(--arcilla-ebano);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 28%);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+:is(.task-card, .history-card):hover { transform: translateY(-3px); box-shadow: 0 20px 36px rgb(0 0 0 / 38%); }
+:is(.task-card, .history-card).status-terminada { opacity: .72; }
+:is(.task-card, .history-card) :is(h2, h3) { margin: 0; color: #f4f4f8; font-size: 17px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+:is(.task-card, .history-card) > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-shrink: 0; }
+:is(.task-card, .history-card) > header > div { min-width: 0; flex: 1; }
+:is(.task-description, .history-description) { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+:is(.task-meta, .history-meta) { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--text-muted); font-size: 11px; }
+:is(.task-meta, .history-meta) span { display: inline-flex; align-items: center; gap: 5px; }
+:is(.task-status, .archive-badge, .task-type-badge, .main-task-type, .subtask-type) {
+  display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+  padding: 3px 9px; border: 1px solid var(--martinica); border-radius: 999px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+}
+.task-status.status-activa { border-color: var(--priority-alta); color: var(--priority-alta); }
+.task-status.status-inactiva { border-color: var(--priority-media); color: var(--priority-media); }
+.task-status.status-pausada { border-color: var(--scampi); color: var(--scampi); }
+.archive-badge { flex-shrink: 0; border-color: var(--priority-alta); color: var(--priority-alta); }
+.archive-badge.deleted { border-color: #b96767; color: #b96767; }
+.task-type-badge.main-task { border-color: var(--scampi); }
+.task-type-badge.subtask { border-color: var(--priority-media); color: var(--priority-media); }
+:is(.priority, .completed-priority) { display: inline-flex; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+:is(.priority-alta, .completed-priority.alta) { background: rgb(99 167 124 / 18%); color: var(--priority-alta); }
+:is(.priority-media, .completed-priority.media) { background: rgb(196 154 91 / 18%); color: var(--priority-media); }
+:is(.priority-baja, .completed-priority.baja) { background: rgb(185 103 103 / 18%); color: var(--priority-baja); }
+:is(.meta-item, .active-time) { display: inline-flex; align-items: center; gap: 5px; }
+.active-time { color: var(--priority-media); font-weight: 600; }
+
+/* ---------------- post-its ---------------- */
+.postit-blue { --postit: #3d5a80; } .postit-teal { --postit: #2f6f6a; } .postit-green { --postit: #3f7a55; }
+.postit-indigo { --postit: #4a4a8f; } .postit-purple { --postit: #6b4a8f; } .postit-burgundy { --postit: #8f4a55; }
+.postit-slate { --postit: #4a5560; } .postit-brown { --postit: #7a6242; }
+:is(.postit-blue, .postit-teal, .postit-green, .postit-indigo, .postit-purple, .postit-burgundy,
+    .postit-slate, .postit-brown) { border-left-color: var(--postit, var(--scampi)); }
+
+/* ---------------- modal y panel lateral ---------------- */
+:is(.subtasks-modal-overlay, .completed-overlay) { position: fixed; inset: 0; z-index: 30; background: rgb(6 6 16 / 62%); }
+:is(.subtasks-modal-overlay, .completed-overlay) { z-index: 40; display: grid; place-items: center; padding: 12px; }
+.completed-overlay { z-index: 30; display: block; padding: 0; }
+.completed-aside {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 31;
+  display: flex; flex-direction: column; width: min(430px, 100%);
+  border-left: 1px solid var(--martinica); background: var(--arcilla-ebano); overflow: auto;
+}
+.completed-aside-header { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px; border-bottom: 1px solid var(--martinica); background: var(--arcilla-ebano); }
+.completed-aside-header h2 { margin: 0; font-size: 18px; font-weight: 650; }
+.completed-aside-header p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
+.completed-aside-content { padding: 16px 18px 26px; }
+:is(.completed-aside-close, .subtasks-modal-close) { min-height: 32px; width: 32px; padding: 0; border-radius: 999px; font-size: 15px; }
+.completed-task { display: flex; gap: 12px; width: 100%; margin-bottom: 10px; padding: 12px 14px; border: 1px solid var(--martinica); border-radius: 10px; background: var(--espejismo); color: inherit; text-align: left; cursor: pointer; }
+.completed-task:hover { border-color: var(--cometa); }
+.completed-task-check { color: var(--priority-alta); font-size: 15px; }
+.completed-task-content h3 { margin: 0; font-size: 14px; }
+.completed-task-content p { margin: 2px 0 0; color: var(--text-muted); font-size: 11px; }
+.completed-task-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; color: var(--text-muted); font-size: 10px; }
+.completed-parent-task { display: block; margin-top: 4px; color: var(--scampi); font-size: 11px; }
+.completed-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--martinica); color: var(--text-primary); font-size: 11px; font-weight: 700; }
+.task-count { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 24px; margin-left: 8px; padding: 0 8px; border: 1px solid var(--martinica); border-radius: 999px; background: var(--arcilla-ebano); color: #c8c8df; font-size: 11px; font-weight: 700; }
+
+/* ---------------- gestos de deslizar ---------------- */
+:is(.swipe-container, .subtask-swipe-container) { position: relative; overflow: hidden; }
+:is(.subtask-swipe-actions, .swipe-action) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; font-weight: 700; pointer-events: none; }
+:is(.subtask-swipe-actions.revealed, .swipe-action.revealed) { pointer-events: auto; }
+:is(.swipe-complete, .subtask-swipe-complete) { color: var(--priority-alta); }
+:is(.swipe-delete, .subtask-swipe-delete) { color: #b96767; }
+.swipe-icon { font-size: 15px; }
+:is(.swipe-hint, .swipe-hint-complete, .swipe-hint-delete) { color: var(--text-muted); font-size: 11px; }
+
+/* ---------------- confirmación de borrado ---------------- */
+:is(.delete-confirmation, .subtask-delete-confirm .delete-confirmation) {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; border: 1px solid #b96767; border-radius: 10px; background: rgb(185 103 103 / 12%);
+}
+.delete-confirmation-actions { display: flex; gap: 8px; }
+:is(.delete-warning-content, .delete-confirmation .delete-warning-content) { display: flex; gap: 10px; align-items: flex-start; }
+:is(.delete-warning-content, .delete-confirmation .delete-warning-content) h4 { margin: 0 0 2px; font-size: 13px; }
+:is(.delete-warning-content, .delete-confirmation .delete-warning-content) p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.delete-warning-icon { font-size: 20px; }

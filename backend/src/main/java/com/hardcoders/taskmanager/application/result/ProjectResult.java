@@ -26,6 +26,7 @@ public record ProjectResult(
         boolean canEditDetails,
         boolean canEditPlan,
         boolean canDelegate,
+        boolean canManageHierarchy,
         List<String> allowedStatuses
 ) {
 }

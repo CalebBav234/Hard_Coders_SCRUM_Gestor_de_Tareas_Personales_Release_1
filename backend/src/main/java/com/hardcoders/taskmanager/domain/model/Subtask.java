@@ -74,7 +74,6 @@ public final class Subtask {
         this.completedAt = null;
         this.completedByUserId = null;
     }
-
     public void cancel() {
         if (status == WorkStatus.CANCELADA) {
             throw new InvalidStatusTransitionException(status, WorkStatus.CANCELADA);

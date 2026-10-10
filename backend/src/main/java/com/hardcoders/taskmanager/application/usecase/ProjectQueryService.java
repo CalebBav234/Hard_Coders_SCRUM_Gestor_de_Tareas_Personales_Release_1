@@ -29,6 +29,10 @@ public class ProjectQueryService implements QueryProjectsUseCase {
         this.assembler = new ProjectResultAssembler(projects, users);
     }
 
+    /**
+     * Épica 1: el Jefe ve todos los proyectos, el Encargado solo los que le fueron delegados y el
+     * Personal ninguno (no se filtra la existencia de los ajenos: simplemente no se listan).
+     */
     @Override
     public List<ProjectResult> listProjects() {
         Actor actor = currentActor.current();

@@ -10,6 +10,7 @@ import com.hardcoders.taskmanager.domain.model.ProjectStatus;
 import com.hardcoders.taskmanager.domain.model.UserAccount;
 import com.hardcoders.taskmanager.domain.policy.DelegationPolicy;
 import com.hardcoders.taskmanager.domain.policy.ProjectAccessPolicy;
+import com.hardcoders.taskmanager.domain.policy.WbsHierarchyPolicy;
 import com.hardcoders.taskmanager.domain.port.out.ProjectRepository;
 import com.hardcoders.taskmanager.domain.port.out.UserDirectory;
 
@@ -68,6 +69,7 @@ final class ProjectResultAssembler {
                 open && ProjectAccessPolicy.canView(actor, project),
                 open && chief,
                 open && DelegationPolicy.canDelegate(actor),
+                open && WbsHierarchyPolicy.canManage(actor, project),
                 statuses);
     }
 

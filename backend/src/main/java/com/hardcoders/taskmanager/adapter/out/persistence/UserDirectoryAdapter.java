@@ -33,7 +33,7 @@ class UserDirectoryAdapter implements UserDirectory {
         }
         return entityManager.createQuery("select u from AppUserEntity u where u.userId in :ids", AppUserEntity.class)
                 .setParameter("ids", userIds)
-                .getResultStream()
+                .getResultList().stream()
                 .map(UserDirectoryAdapter::toDomain)
                 .collect(Collectors.toMap(UserAccount::userId, Function.identity()));
     }
@@ -45,7 +45,7 @@ class UserDirectoryAdapter implements UserDirectory {
                         where u.isActive = true
                         order by lower(u.givenNames), lower(u.familyNames), u.userId
                         """, AppUserEntity.class)
-                .getResultStream()
+                .getResultList().stream()
                 .map(UserDirectoryAdapter::toDomain)
                 .toList();
     }

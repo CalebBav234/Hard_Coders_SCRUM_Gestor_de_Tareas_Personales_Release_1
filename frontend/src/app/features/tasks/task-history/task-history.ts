@@ -15,6 +15,13 @@ export class TaskHistory implements OnInit, OnDestroy {
 
   history: TaskHistoryModel[] = [];
   tasks: Task[] = [];
+
+  /**
+   * Proyecto sobre el que se muestra el histórico. Lo elige el usuario: el histórico
+   * nunca se dedujo del primer proyecto.
+   */
+  selectedProjectId: number | null = null;
+
   loading = false;
   error: string | null = null;
   searchDraft = '';
@@ -35,7 +42,7 @@ export class TaskHistory implements OnInit, OnDestroy {
     this.request?.unsubscribe();
     this.loading = true;
     this.error = null;
-    this.request = this.taskService.listHistory(this.activeSearch).subscribe({
+    this.request = this.taskService.listHistory(this.selectedProjectId ?? 0, this.activeSearch).subscribe({
       next: (history) => {
         this.history = history;
         this.loading = false;
@@ -53,7 +60,7 @@ export class TaskHistory implements OnInit, OnDestroy {
   }
 
   loadTasks(): void {
-    this.taskService.listTasks().subscribe({
+    this.taskService.listTasks(this.selectedProjectId ?? 0).subscribe({
       next: (tasks) => {
         this.tasks = tasks;
         this.changeDetector.markForCheck();

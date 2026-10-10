@@ -6,6 +6,7 @@ import com.hardcoders.taskmanager.adapter.out.persistence.entity.TaskEntity;
 import com.hardcoders.taskmanager.adapter.out.persistence.entity.TaskPlanHistoryEntity;
 import com.hardcoders.taskmanager.adapter.out.persistence.entity.TaskStatusHistoryEntity;
 import com.hardcoders.taskmanager.domain.model.Activity;
+import com.hardcoders.taskmanager.domain.model.PlanRevision;
 import com.hardcoders.taskmanager.domain.model.StatusChange;
 import com.hardcoders.taskmanager.domain.model.Task;
 import com.hardcoders.taskmanager.domain.model.TaskPriority;
@@ -53,7 +54,8 @@ class TaskPersistenceAdapter implements TaskRepository {
                 || WorkStatus.CANCELADA.name().equals(entity.getStatus().getName())) {
             return Optional.empty();
         }
-        return Optional.of(toDomain(entity, history(List.of(taskId)).getOrDefault(taskId, List.of())));
+        return Optional.of(toDomain(entity, history(List.of(taskId)).getOrDefault(taskId, List.of()),
+                lastRevisions(List.of(taskId)).getOrDefault(taskId, 0)));
     }
 
     @Override
@@ -72,6 +74,26 @@ class TaskPersistenceAdapter implements TaskRepository {
     }
 
     @Override
+    public List<Task> findAssignedTo(Integer workerUserId, String likePattern) {
+        List<Integer> ids = assignedTaskIds(workerUserId, likePattern);
+        return load(ids);
+    }
+
+    @Override
+    public Optional<Task> findAssignedForUpdate(Integer workerUserId, Integer taskId) {
+        if (assignedTaskIds(workerUserId, null).contains(taskId)) {
+            return findOpenForUpdate(projectIdOf(taskId).orElse(null), taskId);
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Integer> projectIdOf(Integer taskId) {
+        return Optional.ofNullable(entityManager.find(TaskEntity.class, taskId))
+                .map(entity -> entity.getActivity().getStage().getProject().getProjectId());
+    }
+
+    @Override
     public Task save(Task task) {
         TaskEntity entity = task.isNew() ? new TaskEntity() : entityManager.find(TaskEntity.class, task.id());
         entity.setActivity(entityManager.getReference(ActivityEntity.class, task.activity().id()));
@@ -82,8 +104,7 @@ class TaskPersistenceAdapter implements TaskRepository {
         entity.setActualDurationMinutes(task.actualDurationMinutes());
         entity.setCompletedAt(task.completedAt());
         entity.setCompletedBy(task.completedByUserId() == null
-                ? null
-                : entityManager.getReference(AppUserEntity.class, task.completedByUserId()));
+                ? null : entityManager.getReference(AppUserEntity.class, task.completedByUserId()));
 
         if (task.isNew()) {
             entity.setAllocatedBudgetBob(task.allocatedBudgetBob());
@@ -92,7 +113,9 @@ class TaskPersistenceAdapter implements TaskRepository {
             entity.setUpdatedAt(task.updatedAt());
             entityManager.persist(entity);
             entityManager.flush();
-            persistInitialPlan(entity, task);
+        }
+        for (PlanRevision revision : task.pendingRevisions()) {
+            persistPlanRevision(entity, revision);
         }
         for (StatusChange change : task.pendingChanges()) {
             persistStatusChange(entity, change);
@@ -102,21 +125,21 @@ class TaskPersistenceAdapter implements TaskRepository {
         // updated_at lo fija el trigger: se relee para devolver el token de versión real.
         entityManager.refresh(entity);
         Integer id = entity.getTaskId();
-        return toDomain(entity, history(List.of(id)).getOrDefault(id, List.of()));
+        return toDomain(entity, history(List.of(id)).getOrDefault(id, List.of()),
+                lastRevisions(List.of(id)).getOrDefault(id, 0));
     }
 
-    private void persistInitialPlan(TaskEntity entity, Task task) {
+    private void persistPlanRevision(TaskEntity entity, PlanRevision revision) {
         // TASK ||--|{ TASK_PLAN_HISTORY: la revisión 1 se crea junto con la tarea.
-        StatusChange creation = task.pendingChanges().getFirst();
-        TaskPlanHistoryEntity plan = new TaskPlanHistoryEntity();
-        plan.setTask(entity);
-        plan.getId().setRevisionNumber(1);
-        plan.setAllocatedBudgetBob(entity.getAllocatedBudgetBob());
-        plan.setEstimatedDurationMinutes(entity.getEstimatedDurationMinutes());
-        plan.setChangedAt(task.createdAt());
-        plan.setChangedBy(entityManager.getReference(AppUserEntity.class, creation.changedByUserId()));
-        plan.setReason("Plan inicial");
-        entityManager.persist(plan);
+        TaskPlanHistoryEntity row = new TaskPlanHistoryEntity();
+        row.setTask(entity);
+        row.getId().setRevisionNumber(revision.revisionNumber());
+        row.setAllocatedBudgetBob(revision.budgetBob());
+        row.setEstimatedDurationMinutes(revision.estimatedDurationMinutes());
+        row.setChangedAt(revision.changedAt());
+        row.setChangedBy(entityManager.getReference(AppUserEntity.class, revision.changedByUserId()));
+        row.setReason(revision.reason());
+        entityManager.persist(row);
     }
 
     private void persistStatusChange(TaskEntity entity, StatusChange change) {
@@ -131,7 +154,32 @@ class TaskPersistenceAdapter implements TaskRepository {
     }
 
     private boolean belongsTo(TaskEntity entity, Integer projectId) {
-        return entity.getActivity().getStage().getProject().getProjectId().equals(projectId);
+        return projectId != null
+                && entity.getActivity().getStage().getProject().getProjectId().equals(projectId);
+    }
+
+    private List<Integer> assignedTaskIds(Integer workerUserId, String likePattern) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT t.task_id
+                FROM task_manager.task t
+                JOIN task_manager.activity a ON a.activity_id = t.activity_id
+                JOIN task_manager.stage s ON s.stage_id = a.stage_id
+                JOIN task_manager.work_status ws ON ws.work_status_id = t.work_status_id
+                JOIN task_manager.task_assignment ta ON ta.task_id = t.task_id
+                WHERE ta.worker_user_id = :workerId
+                  AND ws.name IN\s""").append(VISIBLE_STATUSES);
+        if (likePattern != null) {
+            sql.append(" AND (").append(NORMALIZE.formatted("t.title"))
+                    .append(" LIKE :pattern ESCAPE '\\' OR ")
+                    .append(NORMALIZE.formatted("t.description")).append(" LIKE :pattern ESCAPE '\\')");
+        }
+        sql.append(" ORDER BY t.created_at DESC, t.task_id DESC");
+        var query = entityManager.createNativeQuery(sql.toString()).setParameter("workerId", workerUserId);
+        if (likePattern != null) {
+            query.setParameter("pattern", likePattern);
+        }
+        return ((List<?>) query.getResultList()).stream()
+                .map(row -> ((Number) row).intValue()).toList();
     }
 
     private List<Integer> idsQuery(Integer projectId, String statuses, String likePattern,
@@ -168,8 +216,8 @@ class TaskPersistenceAdapter implements TaskRepository {
         if (taskId != null) {
             query.setParameter("taskId", taskId);
         }
-        List<?> rows = query.getResultList();
-        return rows.stream().map(row -> ((Number) row).intValue()).toList();
+        return ((List<?>) query.getResultList()).stream()
+                .map(row -> ((Number) row).intValue()).toList();
     }
 
     private List<Task> load(List<Integer> ids) {
@@ -184,14 +232,16 @@ class TaskPersistenceAdapter implements TaskRepository {
                         where t.taskId in :ids
                         """, TaskEntity.class)
                 .setParameter("ids", ids)
-                .getResultStream()
+                .getResultList()
+                .stream()
                 .collect(Collectors.toMap(TaskEntity::getTaskId, Function.identity()));
         Map<Integer, List<StatusChange>> histories = history(ids);
+        Map<Integer, Integer> revisions = lastRevisions(ids);
         List<Task> tasks = new ArrayList<>(ids.size());
         for (Integer id : ids) {
             TaskEntity entity = entities.get(id);
             if (entity != null) {
-                tasks.add(toDomain(entity, histories.getOrDefault(id, List.of())));
+                tasks.add(toDomain(entity, histories.getOrDefault(id, List.of()), revisions.getOrDefault(id, 0)));
             }
         }
         return tasks;
@@ -226,12 +276,31 @@ class TaskPersistenceAdapter implements TaskRepository {
         return byTask;
     }
 
-    private static Task toDomain(TaskEntity entity, List<StatusChange> history) {
+    private Map<Integer, Integer> lastRevisions(Collection<Integer> taskIds) {
+        if (taskIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Object[]> rows = entityManager.createQuery("""
+                        select h.task.taskId, max(h.id.revisionNumber)
+                        from TaskPlanHistoryEntity h
+                        where h.task.taskId in :ids
+                        group by h.task.taskId
+                        """, Object[].class)
+                .setParameter("ids", taskIds)
+                .getResultList();
+        Map<Integer, Integer> byTask = new HashMap<>();
+        for (Object[] row : rows) {
+            byTask.put((Integer) row[0], ((Number) row[1]).intValue());
+        }
+        return byTask;
+    }
+
+    private static Task toDomain(TaskEntity entity, List<StatusChange> history, int lastRevisionNumber) {
         ActivityEntity activity = entity.getActivity();
         BigDecimal budget = entity.getAllocatedBudgetBob();
         return Task.restore(
                 entity.getTaskId(),
-                new Activity(activity.getActivityId(), activity.getName()),
+                Activity.reference(activity.getActivityId(), activity.getName()),
                 entity.getTitle(),
                 entity.getDescription(),
                 WorkStatus.valueOf(entity.getStatus().getName()),
@@ -243,6 +312,7 @@ class TaskPersistenceAdapter implements TaskRepository {
                 entity.getCompletedBy() == null ? null : entity.getCompletedBy().getUserId(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                history);
+                history,
+                lastRevisionNumber);
     }
 }

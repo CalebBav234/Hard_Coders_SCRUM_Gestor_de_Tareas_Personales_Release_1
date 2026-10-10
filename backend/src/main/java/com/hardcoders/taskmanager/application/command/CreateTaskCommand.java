@@ -1,5 +1,11 @@
 package com.hardcoders.taskmanager.application.command;
 
-/** @param activityName nombre de la actividad ("categoría"); nulo o vacío para "Sin categoría" */
-public record CreateTaskCommand(String title, String priority, String activityName) {
+import java.math.BigDecimal;
+
+/**
+ * US2.2: la tarea se crea dentro de una actividad concreta y, por tanto, de un proyecto.
+ * {@code activityId} es obligatorio: ya no se deduce del primer proyecto (fallback eliminado).
+ */
+public record CreateTaskCommand(Integer activityId, String title, String priority,
+                                BigDecimal allocatedBudgetBob, Integer estimatedDurationMinutes) {
 }

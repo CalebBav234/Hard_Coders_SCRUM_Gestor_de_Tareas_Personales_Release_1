@@ -52,13 +52,17 @@ describe('TaskList sobre la API V4', () => {
     fixture.detectChanges();
   }
 
+  /** El proyecto es obligatorio: la lista se pide siempre con {@code projectId}. */
   async function reload(tasks: TaskDto[]): Promise<void> {
-    http.expectOne('/api/tasks').flush(tasks);
+    http
+      .expectOne((candidate) => candidate.url === '/api/tasks' && candidate.params.get('projectId') === '42')
+      .flush(tasks);
     await fixture.whenStable();
     fixture.detectChanges();
   }
 
   beforeEach(async () => {
+    await TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TaskList],
       providers: [provideHttpClient(), provideHttpClientTesting()],
@@ -66,8 +70,34 @@ describe('TaskList sobre la API V4', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TaskList);
     element = fixture.nativeElement;
+    const component = fixture.componentInstance;
+    // El usuario elige el proyecto: sin uno seleccionado no se carga nada.
+    component.selectedProjectId = 42;
     fixture.detectChanges();
-    http.expectOne('/api/activities').flush([]);
+    http.expectOne('/api/projects').flush([
+      {
+        projectId: 42,
+        name: 'Proyecto de pruebas',
+        description: null,
+        status: 'EN_EJECUCION',
+        closed: false,
+        budgetBob: 1000,
+        allocatedBudgetBob: 0,
+        estimatedDurationMinutes: 60,
+        manager: null,
+        createdBy: null,
+        currentRevision: 1,
+        createdAt: '2026-08-20T12:00:00Z',
+        updatedAt: '2026-08-20T12:00:00Z',
+        version: 1,
+        canEditDetails: true,
+        canEditPlan: true,
+        canDelegate: true,
+        canManageHierarchy: true,
+        allowedStatuses: [],
+      },
+    ]);
+    component.loadTasks();
     await reload([original]);
   });
 

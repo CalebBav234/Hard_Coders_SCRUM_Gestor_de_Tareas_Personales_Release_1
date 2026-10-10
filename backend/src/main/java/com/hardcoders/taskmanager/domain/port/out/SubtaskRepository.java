@@ -12,6 +12,12 @@ public interface SubtaskRepository {
     /** Subtarea no cancelada cuya tarea pertenece al proyecto, bloqueada para modificarla. */
     Optional<Subtask> findOpenForUpdate(Integer projectId, Integer subtaskId);
 
+    /** Subtarea no cancelada de la tarea indicada, bloqueada para modificarla. */
+    Optional<Subtask> findForUpdate(Integer taskId, Integer subtaskId);
+
+    /** Identificador de la tarea contenedora de la subtarea. */
+    Optional<Integer> taskIdOf(Integer subtaskId);
+
     /** Subtareas no canceladas de las tareas indicadas, en orden de creación. */
     List<Subtask> findVisibleByTaskIds(Collection<Integer> taskIds);
 

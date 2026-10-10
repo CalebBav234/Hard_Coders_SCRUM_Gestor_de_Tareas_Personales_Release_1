@@ -26,7 +26,7 @@ Transformar la arquitectura del backend monolÃ­tico Java/Spring Boot de un model
 
 ### 2.1 Estado actual observado
 
-| Ãrea | Hallazgo | Evidencia |
+| Ãrea | Hallazgo | Evidencia |
 |---|---|---|
 | Backend Spring Boot | 4.1.0, Java 21, Maven | `backend/pom.xml:10,21` |
 | Dominio puro | No existe | VacÃ­o en `com/hardcoders/taskmanager/` (solo `entity/`, `repository/`, `dto/`, `exception/`, `config/`) |
@@ -128,7 +128,7 @@ GestiÃ³n integral del ciclo de vida: `Crear proyecto â†’ Construir WBS â†’ Asign
 
 **Tabla de entrega**:
 
-| Ãrea | Existente comprobado | Cambio necesario | Archivos/contratos | ValidaciÃ³n prevista | Estado y evidencia |
+| Ãrea | Existente comprobado | Cambio necesario | Archivos/contratos | ValidaciÃ³n prevista | Estado y evidencia |
 |---|---|---|---|---|---|
 | Frontend | `task.ts` modelo V001, `task-home.ts`, `task-list.ts` | Nuevo modelo `project.ts`, formulario `project-form.ts` | `frontend/src/app/features/projects/project-form/`, `core/models/project.ts` | Vitest: `project-form.spec.ts` | PENDIENTE â€” `NOT_RUN` |
 | Backend/dominio | `entity/Project.java` (JPA, 111 l.) | ExtracciÃ³n dominio puro | `domain/model/Project.java`, `domain/policy/BudgetPolicy.java` | JUnit 5: `BudgetPolicyTest`, `ProjectTest` | PENDIENTE â€” `NOT_RUN` |
@@ -168,7 +168,7 @@ public final class BudgetPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente comprobado | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente comprobado | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | `task-form.ts`, routes | `delegation-dialog.ts` con guard de chief | `frontend/src/app/features/projects/delegation-dialog/` | Vitest: `delegation-dialog.spec.ts` | PENDIENTE |
 | Backend/dominio | `Project.manager` (`Project.java:30`) | `DelegationPolicy` | `domain/policy/DelegationPolicy.java` | JUnit 5: `DelegationPolicyTest` | PENDIENTE |
@@ -207,7 +207,7 @@ public final class DelegationPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | Guards globales | Override auth en cada request | `core/interceptors/auth.interceptor.ts` | Vitest: `override.interceptor.spec.ts` | PENDIENTE |
 | Backend/dominio | Sin override policy | `OverridePolicy` | `domain/policy/OverridePolicy.java` | JUnit 5: `OverridePolicyTest` | PENDIENTE |
@@ -236,7 +236,7 @@ public final class DelegationPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | `task-list.ts`, routes | Guards scoped + project context | `core/guards/project-scope.guard.ts` | Vitest: `scope.guard.spec.ts` | PENDIENTE |
 | Backend/dominio | `ProjectRepository.findByManagerUserId` | ScopeQuery port | `domain/port/out/ScopedProjectQuery.java` | JUnit 5 | PENDIENTE |
@@ -266,7 +266,7 @@ public final class DelegationPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | `task-form.ts` (V001) | `wbs-builder.ts` 5-niveles | `features/wbs/wbs-builder/` | Vitest | PENDIENTE |
 | Backend/dominio | Entidades V4 (existen) | Domain models puros | `domain/model/Stage.java`, `Activity.java`, `Task.java`, `Subtask.java` | JUnit 5 | PENDIENTE |
@@ -296,7 +296,7 @@ public final class DelegationPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | Sin assignment UI | `assignment-dialog.ts` | `features/assignments/assignment-dialog/` | Vitest | PENDIENTE |
 | Backend/dominio | `TaskAssignment.java`, `TaskAssignmentId.java` | `AssignmentPolicy` | `domain/policy/AssignmentPolicy.java` | JUnit 5 | PENDIENTE |
@@ -326,7 +326,7 @@ public final class DelegationPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | `task-list.ts` (V001) | `assigned-tasks.ts` scoped view | `features/assigned-tasks/` | Vitest: `assigned-tasks.spec.ts` | PENDIENTE |
 | Backend/dominio | `TaskAssignmentRepository.findByWorkerUserId` | Scoped projection | `application/query/AssignedTaskQueryService.java` | JUnit 5 | PENDIENTE |
@@ -354,7 +354,7 @@ public final class DelegationPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | `task-editor.ts` (V001) | `complete-subtask-button.ts` | `features/tasks/complete-subtask/` | Vitest | PENDIENTE |
 | Backend/dominio | `Subtask.java`, `TaskStatusHistory.java` | `CompletionPolicy` | `domain/policy/CompletionPolicy.java` | JUnit 5 | PENDIENTE |
@@ -396,7 +396,7 @@ public final class CompletionPolicy {
 
 **Tabla de entrega**:
 
-| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
+| Ãrea | Existente | Cambio necesario | Archivos | ValidaciÃ³n | Estado |
 |---|---|---|---|---|---|
 | Frontend | `task-home.ts` (V001) | `progress-view.ts` en cascada | `features/progress/progress-view/` | Vitest: `progress-view.spec.ts` | PENDIENTE |
 | Backend/dominio | Sin lÃ³gica progreso | `ProgressPolicy.leafWork` | `domain/policy/ProgressPolicy.java` | JUnit 5: `ProgressPolicyTest` | PENDIENTE |
@@ -551,7 +551,7 @@ npx vitest run --coverage
 
 ### 8.2 Estado actual
 
-| Ãtem | Estado |
+| Ãtem | Estado |
 |---|---|
 | Tests backend existentes | 0 |
 | Tests frontend existentes | 1 (`app-integration.spec.ts`) |
@@ -646,7 +646,7 @@ graph LR
 
 ### Pendientes de implementaciÃ³n
 
-| Ãtem | Estado |
+| Ãtem | Estado |
 |---|---|
 | Spring Security + JWT | PENDIENTE |
 | Dominio puro (model/policy) | PENDIENTE |
@@ -659,4 +659,128 @@ graph LR
 
 ---
 
-*Plan actualizado en Plan Mode â€” solo lectura. No se realizaron modificaciones de cÃ³digo, configuraciÃ³n o datos. No se ejecutaron pruebas ni builds.*
+---
+
+# REGISTRO DE EJECUCIÓN (implementación autorizada)
+
+## 1. Causa raíz del fallo del backend y reparación
+
+**Síntoma:** `NoUniqueBeanDefinitionException: No qualifying bean of type 'CurrentActor' available: expected single matching bean but found 2: securityCurrentActorAdapter,localUserActorAdapter`.
+
+**Causa raíz (con evidencia):** `backend/target` conservaba clases compiladas de una versión anterior del árbol de fuentes. El archivo `backend/target/classes/com/hardcoders/taskmanager/adapter/in/security/LocalUserActorAdapter.class` (marca de tiempo 10/10 02:25, anterior al commit `7831cd7` que eliminó `LocalUserActorAdapter.java`) seguía presente, mientras que el adaptador vigente se había renombrado a `SecurityCurrentActorAdapter`. Al arrancar, el escaneo de componentes encontraba dos beans `@Component` que implementan `CurrentActor` (el `.class` residual y el nuevo) y el contexto fallaba al iniciarse. `mvn clean test` hace desaparecer el error: el problema eran los artefactos obsoletos, no el código ni la configuración.
+
+**Reparación aplicada:** sin reescritura de código ni de dependencias. `mvn clean` es el comando de arranque correcto para pruebas y desarrollo (`mvn clean spring-boot:run`).
+
+**Comandos PowerShell verificados (solo credenciales de desarrollo):**
+
+```powershell
+# 1) Base de datos (conserva datos existentes; NUNCA ejecuta `docker compose down -v`)
+docker start gestor-tareas-db
+
+# 2) Seed de desarrollo (idempotente por ON CONFLICT, apunta a la base explícita)
+docker cp database/docker/seed-dev-users.sql gestor-tareas-db:/tmp/seed.sql
+docker exec -i gestor-tareas-db psql -U postgres -d gestor_tareas -f /tmp/seed.sql
+
+# 3) Backend (desde backend/)
+$env:SPRING_DATASOURCE_PASSWORD='apppass'
+mvn clean spring-boot:run
+
+# 4) Frontend (desde frontend/)
+npm ci
+npm start          # http://localhost:4200 (proxy.conf.json -> /api -> localhost:8080)
+```
+
+**Conflicto de puerto 8080 (resuelto y verificado).** Si aparece `Web server failed to start. Port 8080 was already in use`, el listener era un `java.exe` residual que ejecutaba `com.hardcoders.taskmanager.TaskManagerApplication`, hijo huérfano de un `spring-boot:run` anterior (su padre Maven ya había terminado). No es un servicio compartido.
+
+```powershell
+# Opción A: liberar el puerto
+Get-NetTCPConnection -State Listen | Where-Object LocalPort -eq 8080 |
+  ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
+
+# Opción B: override local, sin cambiar el puerto por defecto del proyecto
+mvn clean spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8081"
+```
+
+Ambas se ejecutaron con éxito: el backend arrancó (`Started TaskManagerApplication in 6.789 seconds`), aceptó login y respondió `GET /api/projects` ? `200`; con el override respondió igual en `http://localhost:8081` (`login OK, token=209 chars`).
+
+**Por qué el conflicto se repite.** `mvn spring-boot:run` lanza la aplicación en un proceso `java` hijo. Si solo se detiene el padre (Maven), el hijo sobrevive como huérfano y sigue escuchando en el 8080. Es el origen de los conflictos sucesivos observados. Al cerrar el backend hay que limpiar también el hijo:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
+  Where-Object CommandLine -match 'TaskManagerApplication' |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+**`npm ci` fallaba con `EPERM ... unlink esbuild.exe` (resuelto).** No era un problema de permisos: un `ng serve` activo bloqueaba el binario, así que `npm ci` no pudo borrar `node_modules` y abortó dejando la instalación a medias (faltaban `typescript` y `.package-lock.json`), lo que provocaba después `Could not find the '@angular/build:dev-server' builder's node package` al hacer `npm start`.
+
+```powershell
+# 1) Liberar los archivos bloqueados
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
+  Where-Object CommandLine -match 'frontend' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+Get-Process esbuild -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+
+# 2) Reinstalar (el lockfile estaba intacto)
+npm ci
+```
+
+Verificado: `added 377 packages, and audited 378 packages in 20s`; `typescript`, `@angular/build` con el builder `dev-server`, `rxjs` y `esbuild` restaurados; `npm start` levanta `ng serve` y responde `HTTP 200` en http://localhost:4200. La cadena UI ? proxy ? backend ? PostgreSQL se comprobó con login y `GET /api/projects` ? `200` a través de `http://localhost:4200/api`.
+
+
+
+Nota verificada: `psql -U postgres` sin `-d` conecta a la base `postgres`, no a `gestor_tareas`; por eso el pipeline original omitía el destino real. Comando corregido arriba con `-d gestor_tareas`.
+
+## 2. Matriz de progreso (evidencia frente a código y ejecución real)
+
+| ID | Frontend | Backend/API | Base de datos | Tests/docs | Defecto restante | Estado |
+|---|---|---|---|---|---|---|
+| US1.1 Crear proyecto | `ProjectForm` | `ProjectCommandService`, `ProjectController` (201) | `project` + `project_plan_history` (revisión 1 por trigger V004) | `ProjectUseCasesTest` | Ninguno | VERIFICADO |
+| US1.1 Plan (presupuesto/duración) | `PlanForm` | `BudgetPolicy` + tope del total asignado (409) | `project_plan_history` | `ProjectUseCasesTest`, E2E | Ninguno | VERIFICADO |
+| US1.2 Delegación | `DelegationDialog` | `DelegationPolicy` (solo Jefe, destino activo, 403) | `manager_user_id` + `delegated_by` | `DelegationPolicyTest` | Ninguno | VERIFICADO |
+| US1.3 Override Jefe | Reutiliza los botones (el backend decide) | `CompletionPolicy`: Jefe ejecuta cualquier tarea, motivo registrado | `task_status_history.changed_by_user_id` | E2E 11-12 | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| US2.1 Aislamiento | Selector de proyecto + guardias de ruta | `ProjectAccessPolicy` (404) y listado filtrado | Consultas por `manager_user_id` | `TaskUseCasesTest` | Ninguno | VERIFICADO |
+| US2.2 Estructura 5 niveles | `WbsService`, selector de etapa | `HierarchyController`, `HierarchyCommandService`, `WbsHierarchyPolicy` | `stage`, `activity`, `task.activity_id` | `wbs.service.spec.ts`, `TaskUseCasesTest` | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| US2.3 Asignación Personal | `WbsService.assign/unassign`, `/workers` | `AssignmentCommandService`, `AssignmentPolicy` | `task_assignment` (clave compuesta) | E2E 6/15 | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| US3.1 Lectura asignada | `listAssignedTasks()` | DTO sin campos financieros | Sin leer `allocated_budget_bob` | E2E paso 7 | Ninguno | VERIFICADO |
+| US3.2 Ejecución autorizada | Botones start/pause/complete | `CompletionPolicy` (403 si no asignado) | `completed_by_user_id` | E2E 8-10 | Ninguno | VERIFICADO |
+| US3.3 Progreso en cascada | Barra de progreso | `ProgressPolicy` (solo trabajo hoja) | Sin cambio de esquema | E2E paso 13 | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| Mis tareas: sin "primer proyecto" | `selectedProjectId` explícito + estado vacío | `CreateTaskRequest.activityId` obligatorio | Tareas cuelgan de la actividad elegida | `task-list.spec.ts` | Ninguno | CORREGIDO Y VERIFICADO |
+| `task-list.css` (build producción) | Hoja propia ~3 kB + `src/design-system.css` global | n/a | n/a | `ng build --configuration production` sin errores ni avisos | Ninguno | CORREGIDO |
+
+## 3. Verificación independiente del informe de Épica 1 del equipo
+
+| Afirmación recibida | Archivo/símbolo real | Chequeo ejecutado | Veredicto | Corrección aplicada |
+|---|---|---|---|---|
+| Login JWT; la API exige sesión | `SecurityConfiguration`, `AuthController`, `JwtTokenService` | Sin token ? 401; token forjado ? 401; `inactivo@gestor.local` ? 400 | VERIFICADO | Ninguna |
+| El Jefe crea proyectos y cambia plan/delegación | `ProjectCommandService`, `ProjectController` | Jefe ? 201/200; sin motivo ? 400; Encargado ? 403 | VERIFICADO | Ninguna |
+| El Encargado solo ve los proyectos que dirige | `ProjectQueryService`, `ProjectAccessPolicy` | Encargado1 ? 1 proyecto; Encargado2 sobre el ajeno ? 404; Personal ? lista vacía | VERIFICADO | Ninguna |
+| El Personal no puede ver proyectos | ídem | `GET /api/projects` como Personal ? 200 con `[]` | VERIFICADO | Documentado en `docs/api-v4.md` |
+| US1.1: motivo e historial de plan | Trigger V004 + `project_plan_history` | Revisión 1 creada; siguientes atribuidas; exceso ? 409 | VERIFICADO | Ninguna |
+| US1.2: historial de delegación | `manager_user_id` + `delegated_by` | Nuevo Encargado accede (200); anterior ? 404 | VERIFICADO | Ninguna |
+| Ciclos de estado | `ProjectStatus`, `WorkStatus` | Transiciones ejecutadas y registradas | VERIFICADO | Documentado con las reglas aprobadas |
+| V004 es la migración final | `database/migrations/` (V001–V004) | Listado y `@applyV4Migrations` | VERIFICADO | Sin migraciones nuevas |
+| Usuarios de desarrollo | `seed-dev-users.sql` (bcrypt) | Los cinco usuarios hacen login; el inactivo se rechaza | VERIFICADO | Ninguna |
+| "Mis tareas" usa el primer proyecto | `WorkspacePersistenceAdapter.currentWorkspace` | Localizado y eliminado; hoy `activityId` es obligatorio | CORREGIDO | Ver US2.2 |
+| US1.3 pendiente | No existía ruta ni política | Implementado y probado (E2E 11-12) | IMPLEMENTADO | Ninguna |
+| Build roto por `task-list.css` | 22,08 kB | `ng build` ? ERROR 8,00 kB; hoy limpio | CORREGIDO | Dividido en `src/design-system.css` + hoja propia compacta |
+
+## 4. Ejecución real (comandos y resultados)
+
+| Comando | Resultado |
+|---|---|
+| `mvn clean test` (backend) | `Tests run: 59, Failures: 0, Errors: 0, Skipped: 0` — BUILD SUCCESS |
+| `npx ng test --watch=false` (frontend) | `Test Files 9 passed (9)`, `Tests 52 passed (52)` |
+| `npx ng build --configuration production` | `Application bundle generation complete` — 445,48 kB, sin errores ni avisos de presupuesto CSS |
+| `mvn clean spring-boot:run` | `Started TaskManagerApplication`; conecta a PostgreSQL 16 en `localhost:5432/gestor_tareas`, esquema `task_manager` |
+| E2E API (17 pasos) | Proyecto ? etapa ? actividad ? tarea ? subtarea ? asignación ? ejecución del Personal ? override del Jefe ? progreso: 200/201; rechazos 404/403/409/400 según corresponde |
+| Proxy `/api` desde el dev server | `/api/projects` ? 200 con proyectos reales |
+
+## 5. URLs locales y arranque reproducible
+
+- Frontend: http://localhost:4200 (dev-server con proxy `/api` ? backend)
+- Backend: http://localhost:8080 (`/api/auth/login`, `/api/projects`, `/api/tasks`, …)
+- Base de datos: contenedor `gestor-tareas-db`, base `gestor_tareas`, esquema `task_manager`
+- Fixtures locales: `jefe@gestor.local`, `encargado1@gestor.local`, `encargado2@gestor.local`, `personal@gestor.local`, `inactivo@gestor.local` (contraseña `Gestor2026!`; el inactivo no puede autenticarse y nunca sustituyen la autorización real).
+
+## 6. Bloqueo real pendiente
+
+Ninguno para el alcance aprobado. Pendientes únicamente: el informe PDF académico (entregable externo no alojado aquí) y el despliegue remoto (fuera de alcance).

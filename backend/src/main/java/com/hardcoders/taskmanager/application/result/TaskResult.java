@@ -23,9 +23,11 @@ public record TaskResult(
         long trackedSeconds,
         Instant currentSegmentStartedAt,
         Instant completedAt,
+        Integer completedByUserId,
         Instant createdAt,
         Instant updatedAt,
         long version,
+        List<Integer> assignedWorkerIds,
         List<SubtaskResult> subtasks
 ) {
 }
