@@ -1,0 +1,62 @@
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="gt-modal-body">
+    <div class="gt-field">
+      <label for="project-name">Nombre</label>
+      <input id="project-name" formControlName="name" maxlength="160" />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <small class="gt-field-error">El nombre es obligatorio (máximo 160 caracteres).</small>
+      }
+    </div>
+
+    <div class="gt-field">
+      <label for="project-description">Descripción</label>
+      <textarea id="project-description" formControlName="description" maxlength="2000"></textarea>
+    </div>
+
+    @if (!isEdit) {
+      <div class="gt-field">
+        <label for="project-manager">Encargado</label>
+        <select id="project-manager" formControlName="managerUserId">
+          <option [value]="0" disabled>Selecciona un encargado</option>
+          @for (manager of managers; track manager.userId) {
+            <option [value]="manager.userId">{{ manager.fullName }}{{ manager.chief ? ' (Jefe)' : '' }}</option>
+          }
+        </select>
+        @if (form.controls.managerUserId.touched && form.controls.managerUserId.value < 1) {
+          <small class="gt-field-error">Elige quién dirigirá el proyecto.</small>
+        }
+      </div>
+
+      <div class="gt-field-row">
+        <div class="gt-field">
+          <label for="project-budget">Presupuesto (Bs)</label>
+          <input id="project-budget" type="number" min="0" step="0.01" formControlName="budgetBob" />
+          @if (form.controls.budgetBob.touched && form.controls.budgetBob.invalid) {
+            <small class="gt-field-error">Importe mayor o igual a 0, con hasta 2 decimales.</small>
+          }
+        </div>
+        <div class="gt-field">
+          <label for="project-duration">Duración estimada (minutos)</label>
+          <input id="project-duration" type="number" min="0" step="1" formControlName="estimatedDurationMinutes" />
+          <small class="gt-field-hint">≈ {{ formatMinutes(form.controls.estimatedDurationMinutes.value) }}</small>
+        </div>
+      </div>
+
+      <div class="gt-field">
+        <label for="project-reason">Motivo del plan inicial (opcional)</label>
+        <input id="project-reason" formControlName="reason" maxlength="300" placeholder="Plan inicial" />
+      </div>
+    }
+
+    @if (error) {
+      <p class="gt-alert gt-alert-error" role="alert">{{ error }}</p>
+    }
+  </div>
+
+  <div class="gt-modal-actions">
+    <button type="button" class="gt-btn" (click)="cancelled.emit()" [disabled]="saving">Cancelar</button>
+    <button type="submit" class="gt-btn gt-btn-primary" [disabled]="saving">
+      {{ saving ? 'Guardando…' : (isEdit ? 'Guardar cambios' : 'Crear proyecto') }}
+    </button>
+  </div>
+</form>

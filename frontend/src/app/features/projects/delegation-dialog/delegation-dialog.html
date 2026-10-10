@@ -1,0 +1,37 @@
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="gt-modal-body">
+    <p class="gt-field-hint">Encargado actual: <strong>{{ project.manager.fullName }}</strong></p>
+
+    <div class="gt-field">
+      <label for="delegate-manager">Nuevo Encargado</label>
+      <select id="delegate-manager" formControlName="managerUserId" [attr.aria-busy]="loading">
+        <option [value]="0" disabled>{{ loading ? 'Cargando usuarios…' : 'Selecciona un usuario activo' }}</option>
+        @for (candidate of candidates; track candidate.userId) {
+          <option [value]="candidate.userId">{{ candidate.fullName }}{{ candidate.chief ? ' (Jefe)' : '' }}</option>
+        }
+      </select>
+      @if (form.controls.managerUserId.touched && form.controls.managerUserId.value < 1) {
+        <small class="gt-field-error">Elige a quién delegar el proyecto.</small>
+      }
+    </div>
+
+    <div class="gt-field">
+      <label for="delegate-reason">Motivo</label>
+      <textarea id="delegate-reason" formControlName="reason" maxlength="300"></textarea>
+      @if (form.controls.reason.touched && form.controls.reason.invalid) {
+        <small class="gt-field-error">El motivo es obligatorio: queda registrado con tu nombre.</small>
+      }
+    </div>
+
+    @if (error) {
+      <p class="gt-alert gt-alert-error" role="alert">{{ error }}</p>
+    }
+  </div>
+
+  <div class="gt-modal-actions">
+    <button type="button" class="gt-btn" (click)="cancelled.emit()" [disabled]="saving">Cancelar</button>
+    <button type="submit" class="gt-btn gt-btn-primary" [disabled]="saving || loading">
+      {{ saving ? 'Delegando…' : 'Delegar proyecto' }}
+    </button>
+  </div>
+</form>

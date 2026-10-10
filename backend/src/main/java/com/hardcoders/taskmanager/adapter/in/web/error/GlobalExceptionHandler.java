@@ -1,10 +1,14 @@
 package com.hardcoders.taskmanager.adapter.in.web.error;
 
+import com.hardcoders.taskmanager.domain.exception.BudgetBelowAllocationsException;
 import com.hardcoders.taskmanager.domain.exception.DomainValidationException;
+import com.hardcoders.taskmanager.domain.exception.ForbiddenException;
+import com.hardcoders.taskmanager.domain.exception.ProjectTransitionException;
 import com.hardcoders.taskmanager.domain.exception.InvalidStatusTransitionException;
 import com.hardcoders.taskmanager.domain.exception.NotFoundException;
 import com.hardcoders.taskmanager.domain.exception.OpenSubtasksException;
 import com.hardcoders.taskmanager.domain.exception.VersionConflictException;
+import com.hardcoders.taskmanager.domain.model.Project;
 import com.hardcoders.taskmanager.domain.model.Subtask;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.OptimisticLockException;
@@ -29,8 +33,29 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErrorResponse> handleDomainNotFound(NotFoundException ex) {
-        String code = Subtask.ENTITY.equals(ex.entity()) ? "SUBTASK_NOT_FOUND" : "TASK_NOT_FOUND";
+        String code = switch (ex.entity()) {
+            case Subtask.ENTITY -> "SUBTASK_NOT_FOUND";
+            case Project.ENTITY -> "PROJECT_NOT_FOUND";
+            default -> "TASK_NOT_FOUND";
+        };
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ErrorResponse.of(code, ex.getMessage()));
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ErrorResponse.of("FORBIDDEN", ex.getMessage()));
+    }
+
+    @ExceptionHandler(BudgetBelowAllocationsException.class)
+    public ResponseEntity<ErrorResponse> handleBudgetBelowAllocations(BudgetBelowAllocationsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("BUDGET_BELOW_ALLOCATIONS", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ProjectTransitionException.class)
+    public ResponseEntity<ErrorResponse> handleProjectTransition(ProjectTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of("INVALID_PROJECT_TRANSITION", ex.getMessage()));
     }
 
     @ExceptionHandler(InvalidStatusTransitionException.class)

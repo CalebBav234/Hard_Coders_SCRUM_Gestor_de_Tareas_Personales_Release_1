@@ -15,6 +15,7 @@
 
     </div>
 
+    @if (auth.user(); as user) {
     <nav
       aria-label="Secciones de tareas"
       class="section-nav"
@@ -30,6 +31,14 @@
       </a>
 
       <a
+        routerLink="/projects"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        Proyectos
+      </a>
+
+      <a
         routerLink="/history"
         routerLinkActive="active"
         class="nav-link"
@@ -38,6 +47,15 @@
       </a>
 
     </nav>
+
+    <div class="session-box">
+      <span class="session-user">
+        {{ user.fullName }}
+        <small>{{ user.chief ? 'Jefe' : 'Usuario' }}</small>
+      </span>
+      <button type="button" class="session-logout" (click)="logout()">Salir</button>
+    </div>
+    }
 
   </header>
 

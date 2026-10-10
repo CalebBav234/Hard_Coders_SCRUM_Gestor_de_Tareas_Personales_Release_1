@@ -4,7 +4,7 @@ Aplicación web académica gestionada con Scrum, con frontend Angular, API Sprin
 
 ## Estado actual
 
-> **Modelo V4:** la base usa el modelo de Gestor de Proyectos (V004) y el backend sigue la arquitectura hexagonal del plan `.kilo/plans/hexagonal_restructure_plan.md`. La interfaz funciona como antes (tareas, subtareas, categorías, cronómetro, historial y búsqueda) sobre la API V4. Guías: [docs/migracion-v004.md](docs/migracion-v004.md) y [docs/api-v4.md](docs/api-v4.md).
+> **Modelo V4:** la base usa el modelo de Gestor de Proyectos (V004) y el backend sigue la arquitectura hexagonal del plan `.kilo/plans/hexagonal_restructure_plan.md`. La interfaz funciona como antes (tareas, subtareas, categorías, cronómetro, historial y búsqueda) sobre la API V4. Guías: [docs/migracion-v004.md](docs/migracion-v004.md), [docs/api-v4.md](docs/api-v4.md) y [docs/epica-1.md](docs/epica-1.md) (login JWT, proyectos, presupuesto y delegación; usuarios de prueba con contraseña `Gestor2026!`, por ejemplo `jefe@gestor.local`).
 
 - PostgreSQL objetivo: 18.
 - Esquema relacional versionado y reproducible.

@@ -1,14 +1,20 @@
 package com.hardcoders.taskmanager.configuration;
 
+import com.hardcoders.taskmanager.application.port.in.ManageProjectsUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageSubtasksUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageTasksUseCase;
+import com.hardcoders.taskmanager.application.port.in.QueryProjectsUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryTasksUseCase;
+import com.hardcoders.taskmanager.application.usecase.ProjectCommandService;
+import com.hardcoders.taskmanager.application.usecase.ProjectQueryService;
 import com.hardcoders.taskmanager.application.usecase.SubtaskCommandService;
 import com.hardcoders.taskmanager.application.usecase.TaskCommandService;
 import com.hardcoders.taskmanager.application.usecase.TaskQueryService;
 import com.hardcoders.taskmanager.domain.port.out.CurrentActor;
+import com.hardcoders.taskmanager.domain.port.out.ProjectRepository;
 import com.hardcoders.taskmanager.domain.port.out.SubtaskRepository;
 import com.hardcoders.taskmanager.domain.port.out.TaskRepository;
+import com.hardcoders.taskmanager.domain.port.out.UserDirectory;
 import com.hardcoders.taskmanager.domain.port.out.WorkspaceRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,5 +53,19 @@ public class UseCaseConfiguration {
                                         PlatformTransactionManager transactionManager) {
         return TransactionalUseCases.wrap(QueryTasksUseCase.class,
                 new TaskQueryService(tasks, subtasks, workspaces), transactionManager, true);
+    }
+
+    @Bean
+    ManageProjectsUseCase manageProjectsUseCase(ProjectRepository projects, UserDirectory users, CurrentActor actor,
+                                                Clock clock, PlatformTransactionManager transactionManager) {
+        return TransactionalUseCases.wrap(ManageProjectsUseCase.class,
+                new ProjectCommandService(projects, users, actor, clock), transactionManager, false);
+    }
+
+    @Bean
+    QueryProjectsUseCase queryProjectsUseCase(ProjectRepository projects, UserDirectory users, CurrentActor actor,
+                                              PlatformTransactionManager transactionManager) {
+        return TransactionalUseCases.wrap(QueryProjectsUseCase.class,
+                new ProjectQueryService(projects, users, actor), transactionManager, true);
     }
 }

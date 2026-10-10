@@ -74,6 +74,10 @@ Sin Maven instalado puedes compilar con Docker:
 docker run --rm -v "${PWD}\backend:/app" -w /app maven:3.9-eclipse-temurin-21 mvn -B -DskipTests package
 ```
 
+### Usuarios de prueba
+
+La base de Docker incluye usuarios de desarrollo (`jefe@gestor.local`, `encargado1@gestor.local`, … con contraseña `Gestor2026!`). Detalle en [epica-1.md](epica-1.md).
+
 ### Frontend
 
 ```powershell

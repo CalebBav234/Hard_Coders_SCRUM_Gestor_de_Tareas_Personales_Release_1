@@ -1,6 +1,7 @@
 package com.hardcoders.taskmanager.application.usecase;
 
 import com.hardcoders.taskmanager.domain.model.Activity;
+import com.hardcoders.taskmanager.domain.model.Actor;
 import com.hardcoders.taskmanager.domain.model.StatusChange;
 import com.hardcoders.taskmanager.domain.model.Subtask;
 import com.hardcoders.taskmanager.domain.model.Task;
@@ -42,7 +43,7 @@ final class InMemoryPorts {
         return Instant.now(clock).plusMillis(++tick);
     }
 
-    final CurrentActor actor = () -> ACTOR;
+    final CurrentActor actor = () -> new Actor(ACTOR, true, true);
 
     final WorkspaceRepository workspaces = new WorkspaceRepository() {
         @Override

@@ -1,0 +1,141 @@
+<section class="projects-page">
+  <header class="projects-header">
+    <div>
+      <h2>Proyectos <span class="projects-count">{{ projects.length }}</span></h2>
+      <p>{{ auth.isChief() ? 'Gestiona presupuesto, estado y encargados de todos los proyectos.' : 'Proyectos que diriges.' }}</p>
+    </div>
+    <div class="projects-header-actions">
+      <button type="button" class="gt-btn" (click)="load()" [disabled]="loading">↻ Actualizar</button>
+      @if (auth.isChief()) {
+        <button type="button" class="gt-btn gt-btn-primary" (click)="open({ kind: 'create' })">＋ Nuevo proyecto</button>
+      }
+    </div>
+  </header>
+
+  @if (success) {
+    <p class="gt-alert gt-alert-success" role="status">{{ success }}</p>
+  }
+  @if (error) {
+    <p class="gt-alert gt-alert-error" role="alert">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <p class="projects-empty">Cargando proyectos…</p>
+  } @else if (projects.length === 0 && !error) {
+    <p class="projects-empty">
+      {{ auth.isChief() ? 'Aún no hay proyectos. Crea el primero.' : 'No diriges ningún proyecto todavía.' }}
+    </p>
+  }
+
+  <div class="projects-grid">
+    @for (project of projects; track project.projectId) {
+      <article class="project-card" [class.is-closed]="project.closed">
+        <header class="project-card-header">
+          <h3>{{ project.name }}</h3>
+          <span class="project-status" [attr.data-status]="project.status">{{ statusLabels[project.status] }}</span>
+        </header>
+
+        @if (project.description) {
+          <p class="project-description">{{ project.description }}</p>
+        }
+
+        <dl class="project-facts">
+          <div><dt>Encargado</dt><dd>{{ project.manager.fullName }}</dd></div>
+          <div><dt>Presupuesto</dt><dd>{{ formatBob(project.budgetBob) }}</dd></div>
+          <div><dt>Asignado a tareas</dt><dd>{{ formatBob(project.allocatedBudgetBob) }}</dd></div>
+          <div><dt>Duración estimada</dt><dd>{{ formatMinutes(project.estimatedDurationMinutes) }}</dd></div>
+          <div><dt>Revisión del plan</dt><dd>{{ project.currentRevision }}</dd></div>
+        </dl>
+
+        <div class="project-actions">
+          @if (project.canEditDetails) {
+            <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'details', project })">✎ Editar datos</button>
+          }
+          @if (project.canEditPlan) {
+            <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'plan', project })">Bs Editar plan</button>
+          }
+          @if (project.canDelegate) {
+            <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'delegate', project })">⇄ Delegar</button>
+          }
+          <button type="button" class="gt-btn gt-btn-small" (click)="toggleHistory(project)"
+                  [attr.aria-expanded]="history[project.projectId] !== undefined">
+            {{ history[project.projectId] !== undefined ? 'Ocultar historial' : 'Historial del plan' }}
+          </button>
+        </div>
+
+        @if (project.allowedStatuses.length > 0) {
+          <div class="project-status-change">
+            <label [for]="'status-' + project.projectId">Cambiar estado</label>
+            <select [id]="'status-' + project.projectId" [(ngModel)]="statusDraft[project.projectId]"
+                    [name]="'status-' + project.projectId">
+              <option value="">Selecciona…</option>
+              @for (status of project.allowedStatuses; track status) {
+                <option [value]="status">{{ statusLabels[status] }}</option>
+              }
+            </select>
+            <button type="button" class="gt-btn gt-btn-small" (click)="changeStatus(project)"
+                    [disabled]="!statusDraft[project.projectId] || busyProjectId === project.projectId">Aplicar</button>
+          </div>
+        }
+
+        @if (history[project.projectId] === 'loading') {
+          <p class="gt-field-hint">Cargando historial…</p>
+        } @else if (history[project.projectId] === 'error') {
+          <p class="gt-alert gt-alert-error">No se pudo cargar el historial.</p>
+        } @else if (revisions(project.projectId).length > 0) {
+          <ol class="plan-history">
+            @for (revision of revisions(project.projectId); track revision.revisionNumber) {
+              <li>
+                <strong>Rev. {{ revision.revisionNumber }}</strong> · {{ formatBob(revision.budgetBob) }} ·
+                {{ formatMinutes(revision.estimatedDurationMinutes) }}
+                <span>{{ revision.reason }}</span>
+                <small>{{ revision.changedBy.fullName }} — {{ formatDate(revision.changedAt) }}</small>
+              </li>
+            }
+          </ol>
+        }
+      </article>
+    }
+  </div>
+</section>
+
+@if (dialog) {
+  <div class="gt-modal-backdrop" (click)="close()"></div>
+  <dialog class="gt-modal" open aria-modal="true" aria-labelledby="project-dialog-title">
+    <header class="gt-modal-header">
+      <div>
+        <span class="gt-eyebrow">PROYECTOS</span>
+        <h2 id="project-dialog-title">
+          @switch (dialog.kind) {
+            @case ('create') { Nuevo proyecto }
+            @case ('details') { Editar datos }
+            @case ('plan') { Nueva revisión del plan }
+            @case ('delegate') { Delegar proyecto }
+          }
+        </h2>
+        @if (dialogProject) {
+          <p>{{ dialogProject.name }}</p>
+        }
+      </div>
+      <button type="button" class="gt-modal-close" aria-label="Cerrar" (click)="close()">×</button>
+    </header>
+
+    @switch (dialog.kind) {
+      @case ('create') {
+        <app-project-form (saved)="onSaved($event, 'Proyecto creado con su plan inicial.')" (cancelled)="close()" />
+      }
+      @case ('details') {
+        <app-project-form [project]="dialogProject!" (saved)="onSaved($event, 'Datos del proyecto actualizados.')"
+                          (cancelled)="close()" />
+      }
+      @case ('plan') {
+        <app-plan-form [project]="dialogProject!" (saved)="onSaved($event, 'Nueva revisión del plan registrada.')"
+                       (cancelled)="close()" />
+      }
+      @case ('delegate') {
+        <app-delegation-dialog [project]="dialogProject!" (saved)="onSaved($event, 'Proyecto delegado.')"
+                               (cancelled)="close()" />
+      }
+    }
+  </dialog>
+}

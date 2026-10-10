@@ -197,3 +197,199 @@ MOVIMIENTO REDUCIDO
   scroll-behavior: smooth;
   }
   }
+
+/* =========================================================
+COMPONENTES COMPARTIDOS (gt-*): formularios, botones, modales
+Usados por login y proyectos para mantener el estilo existente.
+========================================================= */
+
+.gt-eyebrow {
+display: block;
+margin-bottom: 6px;
+color: var(--scampi);
+font-size: 9px;
+font-weight: 700;
+letter-spacing: 1.4px;
+}
+
+.gt-field {
+display: flex;
+flex-direction: column;
+gap: 7px;
+margin-bottom: 16px;
+}
+
+.gt-field label {
+color: var(--text-secondary);
+font-size: 12px;
+font-weight: 600;
+}
+
+.gt-field input,
+.gt-field select,
+.gt-field textarea {
+width: 100%;
+min-height: 42px;
+padding: 10px 12px;
+border: 1px solid var(--cometa);
+border-radius: 6px;
+background: var(--espejismo);
+color: var(--text-primary);
+font-size: 13px;
+}
+
+.gt-field textarea {
+min-height: 84px;
+resize: vertical;
+}
+
+.gt-field input:focus,
+.gt-field select:focus,
+.gt-field textarea:focus {
+outline: none;
+border-color: var(--scampi);
+box-shadow: 0 0 0 3px rgba(104, 104, 166, 0.18);
+}
+
+.gt-field-row {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+gap: 0 14px;
+}
+
+.gt-field-hint {
+color: var(--text-muted);
+font-size: 11px;
+}
+
+.gt-field-error {
+color: #E59A9A;
+font-size: 11px;
+}
+
+.gt-alert {
+margin: 0 0 14px;
+padding: 10px 12px;
+border-radius: 6px;
+font-size: 13px;
+line-height: 1.45;
+}
+
+.gt-alert-error {
+border: 1px solid rgba(185, 103, 103, 0.55);
+background: rgba(185, 103, 103, 0.14);
+color: #F1C4C4;
+}
+
+.gt-alert-success {
+border: 1px solid rgba(99, 167, 124, 0.55);
+background: rgba(99, 167, 124, 0.14);
+color: #C7EBD3;
+}
+
+.gt-btn {
+min-height: 38px;
+padding: 0 16px;
+border: 1px solid var(--cometa);
+border-radius: 6px;
+background: transparent;
+color: var(--text-primary);
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.gt-btn:hover:not(:disabled) {
+background: var(--surface-hover);
+border-color: var(--scampi);
+}
+
+.gt-btn:disabled {
+opacity: 0.55;
+cursor: not-allowed;
+}
+
+.gt-btn-primary {
+border-color: var(--scampi);
+background: var(--scampi);
+color: #FFFFFF;
+}
+
+.gt-btn-primary:hover:not(:disabled) {
+background: #7777B5;
+}
+
+.gt-btn-small {
+min-height: 30px;
+padding: 0 11px;
+font-size: 12px;
+}
+
+.gt-modal-backdrop {
+position: fixed;
+inset: 0;
+z-index: 1100;
+background: rgba(18, 18, 38, 0.78);
+backdrop-filter: blur(3px);
+}
+
+.gt-modal {
+position: fixed;
+top: 50%;
+left: 50%;
+z-index: 1101;
+width: min(620px, calc(100vw - 32px));
+max-height: calc(100vh - 32px);
+overflow: auto;
+margin: 0;
+padding: 0;
+transform: translate(-50%, -50%);
+border: 1px solid var(--martinica);
+border-radius: 10px;
+background: var(--arcilla-ebano);
+color: var(--text-primary);
+box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.gt-modal-header {
+display: flex;
+justify-content: space-between;
+gap: 16px;
+padding: 18px 22px;
+border-bottom: 1px solid var(--martinica);
+}
+
+.gt-modal-header h2 {
+margin: 0;
+font-size: 18px;
+font-weight: 650;
+}
+
+.gt-modal-header p {
+margin: 5px 0 0;
+color: var(--text-muted);
+font-size: 12px;
+}
+
+.gt-modal-close {
+width: 32px;
+height: 32px;
+border: none;
+border-radius: 6px;
+background: transparent;
+color: var(--text-muted);
+font-size: 20px;
+cursor: pointer;
+}
+
+.gt-modal-body {
+padding: 20px 22px 8px;
+}
+
+.gt-modal-actions {
+display: flex;
+justify-content: flex-end;
+gap: 10px;
+padding: 14px 22px 20px;
+}

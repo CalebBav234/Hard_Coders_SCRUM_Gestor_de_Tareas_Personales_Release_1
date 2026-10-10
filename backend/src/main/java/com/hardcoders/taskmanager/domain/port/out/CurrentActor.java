@@ -1,10 +1,16 @@
 package com.hardcoders.taskmanager.domain.port.out;
 
+import com.hardcoders.taskmanager.domain.model.Actor;
+
 /**
- * Identifica al usuario que ejecuta la operación, para la atribución de los historiales.
- * Hoy lo resuelve un usuario local; con JWT lo resolverá el adaptador de seguridad.
+ * Identifica al usuario que ejecuta la operación. Lo resuelve el adaptador de seguridad a partir
+ * del token JWT; nunca proviene del cuerpo de la petición (INV-010).
  */
 public interface CurrentActor {
 
-    Integer userId();
+    Actor current();
+
+    default Integer userId() {
+        return current().userId();
+    }
 }

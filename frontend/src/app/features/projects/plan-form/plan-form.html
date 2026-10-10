@@ -1,0 +1,44 @@
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <div class="gt-modal-body">
+    <p class="gt-field-hint">
+      Plan vigente (revisión {{ project.currentRevision }}): {{ formatBob(project.budgetBob) }} ·
+      {{ formatMinutes(project.estimatedDurationMinutes) }}. Asignado a tareas: {{ formatBob(project.allocatedBudgetBob) }}.
+    </p>
+
+    <div class="gt-field-row">
+      <div class="gt-field">
+        <label for="plan-budget">Nuevo presupuesto (Bs)</label>
+        <input id="plan-budget" type="number" min="0" step="0.01" formControlName="budgetBob" />
+        @if (form.controls.budgetBob.touched && form.controls.budgetBob.invalid) {
+          <small class="gt-field-error">Importe mayor o igual a 0, con hasta 2 decimales.</small>
+        } @else if (belowAllocations) {
+          <small class="gt-field-error">No puede ser menor que lo ya asignado a las tareas.</small>
+        }
+      </div>
+      <div class="gt-field">
+        <label for="plan-duration">Duración estimada (minutos)</label>
+        <input id="plan-duration" type="number" min="0" step="1" formControlName="estimatedDurationMinutes" />
+        <small class="gt-field-hint">≈ {{ formatMinutes(form.controls.estimatedDurationMinutes.value) }}</small>
+      </div>
+    </div>
+
+    <div class="gt-field">
+      <label for="plan-reason">Motivo del cambio</label>
+      <textarea id="plan-reason" formControlName="reason" maxlength="300"></textarea>
+      @if (form.controls.reason.touched && form.controls.reason.invalid) {
+        <small class="gt-field-error">El motivo es obligatorio: queda en el historial del plan.</small>
+      }
+    </div>
+
+    @if (error) {
+      <p class="gt-alert gt-alert-error" role="alert">{{ error }}</p>
+    }
+  </div>
+
+  <div class="gt-modal-actions">
+    <button type="button" class="gt-btn" (click)="cancelled.emit()" [disabled]="saving">Cancelar</button>
+    <button type="submit" class="gt-btn gt-btn-primary" [disabled]="saving">
+      {{ saving ? 'Guardando…' : 'Registrar revisión' }}
+    </button>
+  </div>
+</form>

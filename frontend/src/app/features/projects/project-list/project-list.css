@@ -1,0 +1,152 @@
+.projects-page {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding-top: 28px;
+}
+
+.projects-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.projects-header h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+}
+
+.projects-header p,
+.projects-empty {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.projects-count {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--martinica);
+  font-size: 12px;
+}
+
+.projects-header-actions,
+.project-actions,
+.project-status-change {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--martinica);
+  border-radius: 10px;
+  background: var(--arcilla-ebano);
+}
+
+.project-card.is-closed {
+  opacity: 0.75;
+}
+
+.project-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.project-card h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.project-status {
+  flex-shrink: 0;
+  height: fit-content;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--martinica);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.project-status[data-status='EN_EJECUCION'] { background: rgba(99, 167, 124, 0.22); color: #C7EBD3; }
+.project-status[data-status='EN_PAUSA'] { background: rgba(196, 154, 91, 0.22); color: #F0D9B4; }
+.project-status[data-status='CANCELADO'] { background: rgba(185, 103, 103, 0.22); color: #F1C4C4; }
+
+.project-description {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.project-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin: 0;
+}
+
+.project-facts dt {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.project-facts dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.project-status-change label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.project-status-change select {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--cometa);
+  border-radius: 6px;
+  background: var(--espejismo);
+  color: var(--text-primary);
+}
+
+.plan-history {
+  margin: 0;
+  padding: 10px 0 0 18px;
+  border-top: 1px solid var(--martinica);
+  font-size: 12px;
+}
+
+.plan-history li {
+  margin-bottom: 8px;
+}
+
+.plan-history span,
+.plan-history small {
+  display: block;
+  color: var(--text-secondary);
+}
+
+.plan-history small {
+  color: var(--text-muted);
+}

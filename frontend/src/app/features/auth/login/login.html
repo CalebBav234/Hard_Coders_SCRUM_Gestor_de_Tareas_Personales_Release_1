@@ -1,0 +1,33 @@
+<section class="login-page">
+  <form class="login-card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <header>
+      <span class="gt-eyebrow">GESTOR DE TAREAS</span>
+      <h2>Iniciar sesión</h2>
+      <p>Usa tu correo de la organización.</p>
+    </header>
+
+    <div class="gt-field">
+      <label for="login-email">Correo</label>
+      <input id="login-email" type="email" formControlName="email" autocomplete="username" />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <small class="gt-field-error">Escribe un correo válido.</small>
+      }
+    </div>
+
+    <div class="gt-field">
+      <label for="login-password">Contraseña</label>
+      <input id="login-password" type="password" formControlName="password" autocomplete="current-password" />
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <small class="gt-field-error">La contraseña es obligatoria.</small>
+      }
+    </div>
+
+    @if (error) {
+      <p class="gt-alert gt-alert-error" role="alert">{{ error }}</p>
+    }
+
+    <button type="submit" class="gt-btn gt-btn-primary login-submit" [disabled]="submitting">
+      {{ submitting ? 'Ingresando…' : 'Ingresar' }}
+    </button>
+  </form>
+</section>

@@ -241,3 +241,43 @@ min-width: 0;
 margin-top: 28px;
 }
 }
+
+/* =========================================================
+SESIÓN
+========================================================= */
+
+.session-box {
+display: flex;
+align-items: center;
+gap: 12px;
+}
+
+.session-user {
+display: flex;
+flex-direction: column;
+align-items: flex-end;
+color: var(--text-secondary);
+font-size: 12px;
+font-weight: 600;
+}
+
+.session-user small {
+color: var(--text-muted);
+font-size: 10px;
+font-weight: 500;
+}
+
+.session-logout {
+min-height: 32px;
+padding: 0 12px;
+border: 1px solid var(--cometa);
+border-radius: 6px;
+background: transparent;
+color: var(--text-primary);
+font-size: 12px;
+cursor: pointer;
+}
+
+.session-logout:hover {
+background: var(--surface-hover);
+}

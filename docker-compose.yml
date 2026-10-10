@@ -13,6 +13,7 @@ services:
     volumes:
       - ./database/migrations:/migrations:ro
       - ./database/docker/init-dev-db.sql:/docker-entrypoint-initdb.d/init-dev-db.sql:ro
+      - ./database/docker/seed-dev-users.sql:/docker-entrypoint-initdb.d/zz-seed-dev-users.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 2s

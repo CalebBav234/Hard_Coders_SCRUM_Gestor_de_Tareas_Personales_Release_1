@@ -36,7 +36,7 @@ com.hardcoders.taskmanager
 | `version` (bloqueo optimista) | Token = `updated_at` en microsegundos (el trigger lo renueva en cada cambio) |
 
 - **Espacio de trabajo:** es el primer proyecto y su primera etapa. Con datos migrados es "Proyecto legado"; en una base nueva se crea "Mis tareas" / "General" la primera vez que se crea una tarea.
-- **Usuario:** mientras no exista JWT, los historiales se atribuyen a un usuario local (`app.local-user.email`, por defecto `usuario.local@gestor-tareas.local`). Se crea solo y no puede iniciar sesión.
+- **Usuario:** todas las rutas exigen token JWT (ver [epica-1.md](epica-1.md)); los historiales se atribuyen al usuario que inició sesión.
 - **Fuera de V4:** las relaciones entre tareas (US-18) y la prioridad y el cronómetro de las subtareas, porque el modelo V4 no tiene dónde guardarlos.
 
 ## Endpoints

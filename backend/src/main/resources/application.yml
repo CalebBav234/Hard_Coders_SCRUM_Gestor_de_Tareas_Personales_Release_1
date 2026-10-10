@@ -25,7 +25,10 @@ spring:
 server:
   port: 8080
 
-# Usuario al que se atribuyen los historiales mientras no exista autenticación (DEC-003).
 app:
-  local-user:
-    email: ${APP_LOCAL_USER_EMAIL:usuario.local@gestor-tareas.local}
+  security:
+    jwt:
+      # Solo para desarrollo. En cualquier entorno compartido define APP_JWT_SECRET (>= 32 caracteres).
+      secret: ${APP_JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+      expiration-minutes: ${APP_JWT_EXPIRATION_MINUTES:480}
+      issuer: gestor-tareas
