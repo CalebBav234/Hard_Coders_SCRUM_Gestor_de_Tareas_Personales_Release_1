@@ -52,9 +52,15 @@ public class AuthController {
         Optional<AppUserEntity> candidate = appUsers.findByEmail(email);
         String hash = candidate.map(AppUserEntity::getPasswordHash).orElse(DUMMY_HASH);
         boolean matches = passwordEncoder.matches(request.password(), hash);
-        if (candidate.isEmpty() || !matches || !Boolean.TRUE.equals(candidate.get().getIsActive())) {
+        if (candidate.isEmpty() || !matches) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ErrorResponse.of("INVALID_CREDENTIALS", "Correo o contraseña incorrectos."));
+        }
+        // La contraseña ya está verificada: un usuario inactivo recibe un aviso propio en lugar
+        // del mensaje genérico, para que sepa que su cuenta sigue existiendo pero está deshabilitada.
+        if (!Boolean.TRUE.equals(candidate.get().getIsActive())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ErrorResponse.of("USER_INACTIVE", "Tu usuario está inactivo. Contacta al administrador."));
         }
         UserAccount account = users.findById(candidate.get().getUserId()).orElseThrow();
         JwtTokenService.IssuedToken token = tokens.issue(account);

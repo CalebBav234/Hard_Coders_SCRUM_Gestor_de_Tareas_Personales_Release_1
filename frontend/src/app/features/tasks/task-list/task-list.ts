@@ -4,6 +4,7 @@ import {
   EventEmitter,
   OnInit,
   Output,
+  ViewChild,
   inject,
 } from '@angular/core';
 
@@ -15,10 +16,13 @@ import { WbsService } from '../../../core/services/wbs.service';
 import { ProjectService } from '../../../core/services/project.service';
 import { Task } from '../../../core/models/task';
 import { Project } from '../../../core/models/project';
-import { StageDto } from '../../../core/models/api';
+import { ProjectProgressDto, StageDto } from '../../../core/models/api';
 
 import { TaskForm } from '../task-form/task-form';
 import { TaskEditor } from '../task-editor/task-editor';
+import { WbsPanel } from '../wbs/wbs-panel';
+import { AssignmentDialog } from '../assignment-dialog/assignment-dialog';
+import { ProgressPanel } from '../progress-panel/progress-panel';
 
 @Component({
   selector: 'app-task-list',
@@ -27,7 +31,10 @@ import { TaskEditor } from '../task-editor/task-editor';
     CommonModule,
     FormsModule,
     TaskForm,
-    TaskEditor
+    TaskEditor,
+    WbsPanel,
+    AssignmentDialog,
+    ProgressPanel
   ],
   templateUrl: './task-list.html',
   styleUrl: './task-list.css'
@@ -36,6 +43,13 @@ export class TaskList implements OnInit {
 
   @Output() editRequested = new EventEmitter<Task>();
   @Output() subtaskRequested = new EventEmitter<Task>();
+
+  /**
+   * US3.3: panel de progreso en cascada. Se referencia para recalcular el árbol cada vez que
+   * cambia el trabajo (completar, pausar, eliminar, crear actividad); el panel solo carga al
+   * montarse o al cambiar de proyecto.
+   */
+  @ViewChild(ProgressPanel) private progressPanel?: ProgressPanel;
 
   /**
    * US2.2: el proyecto de trabajo lo elige el usuario y se guarda en esta misma sesión.
@@ -47,6 +61,9 @@ export class TaskList implements OnInit {
   projects: Project[] = [];
   stages: StageDto[] = [];
   selectedStageId: number | null = null;
+
+  /** US2.2: actividad elegida dentro de la etapa; toda tarea nueva se crea en ella. */
+  selectedActivityId: number | null = null;
 
   tasks: Task[] = [];
   /** Actividades ("categorías") de la etapa seleccionada. */
@@ -71,6 +88,12 @@ export class TaskList implements OnInit {
   selectedCategoryName: string | null = null;
 
   completedAsideOpen = false;
+
+  /** US2.2: panel de estructura (etapas y actividades) abierto/cerrado. */
+  wbsPanelOpen = false;
+
+  /** US2.3: tarea cuyo diálogo de asignación de Personal está abierto. */
+  assigningTask: Task | null = null;
 
   swipeOffsets: Record<number, number> = {};
 
@@ -105,12 +128,17 @@ export class TaskList implements OnInit {
     this.projectService.list().subscribe({
       next: (projects) => {
         this.projects = projects;
+        this.projectsLoaded = true;
 
         // Sin sesión previa no se preselecciona ningún proyecto: es una decisión del usuario.
         if (this.selectedProjectId === null && this.previousProjectId !== null) {
           this.selectedProjectId = this.projects.some((p) => p.projectId === this.previousProjectId)
             ? this.previousProjectId
             : null;
+        }
+        // US3.1: el Personal no tiene proyectos que seleccionar; ve solo lo que le asignaron.
+        if (this.usesPersonalScope && this.selectedProjectId === null && !this.loadedAssignedOnce) {
+          this.loadAssignedTasks();
         }
         this.changeDetector.markForCheck();
       },
@@ -124,19 +152,29 @@ export class TaskList implements OnInit {
   /** Último proyecto elegido por el usuario en esta sesión (nunca el primero de la lista). */
   private previousProjectId: number | null = null;
 
+  /** US3.1: la vista del Personal ya se cargó al menos una vez (no se repite en cada reload). */
+  private loadedAssignedOnce = false;
+
+  /** Los proyectos ya se consultaron: distingue "Personal sin proyectos" de "aún cargando". */
+  private projectsLoaded = false;
+
   selectProject(projectId: number | null): void {
     this.selectedProjectId = projectId;
     this.previousProjectId = projectId;
     this.selectedStageId = null;
     this.stages = [];
+    this.categories = [];
+    this.selectedActivityId = null;
     this.tasks = [];
+    this.wbsPanelOpen = false;
+    this.assigningTask = null;
 
     if (projectId === null) {
       this.changeDetector.markForCheck();
       return;
     }
+    this.loadedAssignedOnce = true;
     this.loadStages(projectId);
-    this.loadProgress(projectId);
   }
 
   loadStages(projectId: number): void {
@@ -154,21 +192,80 @@ export class TaskList implements OnInit {
 
   selectStage(stageId: number): void {
     this.selectedStageId = stageId;
+    // La actividad depende de la etapa: se vuelve a elegir al cambiar de etapa.
+    this.selectedActivityId = null;
     this.loadCategories();
     this.changeDetector.markForCheck();
   }
 
-  loadProgress(projectId: number): void {
-    this.wbsService.progress(projectId).subscribe({
-      next: (progress) => {
-        this.progressRatio = Math.round(progress.root.ratio * 100);
-        this.changeDetector.markForCheck();
-      },
-      error: () => {
-        this.progressRatio = 0;
-        this.changeDetector.markForCheck();
-      },
-    });
+  /** US2.2: la actividad donde se crearán las tareas nuevas. */
+  selectActivity(activityId: number | null): void {
+    this.selectedActivityId = activityId;
+    this.changeDetector.markForCheck();
+  }
+
+  /** Nombre de la actividad elegida (el formulario de crear tarea lo muestra). */
+  get selectedActivityName(): string | null {
+    if (this.selectedActivityId === null) {
+      return null;
+    }
+    return this.categories.find((category) => category.id === this.selectedActivityId)?.name ?? null;
+  }
+
+  /** Proyecto elegido (para los permisos que devuelve el backend). */
+  get selectedProject(): Project | null {
+    if (this.selectedProjectId === null) {
+      return null;
+    }
+    return this.projects.find((project) => project.projectId === this.selectedProjectId) ?? null;
+  }
+
+  /** US2.2/US2.3: el backend autoriza siempre; esto solo muestra u oculta acciones. */
+  get canManageHierarchy(): boolean {
+    return this.selectedProject?.canManageHierarchy === true;
+  }
+
+  /** US2.2: abre o cierra el panel de etapas y actividades. */
+  toggleWbsPanel(): void {
+    this.wbsPanelOpen = !this.wbsPanelOpen;
+    this.changeDetector.markForCheck();
+  }
+
+  /** US3.3: el panel de progreso publica el árbol recién calculado. */
+  onProgressLoaded(progress: ProjectProgressDto): void {
+    this.progressRatio = Math.round(progress.root.ratio * 100);
+    this.changeDetector.markForCheck();
+  }
+
+  /** US2.3: abre el diálogo de asignación de Personal para una tarea. */
+  openAssignment(task: Task): void {
+    if (this.actionsDisabled(task)) {
+      return;
+    }
+    this.assigningTask = task;
+    this.changeDetector.markForCheck();
+  }
+
+  closeAssignment(): void {
+    this.assigningTask = null;
+    this.changeDetector.markForCheck();
+  }
+
+  /** Tras asignar o retirar Personal se recarga la lista para actualizar el contador. */
+  onAssignmentsChanged(): void {
+    this.successMessage = 'Asignación de Personal actualizada.';
+    this.loadTasks();
+    this.changeDetector.markForCheck();
+  }
+
+  /** US2.3: cuántas personas tiene asignadas la tarea (badge de la tarjeta). */
+  assignedCount(task: Task): number {
+    return task.assignedWorkerIds?.length ?? 0;
+  }
+
+  /** Id real de la tarea (las subtareas usan su id en negativo en la vista). */
+  assignmentTaskId(task: Task): number {
+    return task.entityId ?? Math.abs(task.id);
   }
 
   // =========================================================
@@ -182,7 +279,7 @@ export class TaskList implements OnInit {
 
   /** El Personal solo ve "Mis tareas": no tiene proyectos que seleccionar. */
   get usesPersonalScope(): boolean {
-    return this.projects.length === 0;
+    return this.projectsLoaded && this.projects.length === 0;
   }
 
   private startTimer(): void {
@@ -197,6 +294,11 @@ export class TaskList implements OnInit {
   }
 
   loadTasks(): void {
+    if (this.usesPersonalScope) {
+      this.loadAssignedTasks();
+      return;
+    }
+
     if (this.selectedProjectId === null) {
       this.tasks = [];
       this.changeDetector.markForCheck();
@@ -212,9 +314,10 @@ export class TaskList implements OnInit {
         this.loading = false;
         this.busyTaskId = null;
 
+        // US3.3: el trabajo cambió (o se acaba de cargar), el progreso debe reflejarlo.
+        this.progressPanel?.reload();
         this.changeDetector.markForCheck();
       },
-
       error: (error) => {
         console.error('Error al cargar tareas:', error);
 
@@ -229,13 +332,54 @@ export class TaskList implements OnInit {
     });
   }
 
+  /**
+   * US3.1: "Mis tareas" del Personal. Solo llega lo que el backend tiene asignado al usuario
+   * del token (GET /api/tasks/assigned), sin datos financieros.
+   */
+  private loadAssignedTasks(): void {
+    this.loading = true;
+    this.errorMessage = '';
+
+    this.taskService.listAssignedTasks(this.searchTerm).subscribe({
+      next: (tasks) => {
+        this.tasks = tasks;
+        this.loading = false;
+        this.busyTaskId = null;
+        this.loadedAssignedOnce = true;
+
+        this.changeDetector.markForCheck();
+      },
+      error: (error) => {
+        console.error('Error al cargar las tareas asignadas:', error);
+        this.errorMessage = 'No se pudieron cargar tus tareas asignadas.';
+        this.loading = false;
+        this.busyTaskId = null;
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
   loadCategories(): void {
     if (this.selectedStageId === null) {
+      this.categories = [];
+      this.selectedActivityId = null;
+      this.changeDetector.markForCheck();
       return;
     }
 
     this.taskService.listCategories(this.selectedStageId).subscribe({
-      next: () => {
+      next: (categories) => {
+        this.categories = categories;
+
+        // US2.2: la primera actividad queda preseleccionada para poder crear la tarea sin
+        // pasos extra; si la elegida ya no existe (etapa cambiada) se toma la primera.
+        if (
+          this.selectedActivityId === null ||
+          !categories.some((category) => category.id === this.selectedActivityId)
+        ) {
+          this.selectedActivityId = categories.length > 0 ? categories[0].id : null;
+        }
+
         this.changeDetector.markForCheck();
       },
 
@@ -244,6 +388,10 @@ export class TaskList implements OnInit {
           'Error al cargar las categorías:',
           error
         );
+
+        this.categories = [];
+        this.selectedActivityId = null;
+        this.changeDetector.markForCheck();
       }
     });
   }
@@ -471,6 +619,12 @@ export class TaskList implements OnInit {
     this.loading = true;
     this.errorMessage = '';
 
+    if (this.usesPersonalScope) {
+      // US3.1: la búsqueda del Personal se hace sobre lo asignado, en el servidor.
+      this.loadAssignedTasks();
+      return;
+    }
+
     if (this.selectedProjectId === null) {
       this.loading = false;
       return;
@@ -481,6 +635,8 @@ export class TaskList implements OnInit {
         this.tasks = tasks;
         this.loading = false;
 
+        // US3.3: la búsqueda también recalcula el progreso del proyecto.
+        this.progressPanel?.reload();
         this.changeDetector.markForCheck();
       },
 

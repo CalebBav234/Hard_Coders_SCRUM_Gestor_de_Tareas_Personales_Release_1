@@ -39,6 +39,7 @@ export function taskToView(dto: TaskDto, now = Date.now()): Task {
     priority: dto.priority,
     categoryId: dto.activityName ? dto.activityId : null,
     categoryName: dto.activityName,
+    assignedWorkerIds: dto.assignedWorkerIds ?? [],
     parentTaskId: null,
     activatedAt: dto.currentSegmentStartedAt,
     completedAt: dto.completedAt,

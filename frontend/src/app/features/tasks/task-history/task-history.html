@@ -10,6 +10,22 @@
     </button>
   </div>
 
+  <!-- El histórico es de un proyecto concreto: lo elige el usuario, nunca el "primero". -->
+  <div class="history-project">
+    <label for="history-project">Proyecto</label>
+    <select
+      id="history-project"
+      [(ngModel)]="selectedProjectId"
+      (ngModelChange)="selectProject($event)"
+    >
+      <option [ngValue]="null">— Selecciona un proyecto —</option>
+
+      @for (project of projects; track project.projectId) {
+        <option [ngValue]="project.projectId">{{ project.name }}</option>
+      }
+    </select>
+  </div>
+
   <form class="history-search" role="search" (submit)="searchHistory($event)">
     <label for="history-search">Buscar en el historial por título o descripción</label>
     <div class="search-controls">
@@ -22,7 +38,7 @@
         (input)="updateSearchDraft($event)"
         [disabled]="loading"
       />
-      <button type="submit" class="btn-search" [disabled]="loading">Buscar</button>
+      <button type="submit" class="btn-search" [disabled]="loading || selectedProjectId === null">Buscar</button>
       @if (activeSearch) {
         <button type="button" class="btn-clear" (click)="clearSearch()" [disabled]="loading">
           Limpiar
@@ -117,13 +133,23 @@
       </article>
     } @empty {
       @if (!loading && !error) {
-        <p class="empty-message">
-          {{
-            activeSearch
-              ? 'No se encontraron tareas anteriores con esa búsqueda.'
-              : 'Todavía no hay tareas terminadas o eliminadas.'
-          }}
-        </p>
+        @if (selectedProjectId === null) {
+          <p class="empty-message">
+            @if (hasProjects) {
+              Elige un proyecto para ver sus tareas terminadas y eliminadas.
+            } @else {
+              No diriges ningún proyecto: el historial se consulta proyecto por proyecto.
+            }
+          </p>
+        } @else {
+          <p class="empty-message">
+            {{
+              activeSearch
+                ? 'No se encontraron tareas anteriores con esa búsqueda.'
+                : 'Todavía no hay tareas terminadas o eliminadas.'
+            }}
+          </p>
+        }
       }
     }
   </div>

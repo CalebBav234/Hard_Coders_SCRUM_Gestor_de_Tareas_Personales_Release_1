@@ -1,0 +1,96 @@
+/* US3.3 — árbol de progreso en cascada.
+   La barra reutiliza la forma de .progress-bar de task-list.css pero conScope propio. */
+
+.progress-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--martinica);
+  border-radius: 12px;
+  background: var(--arcilla-ebano);
+}
+
+.progress-panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.progress-panel-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.progress-empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.progress-children {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.progress-node {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--martinica);
+  border-radius: 8px;
+  background: var(--espejismo);
+}
+
+.progress-node.leaf {
+  padding: 6px 10px;
+  background: transparent;
+  border-style: dashed;
+}
+
+.progress-node-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.progress-node-name {
+  min-width: 0;
+  color: #f0eee9;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.progress-node-ratio {
+  flex-shrink: 0;
+  color: var(--priority-alta);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.progress-node-count {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.progress-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--martinica);
+  overflow: hidden;
+}
+
+.progress-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--priority-alta);
+}

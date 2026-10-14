@@ -81,11 +81,42 @@ Resultado verificado: `added 377 packages, and audited 378 packages in 20s`; `ty
 
 | Comando | Resultado |
 |---|---|
-| `mvn clean test` | `Tests run: 59, Failures: 0, Errors: 0, Skipped: 0` — BUILD SUCCESS |
-| `npx ng test --watch=false` | `Test Files 9 passed (9)`, `Tests 52 passed (52)` |
-| `npx ng build --configuration production` | `Application bundle generation complete` — 445,48 kB, **sin errores ni avisos de presupuesto CSS** |
-| `gt-e2e.ps1` (17 pasos contra servicios reales) | Proyecto ? etapa ? actividad ? tarea ? subtarea ? asignación ? ejecución del Personal ? override del Jefe ? progreso, todo `200/201` |
-| Proxy `/api` desde `ng serve` | `GET /api/projects` ? `200` con datos reales de PostgreSQL |
+| `mvn clean test` | `Tests run: 63, Failures: 0, Errors: 0, Skipped: 0` — BUILD SUCCESS |
+| `npx ng test --watch=false` | `Test Files 13 passed (13)`, `Tests 82 passed (82)` |
+| `npx ng build --configuration production` | `Application bundle generation complete` — 487,19 kB, **sin errores ni avisos de presupuesto CSS** |
+| Smoke test E2E (23 comprobaciones contra backend + PostgreSQL reales) | Proyecto ? etapa (crear/renombrar) ? actividad (crear/estado) ? tarea ? listado de Personal ? asignación ? duplicado rechazado (400) ? `/tasks/assigned` sin campos financieros ? inicio y completado por el Personal ? progreso en cascada 100 % (1 de 1 hoja) ? retiro de asignación ? proyecto ajeno oculto (404). **23/23 OK** |
+| Proxy `/api` desde `ng serve` | `GET /api/projects` y login vía `http://localhost:4200/api/auth/login` ? `200` con datos reales de PostgreSQL |
+| Smoke test del plan de pruebas manuales (14 comprobaciones en caliente contra backend + PostgreSQL) | Contraseña incorrecta: 401 generico; usuario inactivo: 403 USER_INACTIVE con mensaje propio; autoasignacion: 403 "No puedes asignarte trabajo a ti mismo"; etapa en proyecto cerrado: 409 "No se puede crear etapas en un proyecto CANCELADO"; presupuesto por debajo de lo asignado: 409; el Personal sigue viendo solo lo asignado. 14/14 OK |
+
+### Ajustes hechos para cerrar el plan de pruebas manuales
+
+| Prueba | Hueco encontrado | Correccion |
+|---|---|---|
+| P1.3 | Un usuario inactivo recibia el mismo 401 "Correo o contrasena incorrectos." que una contrasena mala | `AuthController` verifica primero la contrasena y responde 403 USER_INACTIVE ("Tu usuario esta inactivo. Contacta al administrador."); el login lo muestra tal cual y nunca emite token para una cuenta desactivada |
+| P5.4 | El dialogo de asignacion traducia cualquier 403 a un mensaje generico, ocultando "No puedes asignarte trabajo a ti mismo" | El dialogo muestra el mensaje real del backend y solo usa el generico cuando no llega ninguno |
+| P6.1 | La pantalla del Personal se titulaba igual que la del Encargado | Con alcance Personal el titulo es "Tareas asignadas" y el subtitulo lo explica |
+
+Verificacion automatica agregada: `AuthControllerTest` (4 pruebas MockMvc: 401 con correo desconocido, 401 con contrasena mala, 403 sin token para inactivo, 200 con token y normalizacion del correo) y `login.spec.ts` (4 pruebas: 401, 403 USER_INACTIVE, backend caido y login correcto con navegacion).
+
+### Arreglo de "no me deja crear tarea" (P4.1 y P4.2 del plan manual)
+
+El usuario no podia crear tareas ni habiendo elegido etapa y actividad. Habia dos causas:
+
+1. **El formulario nunca recibia la actividad.** El formulario vive en `task-home.html`, fuera de la lista, y se montaba sin `[activityId]`: el campo quedaba siempre en `null` y el guard de `crearTarea()` rechazaba todo con "Selecciona una etapa y una actividad antes de crear la tarea". Ahora se enlaza con `[activityId]="taskList.selectedActivityId"` y `[activityName]="taskList.selectedActivityName"`.
+2. **`loadCategories()` descartaba la respuesta.** El metodo pedia las actividades de la etapa pero no asignaba el resultado, asi que `categories` estaba siempre vacio y no habia selector de actividad posible. Ahora asigna la lista y preselecciona la primera actividad.
+
+Ademas se agrego el selector **Actividad** a la barra de trabajo (junto a Proyecto y Etapa), el formulario muestra "Se creara en la actividad" con el destino real en lugar del campo de texto "Categoria" heredado de la version anterior (que no se enviaba a la API), y el mensaje de error ahora indica donde elegir la etapa y la actividad.
+
+Verificacion: suite en 88 pruebas (nuevo test de integracion que reproduce el fallo: elegir etapa, cargar actividades, comprobar que el formulario recibe la actividad y que la peticion de creacion la lleva) y 9 comprobaciones en caliente del flujo completo contra el backend real (proyecto, etapa, selector de actividades, creacion en la primera y en la segunda actividad, listado y rechazo de actividad inexistente).
+
+### Arreglo de la pantalla de Historial (P8.1 del plan manual)
+
+La pantalla de Historial mostraba "El backend no tiene disponible el historial" al entrar. Habia dos causas:
+
+1. **Pedia el historial sin proyecto (frontend).** Al entrar, `selectedProjectId` era nulo y se enviaba `projectId=0`; el backend responde correctamente 404 (el proyecto 0 no existe) y la pantalla lointerpretaba como "falta el endpoint". Ahora el componente solo pide el historial cuando el usuario elige un proyecto, con un selector Proyecto en la parte superior (la misma regla de "el proyecto lo elige el usuario" que el resto de la aplicacion) y un estado vacio que invita a elegirlo.
+2. **`/api/subtasks/history` devolvia 500 (backend).** `SubtaskPersistenceAdapter.findArchived` casteaba a `List` el flujo de la consulta nativa (`((List<?>) query.getResultList().stream())`) en lugar de la lista de resultados: cada llamada terminaba en `ClassCastException`. Corregido al patron que ya usa `TaskPersistenceAdapter`.
+
+Verificacion: `SubtaskPersistenceAdapterTest` (2 pruebas que mapean los ids de la consulta nativa y el caso vacio; la primera revienta con el codigo anterior), suite en 90 pruebas de frontend (nuevo `describe` que prueba que sin proyecto no se llama al backend) y 14 comprobaciones en caliente contra el backend real (tarea y subtarea terminadas, historial de ambas, linea de tiempo de estados, busqueda, proyecto ajeno y Personal con 404).
 
 ## 4. Huecos del informe del equipo: resueltos
 
@@ -110,11 +141,11 @@ Resultado verificado: `added 377 packages, and audited 378 packages in 20s`; `ty
 | US1.2 delegación | Backend + front + DB | Implementado y verificado (acceso anterior ? 404) |
 | US1.3 override Jefe | Backend | Implementado y verificado (historial atribuido al Jefe) |
 | US2.1 aislamiento | Backend + front | Verificado (404/arrays vacíos) |
-| US2.2 estructura de 5 niveles | Backend + front + DB | Implementado (`stage`, `activity`, `task`) y verificado |
-| US2.3 asignación de Personal | Backend + front + DB | Implementado (`task_assignment`, 403 propio, 400 duplicado) y verificado |
-| US3.1 lectura asignada | Backend + front | Verificado (DTO sin campos financieros) |
+| US2.2 estructura de 5 niveles | Backend + front + DB | Implementado y verificado: backend `stage`/`activity` + panel WBS en pantalla (`wbs-panel`: crear, renombrar y cambiar estado de etapas y actividades) |
+| US2.3 asignación de Personal | Backend + front + DB | Implementado y verificado: `task_assignment` + diálogo de asignación (`assignment-dialog`: listar Personal, asignar con motivo, retirar) y badge con el contador en cada tarea |
+| US3.1 lectura asignada | Backend + front | Verificado: cuando `/api/projects` devuelve `[]` (Personal), la pantalla carga y busca en `/api/tasks/assigned` (DTO sin campos financieros) y oculta el selector de proyectos |
 | US3.2 ejecución autorizada | Backend + front | Verificado (403 si no asignado, `completed_by` correcto) |
-| US3.3 progreso en cascada | Backend | Implementado (`ProgressPolicy`, solo trabajo hoja) y verificado |
+| US3.3 progreso en cascada | Backend + front | Implementado y verificado: `ProgressPolicy` (solo trabajo hoja) + panel con el árbol Proyecto ? Etapa ? Actividad ? Tarea ? Subtarea y el porcentaje de cada nodo |
 
 ## 7. URLs locales
 
@@ -128,10 +159,10 @@ Resultado verificado: `added 377 packages, and audited 378 packages in 20s`; `ty
 - `.kilo/plans/hexagonal_restructure_plan.md` — registro de ejecución, matriz de progreso, verificación independiente del informe de Épica 1, comandos y resultados reales.
 - `docs/api-v4.md` — nuevo contrato (proyecto/etapa/actividad/tarea/asignación/progreso), tabla de errores y advertencia de que ya no existe el "primer proyecto".
 - `docs/epica-1.md` — resolución explícita de los tres huecos declarados y el filtrado de proyectos para el Personal.
+- `docs/pruebas-manuales.md` — lista completa de pruebas manuales en el navegador (acceso, proyectos, WBS, tareas, subtareas, asignaciones, Personal, progreso, historial y concurrencia) con pasos, resultado esperado y tabla resumen para firmar. Escrita en texto plano, sin símbolos especiales.
 
 ## 9. Pendientes reales
 
 - Informe PDF académico (entregable externo, no alojado en el repositorio).
 - Despliegue remoto (fuera del alcance de esta tarea).
-- La pantalla aún no expone formularios dedicados para crear etapas/actividades/asignaciones: los casos de uso y los servicios (`WbsService`) ya están listos y probados; la UI de gestión de la WBS quedó parcial (selector de proyecto/etapa y progreso sí integrados).
 

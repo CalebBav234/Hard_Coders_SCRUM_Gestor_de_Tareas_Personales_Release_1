@@ -41,12 +41,17 @@ export class Login {
         const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
         void this.router.navigateByUrl(returnUrl && returnUrl.startsWith('/') ? returnUrl : '/');
       },
-      error: (response: { status?: number }) => {
+      error: (response: { status?: number; error?: { error?: string; message?: string } }) => {
         this.submitting = false;
-        this.error =
-          response.status === 401
-            ? 'Correo o contraseña incorrectos.'
-            : 'No se pudo iniciar sesión. Comprueba que el backend esté disponible.';
+        // El cuerpo de error del backend es { error, message }: el código viaja en "error".
+        if (response.status === 403 && response.error?.error === 'USER_INACTIVE') {
+          // El backend ya verificó la contraseña: la cuenta existe pero está deshabilitada.
+          this.error = response.error.message ?? 'Tu usuario está inactivo. Contacta al administrador.';
+        } else if (response.status === 401) {
+          this.error = 'Correo o contraseña incorrectos.';
+        } else {
+          this.error = 'No se pudo iniciar sesión. Comprueba que el backend esté disponible.';
+        }
         this.changeDetector.markForCheck();
       },
     });

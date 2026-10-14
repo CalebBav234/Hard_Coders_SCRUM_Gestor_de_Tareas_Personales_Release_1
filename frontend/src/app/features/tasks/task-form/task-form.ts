@@ -13,23 +13,25 @@ export class TaskForm {
 private readonly taskService = inject(TaskService);
 private readonly changeDetector = inject(ChangeDetectorRef);
 
-@Input() parentTaskId: number | null = null;
+  @Input() parentTaskId: number | null = null;
 
   /** US2.2: la tarea se crea en una actividad concreta del proyecto elegido. */
   @Input() activityId: number | null = null;
-@Output() taskCreated = new EventEmitter<Task>();
-@Output() cancelled = new EventEmitter<void>();
+
+  /** Nombre de esa actividad, para mostrar dónde se va a crear la tarea. */
+  @Input() activityName: string | null = null;
+  @Output() taskCreated = new EventEmitter<Task>();
+  @Output() cancelled = new EventEmitter<void>();
 
 cancelar(): void {
 this.cancelled.emit();
 }
 
-title = '';
-selectedPriority: TaskPriority = 'MEDIA';
-selectedCategoryName = '';
-submitted = false;
-loading = false;
-error: string | null = null;
+  title = '';
+  selectedPriority: TaskPriority = 'MEDIA';
+  submitted = false;
+  loading = false;
+  error: string | null = null;
 
 crearTarea(): void {
 this.submitted = true;
@@ -44,7 +46,7 @@ this.loading = true;
 // Sin actividad concreta no se puede crear la tarea: US2.2 exige pertenencia explícita.
 if (this.parentTaskId === null && this.activityId === null) {
   this.loading = false;
-  this.error = 'Selecciona una etapa y una actividad antes de crear la tarea.';
+  this.error = 'Elige una etapa y su actividad en la barra de trabajo antes de crear la tarea.';
   this.changeDetector.markForCheck();
   return;
 }
@@ -62,7 +64,6 @@ this.taskService
     next: (task) => {
       this.title = '';
       this.selectedPriority = 'MEDIA';
-      this.selectedCategoryName = '';
       this.submitted = false;
       this.loading = false;
 

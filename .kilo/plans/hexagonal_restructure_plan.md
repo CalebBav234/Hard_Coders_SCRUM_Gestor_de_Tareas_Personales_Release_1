@@ -661,15 +661,15 @@ graph LR
 
 ---
 
-# REGISTRO DE EJECUCIÓN (implementación autorizada)
+# REGISTRO DE EJECUCIï¿½N (implementaciï¿½n autorizada)
 
-## 1. Causa raíz del fallo del backend y reparación
+## 1. Causa raï¿½z del fallo del backend y reparaciï¿½n
 
-**Síntoma:** `NoUniqueBeanDefinitionException: No qualifying bean of type 'CurrentActor' available: expected single matching bean but found 2: securityCurrentActorAdapter,localUserActorAdapter`.
+**Sï¿½ntoma:** `NoUniqueBeanDefinitionException: No qualifying bean of type 'CurrentActor' available: expected single matching bean but found 2: securityCurrentActorAdapter,localUserActorAdapter`.
 
-**Causa raíz (con evidencia):** `backend/target` conservaba clases compiladas de una versión anterior del árbol de fuentes. El archivo `backend/target/classes/com/hardcoders/taskmanager/adapter/in/security/LocalUserActorAdapter.class` (marca de tiempo 10/10 02:25, anterior al commit `7831cd7` que eliminó `LocalUserActorAdapter.java`) seguía presente, mientras que el adaptador vigente se había renombrado a `SecurityCurrentActorAdapter`. Al arrancar, el escaneo de componentes encontraba dos beans `@Component` que implementan `CurrentActor` (el `.class` residual y el nuevo) y el contexto fallaba al iniciarse. `mvn clean test` hace desaparecer el error: el problema eran los artefactos obsoletos, no el código ni la configuración.
+**Causa raï¿½z (con evidencia):** `backend/target` conservaba clases compiladas de una versiï¿½n anterior del ï¿½rbol de fuentes. El archivo `backend/target/classes/com/hardcoders/taskmanager/adapter/in/security/LocalUserActorAdapter.class` (marca de tiempo 10/10 02:25, anterior al commit `7831cd7` que eliminï¿½ `LocalUserActorAdapter.java`) seguï¿½a presente, mientras que el adaptador vigente se habï¿½a renombrado a `SecurityCurrentActorAdapter`. Al arrancar, el escaneo de componentes encontraba dos beans `@Component` que implementan `CurrentActor` (el `.class` residual y el nuevo) y el contexto fallaba al iniciarse. `mvn clean test` hace desaparecer el error: el problema eran los artefactos obsoletos, no el cï¿½digo ni la configuraciï¿½n.
 
-**Reparación aplicada:** sin reescritura de código ni de dependencias. `mvn clean` es el comando de arranque correcto para pruebas y desarrollo (`mvn clean spring-boot:run`).
+**Reparaciï¿½n aplicada:** sin reescritura de cï¿½digo ni de dependencias. `mvn clean` es el comando de arranque correcto para pruebas y desarrollo (`mvn clean spring-boot:run`).
 
 **Comandos PowerShell verificados (solo credenciales de desarrollo):**
 
@@ -677,7 +677,7 @@ graph LR
 # 1) Base de datos (conserva datos existentes; NUNCA ejecuta `docker compose down -v`)
 docker start gestor-tareas-db
 
-# 2) Seed de desarrollo (idempotente por ON CONFLICT, apunta a la base explícita)
+# 2) Seed de desarrollo (idempotente por ON CONFLICT, apunta a la base explï¿½cita)
 docker cp database/docker/seed-dev-users.sql gestor-tareas-db:/tmp/seed.sql
 docker exec -i gestor-tareas-db psql -U postgres -d gestor_tareas -f /tmp/seed.sql
 
@@ -690,20 +690,20 @@ npm ci
 npm start          # http://localhost:4200 (proxy.conf.json -> /api -> localhost:8080)
 ```
 
-**Conflicto de puerto 8080 (resuelto y verificado).** Si aparece `Web server failed to start. Port 8080 was already in use`, el listener era un `java.exe` residual que ejecutaba `com.hardcoders.taskmanager.TaskManagerApplication`, hijo huérfano de un `spring-boot:run` anterior (su padre Maven ya había terminado). No es un servicio compartido.
+**Conflicto de puerto 8080 (resuelto y verificado).** Si aparece `Web server failed to start. Port 8080 was already in use`, el listener era un `java.exe` residual que ejecutaba `com.hardcoders.taskmanager.TaskManagerApplication`, hijo huï¿½rfano de un `spring-boot:run` anterior (su padre Maven ya habï¿½a terminado). No es un servicio compartido.
 
 ```powershell
-# Opción A: liberar el puerto
+# Opciï¿½n A: liberar el puerto
 Get-NetTCPConnection -State Listen | Where-Object LocalPort -eq 8080 |
   ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }
 
-# Opción B: override local, sin cambiar el puerto por defecto del proyecto
+# Opciï¿½n B: override local, sin cambiar el puerto por defecto del proyecto
 mvn clean spring-boot:run "-Dspring-boot.run.jvmArguments=-Dserver.port=8081"
 ```
 
-Ambas se ejecutaron con éxito: el backend arrancó (`Started TaskManagerApplication in 6.789 seconds`), aceptó login y respondió `GET /api/projects` ? `200`; con el override respondió igual en `http://localhost:8081` (`login OK, token=209 chars`).
+Ambas se ejecutaron con ï¿½xito: el backend arrancï¿½ (`Started TaskManagerApplication in 6.789 seconds`), aceptï¿½ login y respondiï¿½ `GET /api/projects` ? `200`; con el override respondiï¿½ igual en `http://localhost:8081` (`login OK, token=209 chars`).
 
-**Por qué el conflicto se repite.** `mvn spring-boot:run` lanza la aplicación en un proceso `java` hijo. Si solo se detiene el padre (Maven), el hijo sobrevive como huérfano y sigue escuchando en el 8080. Es el origen de los conflictos sucesivos observados. Al cerrar el backend hay que limpiar también el hijo:
+**Por quï¿½ el conflicto se repite.** `mvn spring-boot:run` lanza la aplicaciï¿½n en un proceso `java` hijo. Si solo se detiene el padre (Maven), el hijo sobrevive como huï¿½rfano y sigue escuchando en el 8080. Es el origen de los conflictos sucesivos observados. Al cerrar el backend hay que limpiar tambiï¿½n el hijo:
 
 ```powershell
 Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
@@ -711,7 +711,7 @@ Get-CimInstance Win32_Process -Filter "Name='java.exe'" |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 ```
 
-**`npm ci` fallaba con `EPERM ... unlink esbuild.exe` (resuelto).** No era un problema de permisos: un `ng serve` activo bloqueaba el binario, así que `npm ci` no pudo borrar `node_modules` y abortó dejando la instalación a medias (faltaban `typescript` y `.package-lock.json`), lo que provocaba después `Could not find the '@angular/build:dev-server' builder's node package` al hacer `npm start`.
+**`npm ci` fallaba con `EPERM ... unlink esbuild.exe` (resuelto).** No era un problema de permisos: un `ng serve` activo bloqueaba el binario, asï¿½ que `npm ci` no pudo borrar `node_modules` y abortï¿½ dejando la instalaciï¿½n a medias (faltaban `typescript` y `.package-lock.json`), lo que provocaba despuï¿½s `Could not find the '@angular/build:dev-server' builder's node package` al hacer `npm start`.
 
 ```powershell
 # 1) Liberar los archivos bloqueados
@@ -723,64 +723,85 @@ Get-Process esbuild -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAc
 npm ci
 ```
 
-Verificado: `added 377 packages, and audited 378 packages in 20s`; `typescript`, `@angular/build` con el builder `dev-server`, `rxjs` y `esbuild` restaurados; `npm start` levanta `ng serve` y responde `HTTP 200` en http://localhost:4200. La cadena UI ? proxy ? backend ? PostgreSQL se comprobó con login y `GET /api/projects` ? `200` a través de `http://localhost:4200/api`.
+Verificado: `added 377 packages, and audited 378 packages in 20s`; `typescript`, `@angular/build` con el builder `dev-server`, `rxjs` y `esbuild` restaurados; `npm start` levanta `ng serve` y responde `HTTP 200` en http://localhost:4200. La cadena UI ? proxy ? backend ? PostgreSQL se comprobï¿½ con login y `GET /api/projects` ? `200` a travï¿½s de `http://localhost:4200/api`.
 
 
 
-Nota verificada: `psql -U postgres` sin `-d` conecta a la base `postgres`, no a `gestor_tareas`; por eso el pipeline original omitía el destino real. Comando corregido arriba con `-d gestor_tareas`.
+Nota verificada: `psql -U postgres` sin `-d` conecta a la base `postgres`, no a `gestor_tareas`; por eso el pipeline original omitï¿½a el destino real. Comando corregido arriba con `-d gestor_tareas`.
 
-## 2. Matriz de progreso (evidencia frente a código y ejecución real)
+## 2. Matriz de progreso (evidencia frente a cï¿½digo y ejecuciï¿½n real)
 
 | ID | Frontend | Backend/API | Base de datos | Tests/docs | Defecto restante | Estado |
 |---|---|---|---|---|---|---|
-| US1.1 Crear proyecto | `ProjectForm` | `ProjectCommandService`, `ProjectController` (201) | `project` + `project_plan_history` (revisión 1 por trigger V004) | `ProjectUseCasesTest` | Ninguno | VERIFICADO |
-| US1.1 Plan (presupuesto/duración) | `PlanForm` | `BudgetPolicy` + tope del total asignado (409) | `project_plan_history` | `ProjectUseCasesTest`, E2E | Ninguno | VERIFICADO |
-| US1.2 Delegación | `DelegationDialog` | `DelegationPolicy` (solo Jefe, destino activo, 403) | `manager_user_id` + `delegated_by` | `DelegationPolicyTest` | Ninguno | VERIFICADO |
+| US1.1 Crear proyecto | `ProjectForm` | `ProjectCommandService`, `ProjectController` (201) | `project` + `project_plan_history` (revisiï¿½n 1 por trigger V004) | `ProjectUseCasesTest` | Ninguno | VERIFICADO |
+| US1.1 Plan (presupuesto/duraciï¿½n) | `PlanForm` | `BudgetPolicy` + tope del total asignado (409) | `project_plan_history` | `ProjectUseCasesTest`, E2E | Ninguno | VERIFICADO |
+| US1.2 Delegaciï¿½n | `DelegationDialog` | `DelegationPolicy` (solo Jefe, destino activo, 403) | `manager_user_id` + `delegated_by` | `DelegationPolicyTest` | Ninguno | VERIFICADO |
 | US1.3 Override Jefe | Reutiliza los botones (el backend decide) | `CompletionPolicy`: Jefe ejecuta cualquier tarea, motivo registrado | `task_status_history.changed_by_user_id` | E2E 11-12 | Ninguno | IMPLEMENTADO Y VERIFICADO |
 | US2.1 Aislamiento | Selector de proyecto + guardias de ruta | `ProjectAccessPolicy` (404) y listado filtrado | Consultas por `manager_user_id` | `TaskUseCasesTest` | Ninguno | VERIFICADO |
-| US2.2 Estructura 5 niveles | `WbsService`, selector de etapa | `HierarchyController`, `HierarchyCommandService`, `WbsHierarchyPolicy` | `stage`, `activity`, `task.activity_id` | `wbs.service.spec.ts`, `TaskUseCasesTest` | Ninguno | IMPLEMENTADO Y VERIFICADO |
-| US2.3 Asignación Personal | `WbsService.assign/unassign`, `/workers` | `AssignmentCommandService`, `AssignmentPolicy` | `task_assignment` (clave compuesta) | E2E 6/15 | Ninguno | IMPLEMENTADO Y VERIFICADO |
-| US3.1 Lectura asignada | `listAssignedTasks()` | DTO sin campos financieros | Sin leer `allocated_budget_bob` | E2E paso 7 | Ninguno | VERIFICADO |
-| US3.2 Ejecución autorizada | Botones start/pause/complete | `CompletionPolicy` (403 si no asignado) | `completed_by_user_id` | E2E 8-10 | Ninguno | VERIFICADO |
-| US3.3 Progreso en cascada | Barra de progreso | `ProgressPolicy` (solo trabajo hoja) | Sin cambio de esquema | E2E paso 13 | Ninguno | IMPLEMENTADO Y VERIFICADO |
-| Mis tareas: sin "primer proyecto" | `selectedProjectId` explícito + estado vacío | `CreateTaskRequest.activityId` obligatorio | Tareas cuelgan de la actividad elegida | `task-list.spec.ts` | Ninguno | CORREGIDO Y VERIFICADO |
-| `task-list.css` (build producción) | Hoja propia ~3 kB + `src/design-system.css` global | n/a | n/a | `ng build --configuration production` sin errores ni avisos | Ninguno | CORREGIDO |
+| US2.2 Estructura 5 niveles | `WbsPanel` (crear/renombrar etapas y actividades, estados) + selector de etapa | `HierarchyController`, `HierarchyCommandService`, `WbsHierarchyPolicy` | `stage`, `activity`, `task.activity_id` | `wbs-panel.spec.ts`, `wbs.service.spec.ts`, `TaskUseCasesTest` | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| US2.3 Asignaciï¿½n Personal | `AssignmentDialog` (listar Personal, asignar con motivo, retirar) + badge en la tarjeta | `AssignmentCommandService`, `AssignmentPolicy` | `task_assignment` (clave compuesta) | `assignment-dialog.spec.ts`, E2E 23/23 | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| US3.1 Lectura asignada | Alcance Personal en `task-list` (`listAssignedTasks` cuando `/api/projects` devuelve `[]`) | DTO sin campos financieros | Sin leer `allocated_budget_bob` | `task-list.spec.ts` (bloque Personal), E2E 23/23 | Ninguno | VERIFICADO |
+| US3.2 Ejecuciï¿½n autorizada | Botones start/pause/complete | `CompletionPolicy` (403 si no asignado) | `completed_by_user_id` | E2E 8-10 | Ninguno | VERIFICADO |
+| US3.3 Progreso en cascada | `ProgressPanel` con el ï¿½rbol Proyecto ? Etapa ? Actividad ? Tarea ? Subtarea | `ProgressPolicy` (solo trabajo hoja) | Sin cambio de esquema | `progress-panel.spec.ts`, E2E 23/23 | Ninguno | IMPLEMENTADO Y VERIFICADO |
+| Mis tareas: sin "primer proyecto" | `selectedProjectId` explï¿½cito + estado vacï¿½o | `CreateTaskRequest.activityId` obligatorio | Tareas cuelgan de la actividad elegida | `task-list.spec.ts` | Ninguno | CORREGIDO Y VERIFICADO |
+| `task-list.css` (build producciï¿½n) | Hoja propia ~3 kB + `src/design-system.css` global | n/a | n/a | `ng build --configuration production` sin errores ni avisos | Ninguno | CORREGIDO |
 
-## 3. Verificación independiente del informe de Épica 1 del equipo
+## 3. Verificaciï¿½n independiente del informe de ï¿½pica 1 del equipo
 
-| Afirmación recibida | Archivo/símbolo real | Chequeo ejecutado | Veredicto | Corrección aplicada |
+| Afirmaciï¿½n recibida | Archivo/sï¿½mbolo real | Chequeo ejecutado | Veredicto | Correcciï¿½n aplicada |
 |---|---|---|---|---|
-| Login JWT; la API exige sesión | `SecurityConfiguration`, `AuthController`, `JwtTokenService` | Sin token ? 401; token forjado ? 401; `inactivo@gestor.local` ? 400 | VERIFICADO | Ninguna |
-| El Jefe crea proyectos y cambia plan/delegación | `ProjectCommandService`, `ProjectController` | Jefe ? 201/200; sin motivo ? 400; Encargado ? 403 | VERIFICADO | Ninguna |
-| El Encargado solo ve los proyectos que dirige | `ProjectQueryService`, `ProjectAccessPolicy` | Encargado1 ? 1 proyecto; Encargado2 sobre el ajeno ? 404; Personal ? lista vacía | VERIFICADO | Ninguna |
-| El Personal no puede ver proyectos | ídem | `GET /api/projects` como Personal ? 200 con `[]` | VERIFICADO | Documentado en `docs/api-v4.md` |
-| US1.1: motivo e historial de plan | Trigger V004 + `project_plan_history` | Revisión 1 creada; siguientes atribuidas; exceso ? 409 | VERIFICADO | Ninguna |
-| US1.2: historial de delegación | `manager_user_id` + `delegated_by` | Nuevo Encargado accede (200); anterior ? 404 | VERIFICADO | Ninguna |
+| Login JWT; la API exige sesiï¿½n | `SecurityConfiguration`, `AuthController`, `JwtTokenService` | Sin token ? 401; token forjado ? 401; `inactivo@gestor.local` ? 400 | VERIFICADO | Ninguna |
+| El Jefe crea proyectos y cambia plan/delegaciï¿½n | `ProjectCommandService`, `ProjectController` | Jefe ? 201/200; sin motivo ? 400; Encargado ? 403 | VERIFICADO | Ninguna |
+| El Encargado solo ve los proyectos que dirige | `ProjectQueryService`, `ProjectAccessPolicy` | Encargado1 ? 1 proyecto; Encargado2 sobre el ajeno ? 404; Personal ? lista vacï¿½a | VERIFICADO | Ninguna |
+| El Personal no puede ver proyectos | ï¿½dem | `GET /api/projects` como Personal ? 200 con `[]` | VERIFICADO | Documentado en `docs/api-v4.md` |
+| US1.1: motivo e historial de plan | Trigger V004 + `project_plan_history` | Revisiï¿½n 1 creada; siguientes atribuidas; exceso ? 409 | VERIFICADO | Ninguna |
+| US1.2: historial de delegaciï¿½n | `manager_user_id` + `delegated_by` | Nuevo Encargado accede (200); anterior ? 404 | VERIFICADO | Ninguna |
 | Ciclos de estado | `ProjectStatus`, `WorkStatus` | Transiciones ejecutadas y registradas | VERIFICADO | Documentado con las reglas aprobadas |
-| V004 es la migración final | `database/migrations/` (V001–V004) | Listado y `@applyV4Migrations` | VERIFICADO | Sin migraciones nuevas |
+| V004 es la migraciï¿½n final | `database/migrations/` (V001ï¿½V004) | Listado y `@applyV4Migrations` | VERIFICADO | Sin migraciones nuevas |
 | Usuarios de desarrollo | `seed-dev-users.sql` (bcrypt) | Los cinco usuarios hacen login; el inactivo se rechaza | VERIFICADO | Ninguna |
 | "Mis tareas" usa el primer proyecto | `WorkspacePersistenceAdapter.currentWorkspace` | Localizado y eliminado; hoy `activityId` es obligatorio | CORREGIDO | Ver US2.2 |
-| US1.3 pendiente | No existía ruta ni política | Implementado y probado (E2E 11-12) | IMPLEMENTADO | Ninguna |
+| US1.3 pendiente | No existï¿½a ruta ni polï¿½tica | Implementado y probado (E2E 11-12) | IMPLEMENTADO | Ninguna |
 | Build roto por `task-list.css` | 22,08 kB | `ng build` ? ERROR 8,00 kB; hoy limpio | CORREGIDO | Dividido en `src/design-system.css` + hoja propia compacta |
 
-## 4. Ejecución real (comandos y resultados)
+## 4. Ejecuciï¿½n real (comandos y resultados)
 
 | Comando | Resultado |
 |---|---|
-| `mvn clean test` (backend) | `Tests run: 59, Failures: 0, Errors: 0, Skipped: 0` — BUILD SUCCESS |
-| `npx ng test --watch=false` (frontend) | `Test Files 9 passed (9)`, `Tests 52 passed (52)` |
-| `npx ng build --configuration production` | `Application bundle generation complete` — 445,48 kB, sin errores ni avisos de presupuesto CSS |
-| `mvn clean spring-boot:run` | `Started TaskManagerApplication`; conecta a PostgreSQL 16 en `localhost:5432/gestor_tareas`, esquema `task_manager` |
-| E2E API (17 pasos) | Proyecto ? etapa ? actividad ? tarea ? subtarea ? asignación ? ejecución del Personal ? override del Jefe ? progreso: 200/201; rechazos 404/403/409/400 según corresponde |
-| Proxy `/api` desde el dev server | `/api/projects` ? 200 con proyectos reales |
+| `mvn clean test` (backend) | `Tests run: 65, Failures: 0, Errors: 0, Skipped: 0` ï¿½ BUILD SUCCESS |
+| `npx ng test --watch=false` (frontend) | `Test Files 13 passed (13)`, `Tests 90 passed (90)` |
+| `npx ng build --configuration production` | `Application bundle generation complete` ï¿½ 489,98 kB, sin errores ni avisos de presupuesto CSS |
+| `mvn clean spring-boot:run` | `Started TaskManagerApplication`; conecta a PostgreSQL 18 en `localhost:5432/gestor_tareas`, esquema `task_manager` |
+| Smoke test E2E (23 comprobaciones, backend + PostgreSQL reales) | Proyecto ? etapa (crear/renombrar) ? actividad (crear/estado) ? tarea ? listado de Personal ? asignaciï¿½n ? duplicado rechazado (400) ? `/tasks/assigned` sin campos financieros ? inicio y completado por el Personal ? progreso en cascada 100 % (1 de 1 hoja) ? retiro de asignaciï¿½n ? proyecto ajeno oculto (404): **23/23 OK** |
+| Proxy `/api` desde el dev server | Login por `http://localhost:4200/api/auth/login` ? token vï¿½lido; `/api/projects` ? 200 con proyectos reales |
+| Smoke test del plan de pruebas manuales (14 comprobaciones en caliente) | Contrasena incorrecta: 401 generico; usuario inactivo: 403 USER_INACTIVE; autoasignacion: 403 "No puedes asignarte trabajo a ti mismo"; etapa en proyecto cerrado: 409; presupuesto insuficiente: 409; Personal sigue viendo solo lo asignado: **14/14 OK** |
+
+### Detalle del smoke test E2E (23 comprobaciones)
+
+Cubre Expressamente lo que faltaba de US2.2, US2.3 y la ï¿½pica 3 en la interfaz:
+
+| # | Comprobaciï¿½n | Resultado |
+|---|---|---|
+| 1-2 | Login Jefe + creaciï¿½n de proyecto | OK |
+| 3-5 | US2.2: crear etapa (inicia `PENDIENTE`) y renombrarla con `version` | OK |
+| 6-7 | US2.2: crear actividad y llevarla a `EN_PROGRESO` | OK |
+| 8 | US2.2: crear tarea dentro de la actividad | OK |
+| 9-12 | US2.3: listar Personal del proyecto, asignar, listar asignaciones | OK |
+| 13 | US2.3: asignaciï¿½n duplicada rechazada con 400 | OK |
+| 14-15 | US3.1: el Personal ve su tarea en `/tasks/assigned` y la respuesta **no** trae campos financieros | OK |
+| 16-17 | US3.2: el Personal inicia y completa la tarea | OK |
+| 18-21 | US3.3: ï¿½rbol de progreso con raï¿½z, etapa y actividad al 100 % sobre 1 unidad hoja | OK |
+| 22 | US2.3: retirar la asignaciï¿½n | OK |
+| 23 | Aislamiento US2.1: el Encargado de otro proyecto recibe 404 | OK |
+
+Detalles de implementaciï¿½n comprobados en el frente: el `<select>` del diï¿½logo de asignaciï¿½n entrega el id como texto y se normaliza con `Number(...)` (mismo patrï¿½n que el diï¿½logo de delegaciï¿½n), y los permisos que el backend devuelve en `ProjectResponse.canManageHierarchy` solo muestran u ocultan acciones (el servidor sigue siendo quien autoriza).
 
 ## 5. URLs locales y arranque reproducible
 
 - Frontend: http://localhost:4200 (dev-server con proxy `/api` ? backend)
-- Backend: http://localhost:8080 (`/api/auth/login`, `/api/projects`, `/api/tasks`, …)
+- Backend: http://localhost:8080 (`/api/auth/login`, `/api/projects`, `/api/tasks`, ï¿½)
 - Base de datos: contenedor `gestor-tareas-db`, base `gestor_tareas`, esquema `task_manager`
-- Fixtures locales: `jefe@gestor.local`, `encargado1@gestor.local`, `encargado2@gestor.local`, `personal@gestor.local`, `inactivo@gestor.local` (contraseña `Gestor2026!`; el inactivo no puede autenticarse y nunca sustituyen la autorización real).
+- Fixtures locales: `jefe@gestor.local`, `encargado1@gestor.local`, `encargado2@gestor.local`, `personal@gestor.local`, `inactivo@gestor.local` (contraseï¿½a `Gestor2026!`; el inactivo no puede autenticarse y nunca sustituyen la autorizaciï¿½n real).
 
 ## 6. Bloqueo real pendiente
 
-Ninguno para el alcance aprobado. Pendientes únicamente: el informe PDF académico (entregable externo no alojado aquí) y el despliegue remoto (fuera de alcance).
+Ninguno para el alcance aprobado. Pendientes ï¿½nicamente: el informe PDF acadï¿½mico (entregable externo no alojado aquï¿½) y el despliegue remoto (fuera de alcance).

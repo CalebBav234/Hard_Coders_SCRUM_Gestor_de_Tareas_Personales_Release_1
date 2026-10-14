@@ -8,7 +8,11 @@
 
     <div>
       <h1 class="page-title">
-        Mis tareas
+        @if (usesPersonalScope) {
+          Tareas asignadas
+        } @else {
+          Mis tareas
+        }
 
         <span class="task-count">
           {{ parentTasks.length }}
@@ -16,7 +20,11 @@
       </h1>
 
       <p class="page-subtitle">
-        Organiza, activa y completa tus tareas.
+        @if (usesPersonalScope) {
+          Estas son las tareas que tu Encargado te asignó.
+        } @else {
+          Organiza, activa y completa tus tareas.
+        }
       </p>
     </div>
 
@@ -34,6 +42,19 @@
           <span class="completed-count">
             {{ completedTasks.length }}
           </span>
+        </button>
+
+      }
+
+      @if (canManageHierarchy) {
+
+        <button
+          type="button"
+          class="btn-wbs-toggle"
+          [class.active]="wbsPanelOpen"
+          (click)="toggleWbsPanel()"
+        >
+          ▤ Estructura
         </button>
 
       }
@@ -108,6 +129,23 @@
             <option [ngValue]="stage.stageId">{{ stage.name }}</option>
           }
         </select>
+
+        <!-- US2.2: la actividad concreta donde se crean las tareas nuevas -->
+        @if (categories.length > 0) {
+          <label for="workspace-activity">Actividad</label>
+
+          <select
+            id="workspace-activity"
+            [(ngModel)]="selectedActivityId"
+            (ngModelChange)="selectActivity($event)"
+          >
+            <option [ngValue]="null">— Selecciona —</option>
+
+            @for (category of categories; track category.id) {
+              <option [ngValue]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        }
       }
 
       @if (selectedProjectId !== null) {
@@ -116,17 +154,22 @@
 
     </section>
 
+    <!-- US2.2 — constructor de la WBS (etapas y actividades) -->
+    @if (wbsPanelOpen && selectedProjectId !== null) {
+      <app-wbs-panel
+        [projectId]="selectedProjectId"
+        [canManage]="canManageHierarchy"
+        (structureChanged)="loadCategories(); loadTasks()"
+      ></app-wbs-panel>
+    }
+
     @if (selectedProjectId !== null) {
 
-      <section class="progress-panel">
-
-        <h3>Progreso en cascada del proyecto</h3>
-
-        <div class="progress-bar">
-          <span [style.width.%]="progressRatio"></span>
-        </div>
-
-      </section>
+      <!-- US3.3 — progreso en cascada con el árbol completo -->
+      <app-progress-panel
+        [projectId]="selectedProjectId"
+        (loaded)="onProgressLoaded($event)"
+      ></app-progress-panel>
 
     }
 
@@ -403,6 +446,26 @@
 
             <div class="task-actions">
 
+              <!-- US2.3 — asignar Personal a la tarea -->
+
+              @if (canManageHierarchy) {
+
+                <button
+                  type="button"
+                  (click)="openAssignment(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  👥 Asignar
+
+                  @if (assignedCount(task) > 0) {
+                    <span class="assigned-count">
+                      {{ assignedCount(task) }}
+                    </span>
+                  }
+                </button>
+
+              }
+
               @if (task.status === 'INACTIVA') {
 
                 <button
@@ -558,15 +621,39 @@
       </div>
 
       <h3>
-        No hay tareas
+        @if (usesPersonalScope) {
+          No tienes tareas asignadas
+        } @else {
+          No hay tareas
+        }
       </h3>
 
       <p>
-        Crea una tarea para comenzar a organizar
-        tu trabajo.
+        @if (usesPersonalScope) {
+          Cuando tu Encargado te asigne una tarea aparecerá aquí.
+        } @else {
+          Crea una tarea para comenzar a organizar tu trabajo.
+        }
       </p>
 
     </div>
+
+  }
+
+
+  <!-- =========================================================
+       US2.3 — DIÁLOGO DE ASIGNACIÓN DE PERSONAL
+       ========================================================= -->
+
+  @if (assigningTask) {
+
+    <app-assignment-dialog
+      [taskId]="assignmentTaskId(assigningTask)"
+      [taskTitle]="assigningTask.title"
+      [projectId]="selectedProjectId ?? 0"
+      (changed)="onAssignmentsChanged()"
+      (closed)="closeAssignment()"
+    ></app-assignment-dialog>
 
   }
 

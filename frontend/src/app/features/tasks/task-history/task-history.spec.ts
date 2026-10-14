@@ -27,6 +27,7 @@ describe('TaskHistory', () => {
       createdAt: '2026-08-31T16:00:00Z',
       updatedAt: '2026-08-31T18:00:00Z',
       version: 3,
+      assignedWorkerIds: [],
       subtasks: [],
     },
     cancelledAt: null,
@@ -61,6 +62,7 @@ describe('TaskHistory', () => {
   }
 
   beforeEach(async () => {
+    await TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TaskHistory],
       providers: [provideHttpClient(), provideHttpClientTesting()],
@@ -68,9 +70,14 @@ describe('TaskHistory', () => {
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TaskHistory);
     element = fixture.nativeElement;
-    // El histórico pertenece al proyecto que elige el usuario; nunca al "primero".
-    fixture.componentInstance.selectedProjectId = 7;
+    // Al entrar solo se piden los proyectos entre los que elegir.
     fixture.detectChanges();
+    http
+      .expectOne('/api/projects')
+      .flush([{ projectId: 7, name: 'Proyecto del historial', description: null }]);
+    fixture.detectChanges();
+    // El histórico pertenece al proyecto que elige el usuario; nunca al "primero".
+    fixture.componentInstance.selectProject(7);
     // Títulos de las tareas principales (para mostrar a qué tarea pertenece una subtarea).
     http.expectOne((r) => r.url === '/api/tasks' && r.params.get('projectId') === '7').flush([]);
   });
@@ -163,13 +170,13 @@ describe('TaskHistory', () => {
     );
   });
 
-  it('explains when the backend does not expose the history endpoint', async () => {
+  it('explains when the chosen project is not available anymore', async () => {
     http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7');
     http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7').flush({}, { status: 404, statusText: 'Not Found' });
     await fixture.whenStable();
     fixture.detectChanges();
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
-      'Actualiza y reinicia el backend',
+      'No se encontró el proyecto',
     );
     expect(element.querySelector('.empty-message')).toBeNull();
   });
@@ -180,5 +187,57 @@ describe('TaskHistory', () => {
     fixture.destroy();
     expect(pending.cancelled).toBe(true);
     expect(pendingSubtasks.cancelled).toBe(true);
+  });
+});
+
+describe('TaskHistory sin proyecto elegido', () => {
+  let fixture: ComponentFixture<TaskHistory>;
+  let http: HttpTestingController;
+
+  beforeEach(async () => {
+    await TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [TaskHistory],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(TaskHistory);
+    // Al entrar a la pantalla todavía no hay proyecto: solo se carga la lista para elegir.
+    fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+    http.verify();
+  });
+
+  it('does not ask for the history until the user picks a project', () => {
+    http.expectOne('/api/projects').flush([
+      { projectId: 7, name: 'Proyecto del historial', description: null },
+    ]);
+    fixture.detectChanges();
+
+    // Sin proyecto elegido nunca se llama al backend con un projectId inventado (el fallo
+    // que rompía la pantalla al entrar: projectId 0 y un 404 mal interpretado).
+    http.expectNone((r) => r.url === '/api/tasks/history');
+    http.expectNone((r) => r.url === '/api/subtasks/history');
+    http.expectNone((r) => r.url === '/api/tasks');
+    expect(fixture.componentInstance.history).toEqual([]);
+    expect(fixture.componentInstance.error).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Elige un proyecto');
+  });
+
+  it('asks for the history of the project the user picks', () => {
+    http.expectOne('/api/projects').flush([
+      { projectId: 7, name: 'Proyecto del historial', description: null },
+    ]);
+    fixture.detectChanges();
+
+    fixture.componentInstance.selectProject(7);
+
+    http.expectOne((r) => r.url === '/api/tasks/history' && r.params.get('projectId') === '7').flush([]);
+    http.expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('projectId') === '7').flush([]);
+    http.expectOne((r) => r.url === '/api/tasks' && r.params.get('projectId') === '7').flush([]);
+    expect(fixture.componentInstance.selectedProjectId).toBe(7);
   });
 });

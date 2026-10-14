@@ -1,0 +1,59 @@
+<section class="progress-panel" aria-label="Progreso en cascada del proyecto">
+
+  <header class="progress-panel-header">
+    <h2>Progreso en cascada (US3.3)</h2>
+    @if (progress) {
+      <p>{{ progress.projectName }} — {{ percent(progress.root.ratio) }} %</p>
+    }
+  </header>
+
+  @if (loading) {
+
+    <p class="progress-empty">Calculando progreso...</p>
+
+  } @else if (error) {
+
+    <p class="progress-empty">{{ error }}</p>
+
+  } @else if (progress) {
+
+    <ng-container *ngTemplateOutlet="nodeTemplate; context: { node: progress.root, depth: 0 }"></ng-container>
+
+  }
+
+</section>
+
+<ng-template #nodeTemplate let-node="node" let-depth="depth">
+
+  <div class="progress-node" [class.leaf]="node.leaf" [style.margin-left.px]="depth * 16">
+
+    <div class="progress-node-head">
+      <span class="progress-node-name" [title]="levelOf(node)">{{ node.name }}</span>
+      <span class="progress-node-ratio">{{ percent(node.ratio) }} %</span>
+    </div>
+
+    <div
+      class="progress-bar"
+      role="progressbar"
+      [attr.aria-valuenow]="percent(node.ratio)"
+      aria-valuemin="0"
+      aria-valuemax="100"
+    >
+      <span [style.width.%]="percent(node.ratio)"></span>
+    </div>
+
+    @if (!node.leaf) {
+      <span class="progress-node-count">{{ node.completed }} de {{ node.total }} unidades hoja</span>
+    }
+
+  </div>
+
+  @if (node.children.length > 0) {
+    <div class="progress-children">
+      @for (child of node.children; track child.id) {
+        <ng-container *ngTemplateOutlet="nodeTemplate; context: { node: child, depth: depth + 1 }"></ng-container>
+      }
+    </div>
+  }
+
+</ng-template>

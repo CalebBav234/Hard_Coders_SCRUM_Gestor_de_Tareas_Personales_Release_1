@@ -19,10 +19,9 @@
 .workspace-bar select:focus { outline: none; border-color: var(--cometa); }
 .workspace-bar .ratio { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--priority-media); }
 
-/* ---------------- progreso en cascada (US3.3) ---------------- */
-.progress-panel h3 { margin: 0 0 8px; font-size: 14px; font-weight: 650; }
-.progress-bar { height: 8px; border-radius: 999px; background: var(--martinica); overflow: hidden; }
-.progress-bar span { display: block; height: 100%; border-radius: 999px; background: var(--priority-alta); }
+/* ---------------- estructura y asignaciones (US2.2 / US2.3) ---------------- */
+.btn-wbs-toggle.active { background: var(--martinica); border-color: var(--cometa); }
+.assigned-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--scampi); color: #fff; font-size: 10px; font-weight: 700; }
 
 /* ---------------- rejilla y buscador ---------------- */
 .tasks { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 0 4px; }

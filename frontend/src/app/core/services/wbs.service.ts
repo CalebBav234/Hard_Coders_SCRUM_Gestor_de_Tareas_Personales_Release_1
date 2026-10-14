@@ -4,8 +4,11 @@ import { Observable } from 'rxjs';
 import {
   ActivityDetailDto,
   AssignmentDto,
+  HierarchyStatusBody,
   ProjectProgressDto,
   StageDto,
+  UpdateActivityBody,
+  UpdateStageBody,
 } from '../models/api';
 import { UserSummary } from '../models/project';
 
@@ -36,12 +39,38 @@ export class WbsService {
     return this.http.post<StageDto>(`${this.projectsUrl}/${projectId}/stages`, { name, description });
   }
 
+  /** US2.2: renombrar o describir de nuevo la etapa (requiere la versión mostrada). */
+  updateStage(stageId: number, name: string, description: string | null, version: number): Observable<StageDto> {
+    const body: UpdateStageBody = { name, description, version };
+    return this.http.put<StageDto>(`${this.stagesUrl}/${stageId}`, body);
+  }
+
+  /** US2.2: PENDIENTE | EN_PROGRESO | COMPLETADA | CANCELADA sobre la etapa. */
+  changeStageStatus(stageId: number, status: HierarchyStatusBody['status'], version: number): Observable<StageDto> {
+    return this.http.put<StageDto>(`${this.stagesUrl}/${stageId}/status`, { status, version });
+  }
+
   listActivities(stageId: number): Observable<ActivityDetailDto[]> {
     return this.http.get<ActivityDetailDto[]>(`${this.stagesUrl}/${stageId}/activities`);
   }
 
   createActivity(stageId: number, name: string, description: string | null): Observable<ActivityDetailDto> {
     return this.http.post<ActivityDetailDto>(`${this.stagesUrl}/${stageId}/activities`, { name, description });
+  }
+
+  /** US2.2: renombrar o describir de nuevo la actividad (requiere la versión mostrada). */
+  updateActivity(activityId: number, name: string, description: string | null, version: number): Observable<ActivityDetailDto> {
+    const body: UpdateActivityBody = { name, description, version };
+    return this.http.put<ActivityDetailDto>(`${this.activitiesUrl}/${activityId}`, body);
+  }
+
+  /** US2.2: PENDIENTE | EN_PROGRESO | COMPLETADA | CANCELADA sobre la actividad. */
+  changeActivityStatus(
+    activityId: number,
+    status: HierarchyStatusBody['status'],
+    version: number,
+  ): Observable<ActivityDetailDto> {
+    return this.http.put<ActivityDetailDto>(`${this.activitiesUrl}/${activityId}/status`, { status, version });
   }
 
   /** Trabajadores activos que el Encargado puede asignar en el proyecto. */

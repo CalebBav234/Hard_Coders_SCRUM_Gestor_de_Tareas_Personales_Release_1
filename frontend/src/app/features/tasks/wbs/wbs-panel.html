@@ -1,0 +1,364 @@
+<section class="wbs-panel" aria-label="Estructura del proyecto: etapas y actividades">
+
+  <header class="wbs-header">
+
+    <div>
+      <h2>Estructura del proyecto (WBS)</h2>
+      <p>
+        Etapas y actividades donde se organizan las tareas (US2.2).
+      </p>
+    </div>
+
+    @if (canManage) {
+      <button
+        type="button"
+        class="btn-wbs-toggle"
+        (click)="toggleNewStage()"
+      >
+        + Nueva etapa
+      </button>
+    }
+
+  </header>
+
+  @if (success) {
+    <div class="alert alert-success" role="status">
+      {{ success }}
+      <button type="button" class="wbs-dismiss" aria-label="Descartar" (click)="dismissMessages()">×</button>
+    </div>
+  }
+
+  @if (error) {
+    <div class="alert alert-error" role="alert">
+      {{ error }}
+      <button type="button" class="wbs-dismiss" aria-label="Descartar" (click)="dismissMessages()">×</button>
+    </div>
+  }
+
+  <!-- FORMULARIO NUEVA ETAPA -->
+  @if (canManage && newStageOpen) {
+
+    <div class="wbs-create">
+
+      <div class="form-group">
+        <label for="wbs-new-stage-name">Nombre de la etapa</label>
+        <input
+          id="wbs-new-stage-name"
+          type="text"
+          maxlength="160"
+          placeholder="Ej. Construcción"
+          [(ngModel)]="newStageName"
+          [disabled]="busyId !== null"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="wbs-new-stage-description">Descripción (opcional)</label>
+        <input
+          id="wbs-new-stage-description"
+          type="text"
+          maxlength="2000"
+          placeholder="Ej. Obra gruesa y acabados"
+          [(ngModel)]="newStageDescription"
+          [disabled]="busyId !== null"
+        />
+      </div>
+
+      <div class="wbs-create-actions">
+        <button
+          type="button"
+          class="btn-wbs-save"
+          (click)="createStage()"
+          [disabled]="busyId !== null || newStageName.trim() === ''"
+        >
+          {{ busyId === 'new-stage' ? 'Creando...' : 'Crear etapa' }}
+        </button>
+        <button type="button" class="btn-wbs-cancel" (click)="toggleNewStage()" [disabled]="busyId !== null">
+          Cancelar
+        </button>
+      </div>
+
+    </div>
+
+  }
+
+  <!-- LISTA DE ETAPAS -->
+  @if (loadingStages) {
+
+    <div class="empty-message">Cargando etapas...</div>
+
+  } @else if (stages.length === 0) {
+
+    <div class="empty-message">
+      <p>Este proyecto todavía no tiene etapas.</p>
+      <p>Crea la primera etapa para organizar las actividades y las tareas.</p>
+    </div>
+
+  } @else {
+
+    <ul class="wbs-stages">
+
+      @for (stage of stages; track stage.stageId) {
+
+        <li class="wbs-stage">
+
+          <div class="wbs-stage-head">
+
+            <button
+              type="button"
+              class="wbs-stage-toggle"
+              [attr.aria-expanded]="expandedStageId === stage.stageId"
+              (click)="toggleStage(stage)"
+            >
+              <span class="wbs-chevron" [class.open]="expandedStageId === stage.stageId">▸</span>
+              <strong>{{ stage.name }}</strong>
+              <span class="wbs-status" [ngClass]="statusClass(stage.status)">
+                {{ statusLabel(stage.status) }}
+              </span>
+              <span class="wbs-count">{{ stage.stageId === expandedStageId ? activities.length : '' }}</span>
+            </button>
+
+            @if (canManage) {
+              <div class="wbs-stage-actions">
+
+                @for (status of nextStatuses(stage.status); track status) {
+                  <button
+                    type="button"
+                    class="btn-wbs-status"
+                    (click)="changeStageStatus(stage, status)"
+                    [disabled]="busyId !== null"
+                  >
+                    {{ statusActionLabel(stage.status, status) }}
+                  </button>
+                }
+
+                <button type="button" class="btn-wbs-edit" (click)="startStageEdit(stage)" [disabled]="busyId !== null">
+                  ✎
+                </button>
+
+              </div>
+            }
+
+          </div>
+
+          <!-- EDICIÓN DE ETAPA -->
+          @if (editingStageId === stage.stageId) {
+
+            <div class="wbs-edit">
+
+              <div class="form-group">
+                <label for="wbs-stage-name-{{ stage.stageId }}">Nombre</label>
+                <input
+                  id="wbs-stage-name-{{ stage.stageId }}"
+                  type="text"
+                  maxlength="160"
+                  [(ngModel)]="editingStageName"
+                  [disabled]="busyId !== null"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="wbs-stage-description-{{ stage.stageId }}">Descripción</label>
+                <input
+                  id="wbs-stage-description-{{ stage.stageId }}"
+                  type="text"
+                  maxlength="2000"
+                  [(ngModel)]="editingStageDescription"
+                  [disabled]="busyId !== null"
+                />
+              </div>
+
+              <div class="wbs-edit-actions">
+                <button
+                  type="button"
+                  class="btn-wbs-save"
+                  (click)="saveStage(stage)"
+                  [disabled]="busyId !== null || editingStageName.trim() === ''"
+                >
+                  {{ busyId === 'stage-' + stage.stageId ? 'Guardando...' : 'Guardar' }}
+                </button>
+                <button type="button" class="btn-wbs-cancel" (click)="cancelStageEdit()" [disabled]="busyId !== null">
+                  Cancelar
+                </button>
+              </div>
+
+            </div>
+
+          }
+
+          <!-- ACTIVIDADES DE LA ETAPA DESPLEGADA -->
+          @if (expandedStageId === stage.stageId) {
+
+            <div class="wbs-activities">
+
+              @if (loadingActivities) {
+
+                <div class="empty-message">Cargando actividades...</div>
+
+              } @else {
+
+                @if (activities.length === 0) {
+
+                  <div class="empty-message">
+                    <p>La etapa todavía no tiene actividades.</p>
+                  </div>
+
+                } @else {
+
+                  <ul class="wbs-activity-list">
+
+                    @for (activity of activities; track activity.activityId) {
+
+                      <li class="wbs-activity">
+
+                        @if (editingActivityId === activity.activityId) {
+
+                          <div class="wbs-edit">
+                            <div class="form-group">
+                              <label for="wbs-activity-name-{{ activity.activityId }}">Nombre</label>
+                              <input
+                                id="wbs-activity-name-{{ activity.activityId }}"
+                                type="text"
+                                maxlength="160"
+                                [(ngModel)]="editingActivityName"
+                                [disabled]="busyId !== null"
+                              />
+                            </div>
+                            <div class="form-group">
+                              <label for="wbs-activity-description-{{ activity.activityId }}">Descripción</label>
+                              <input
+                                id="wbs-activity-description-{{ activity.activityId }}"
+                                type="text"
+                                maxlength="2000"
+                                [(ngModel)]="editingActivityDescription"
+                                [disabled]="busyId !== null"
+                              />
+                            </div>
+                            <div class="wbs-edit-actions">
+                              <button
+                                type="button"
+                                class="btn-wbs-save"
+                                (click)="saveActivity(activity)"
+                                [disabled]="busyId !== null || editingActivityName.trim() === ''"
+                              >
+                                Guardar
+                              </button>
+                              <button
+                                type="button"
+                                class="btn-wbs-cancel"
+                                (click)="cancelActivityEdit()"
+                                [disabled]="busyId !== null"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+
+                        } @else {
+
+                          <div class="wbs-activity-head">
+                            <span class="wbs-activity-name">{{ activity.name }}</span>
+                            <span class="wbs-status" [ngClass]="statusClass(activity.status)">
+                              {{ statusLabel(activity.status) }}
+                            </span>
+
+                            @if (canManage) {
+                              <div class="wbs-stage-actions">
+
+                                @for (status of nextStatuses(activity.status); track status) {
+                                  <button
+                                    type="button"
+                                    class="btn-wbs-status"
+                                    (click)="changeActivityStatus(activity, status)"
+                                    [disabled]="busyId !== null"
+                                  >
+                                    {{ statusActionLabel(activity.status, status) }}
+                                  </button>
+                                }
+
+                                <button
+                                  type="button"
+                                  class="btn-wbs-edit"
+                                  (click)="startActivityEdit(activity)"
+                                  [disabled]="busyId !== null"
+                                >
+                                  ✎
+                                </button>
+
+                              </div>
+                            }
+
+                          </div>
+
+                          @if (activity.description) {
+                            <p class="wbs-activity-description">{{ activity.description }}</p>
+                          }
+
+                        }
+
+                      </li>
+
+                    }
+
+                  </ul>
+
+                }
+
+                <!-- FORMULARIO NUEVA ACTIVIDAD -->
+                @if (canManage) {
+
+                  <div class="wbs-create wbs-create-activity">
+
+                    <div class="form-group">
+                      <label for="wbs-new-activity-name-{{ stage.stageId }}">Nombre de la actividad</label>
+                      <input
+                        id="wbs-new-activity-name-{{ stage.stageId }}"
+                        type="text"
+                        maxlength="160"
+                        placeholder="Ej. Cimentación"
+                        [(ngModel)]="newActivityName"
+                        [disabled]="busyId !== null"
+                      />
+                    </div>
+
+                    <div class="form-group">
+                      <label for="wbs-new-activity-description-{{ stage.stageId }}">Descripción (opcional)</label>
+                      <input
+                        id="wbs-new-activity-description-{{ stage.stageId }}"
+                        type="text"
+                        maxlength="2000"
+                        [(ngModel)]="newActivityDescription"
+                        [disabled]="busyId !== null"
+                      />
+                    </div>
+
+                    <div class="wbs-create-actions">
+                      <button
+                        type="button"
+                        class="btn-wbs-save"
+                        (click)="createActivity()"
+                        [disabled]="busyId !== null || newActivityName.trim() === ''"
+                      >
+                        {{ busyId === 'new-activity-' + stage.stageId ? 'Creando...' : 'Crear actividad' }}
+                      </button>
+                    </div>
+
+                  </div>
+
+                }
+
+              }
+
+            </div>
+
+          }
+
+        </li>
+
+      }
+
+    </ul>
+
+  }
+
+</section>

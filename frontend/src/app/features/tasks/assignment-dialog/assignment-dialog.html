@@ -1,0 +1,148 @@
+<div class="assignment-overlay" (click)="$event.target === $event.currentTarget && close()">
+
+  <dialog
+    class="assignment-modal"
+    open
+    aria-modal="true"
+    aria-labelledby="assignment-modal-title"
+  >
+
+    <header class="assignment-modal-header">
+
+      <div>
+        <span class="assignment-eyebrow">ASIGNAR PERSONAL</span>
+        <h2 id="assignment-modal-title">{{ taskTitle }}</h2>
+        <p>Elige el Personal que ejecutará esta tarea (US2.3).</p>
+      </div>
+
+      <button
+        type="button"
+        class="btn-assign-close"
+        aria-label="Cerrar asignaciones"
+        (click)="close()"
+      >
+        ×
+      </button>
+
+    </header>
+
+    @if (success) {
+      <div class="alert alert-success" role="status">{{ success }}</div>
+    }
+
+    @if (error) {
+      <div class="alert alert-error" role="alert">{{ error }}</div>
+    }
+
+    <div class="assignment-modal-content">
+
+      <!-- ASIGNACIONES ACTUALES -->
+
+      <section class="assignment-section">
+
+        <h3>Personal asignado</h3>
+
+        @if (assignments.length === 0) {
+
+          <p class="assignment-empty">Todavía no hay Personal asignado a esta tarea.</p>
+
+        } @else {
+
+          <ul class="assignment-list">
+
+            @for (assignment of assignments; track assignment.workerUserId) {
+
+              <li class="assignment-item">
+
+                <div class="assignment-item-info">
+                  <strong>{{ assignment.workerName }}</strong>
+                  <span>Asignado por {{ assignment.assignedByName }}</span>
+                </div>
+
+                <button
+                  type="button"
+                  class="btn-unassign"
+                  (click)="unassign(assignment)"
+                  [disabled]="saving"
+                >
+                  Retirar
+                </button>
+
+              </li>
+
+            }
+
+          </ul>
+
+        }
+
+      </section>
+
+      <!-- NUEVA ASIGNACIÓN -->
+
+      <section class="assignment-section">
+
+        <h3>Asignar nuevo Personal</h3>
+
+        @if (loading) {
+
+          <p class="assignment-empty">Cargando Personal...</p>
+
+        } @else if (availableWorkers.length === 0) {
+
+          <p class="assignment-empty">No queda Personal activo disponible para asignar.</p>
+
+        } @else {
+
+          <div class="assignment-form">
+
+            <div class="form-group">
+              <label for="assignment-worker">Trabajador</label>
+              <select
+                id="assignment-worker"
+                [(ngModel)]="selectedWorkerId"
+                [disabled]="saving"
+              >
+                <option [ngValue]="null">— Selecciona —</option>
+                @for (worker of availableWorkers; track worker.userId) {
+                  <option [value]="worker.userId">
+                    {{ worker.fullName }}{{ worker.chief ? ' (Jefe)' : '' }}
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="assignment-reason">Motivo (opcional)</label>
+              <input
+                id="assignment-reason"
+                type="text"
+                maxlength="500"
+                placeholder="Ej. Experiencia en cimentación"
+                [(ngModel)]="reason"
+                [disabled]="saving"
+              />
+            </div>
+
+            <div class="assignment-form-actions">
+              <button
+                type="button"
+                class="btn-assign"
+                (click)="assign()"
+                [disabled]="saving || selectedWorkerId === null"
+              >
+                {{ saving ? 'Asignando...' : 'Asignar' }}
+              </button>
+            </div>
+
+          </div>
+
+        }
+
+      </section>
+
+    </div>
+
+  </dialog>
+
+</div>

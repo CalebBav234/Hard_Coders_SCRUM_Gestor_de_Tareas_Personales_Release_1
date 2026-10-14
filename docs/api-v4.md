@@ -53,6 +53,8 @@ com.hardcoders.taskmanager
 
 | Método | URL | Cuerpo | Respuesta |
 |---|---|---|---|
+| POST | `/api/auth/login` | `{ email, password }` | `200` `{ token, expiresAt, user }`; `401 INVALID_CREDENTIALS` si el correo o la contraseña no coinciden; `403 USER_INACTIVE` si la cuenta existe pero está desactivada |
+| GET | `/api/auth/me` | — | `CurrentUserResponse` del token |
 | GET | `/api/projects` | — | Proyectos visibles para el actor (Jefe: todos; Encargado: los delegados; Personal: `[]`) |
 | GET | `/api/projects/{id}` | — | `ProjectResponse` o `404` si es de otro Encargado |
 | POST | `/api/projects` | `{ name, description?, managerUserId, budgetBob, estimatedDurationMinutes }` | `201` `ProjectResponse` (solo Jefe) |
@@ -62,9 +64,12 @@ com.hardcoders.taskmanager
 | GET | `/api/projects/eligible-managers` | — | Usuarios Jefe/Encargado activos |
 | GET | `/api/projects/{projectId}/stages` | — | `StageResponse[]` |
 | POST | `/api/projects/{projectId}/stages` | `{ name, description? }` | `201` `StageResponse` (Encargado del proyecto o Jefe) |
+| PUT | `/api/stages/{stageId}` | `{ name, description?, version }` | `StageResponse` (renombrar/redescribir) |
+| PUT | `/api/stages/{stageId}/status` | `{ status, version }` | `StageResponse` (PENDIENTE/EN_PROGRESO/COMPLETADA/CANCELADA) |
 | GET | `/api/stages/{stageId}/activities` | — | `ActivityResponse[]` |
 | POST | `/api/stages/{stageId}/activities` | `{ name, description? }` | `201` `ActivityResponse` |
-| PUT | `/api/activities/{activityId}` · status | `{ ..., version }` | `ActivityResponse` |
+| PUT | `/api/activities/{activityId}` | `{ name, description?, version }` | `ActivityResponse` (renombrar/redescribir) |
+| PUT | `/api/activities/{activityId}/status` | `{ status, version }` | `ActivityResponse` (PENDIENTE/EN_PROGRESO/COMPLETADA/CANCELADA) |
 | GET | `/api/tasks?projectId=&q=` | — | `TaskResponse[]` no canceladas del proyecto, con `subtasks` |
 | GET | `/api/tasks/assigned?q=` | — | `AssignedTaskResponse[]` (solo lo asignado al usuario del token) |
 | GET | `/api/tasks/{id}` | — | `TaskResponse` si es visible o está asignado |
@@ -93,6 +98,7 @@ Errores (`{ error, message, timestamp }`):
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Datos inválidos o asignación duplicada |
 | 401 | `UNAUTHORIZED` | Token ausente, forjado o caducado |
+| 403 | `FORBIDDEN` / `USER_INACTIVE` | Sin permiso para la operación, o cuenta desactivada al iniciar sesión |
 | 404 | `NOT_FOUND` | No existe, o pertenece a otro proyecto/Encargado |
 | 409 | `INVALID_STATE_TRANSITION` / `BUDGET_BELOW_ALLOCATIONS` | Transición no permitida o presupuesto del proyecto insuficiente |
 | 412 | `VERSION_CONFLICT` | La `version` enviada está desactualizada |
@@ -101,10 +107,14 @@ Errores (`{ error, message, timestamp }`):
 
 - `core/models/api.ts`: contrato HTTP V4 (incluye `StageDto`, `ActivityDetailDto`, `AssignmentDto`, `AssignedTaskDto`, `ProgressNodeDto`).
 - `core/models/task.ts`: modelo de vista con el vocabulario de la pantalla. Las subtareas usan su id en negativo (`kind: 'SUBTASK'`), porque `task` y `subtask` tienen secuencias independientes.
-- `core/models/project.ts`: contrato de proyectos.
-- `core/services/task-mapper.ts`: traducción V4 ⇄ vista.
+- `core/models/project.ts`: contrato de proyectos (incluye `canManageHierarchy`, permiso que devuelve el backend para mostrar u ocultar acciones de US2.2/US2.3).
+- `core/services/task-mapper.ts`: traducción V4 ⇄ vista (mapea también `assignedWorkerIds` para el badge de Personal de US2.3).
 - `core/services/task.service.ts`: fachada; todas las llamadas llevan `projectId` o `activityId` explícitos.
-- `core/services/wbs.service.ts`: etapas, actividades, asignaciones de Personal y progreso (US2.2, US2.3, US3.3).
+- `core/services/wbs.service.ts`: etapas, actividades, asignaciones de Personal y progreso (US2.2, US2.3, US3.3); además de crear, expone `updateStage`, `updateActivity`, `changeStageStatus` y `changeActivityStatus` (US2.2).
+- `features/tasks/wbs/wbs-panel.ts`: constructor de la WBS (US2.2). Con el proyecto elegido, crea/renombra etapas y actividades y cambia sus estados; avisa con `structureChanged` para recargar las "categorías" y la lista.
+- `features/tasks/assignment-dialog/assignment-dialog.ts`: asignación de Personal (US2.3). Lista el Personal activo del proyecto y las asignaciones actuales, asigna con motivo y retira asignaciones; el `<select>` entrega el id como texto y se normaliza con `Number(...)`, igual que el diálogo de delegación.
+- `features/tasks/progress-panel/progress-panel.ts`: vista de progreso en cascada (US3.3) con el árbol Proyecto → Etapa → Actividad → Tarea → Subtarea y el porcentaje de cada nodo; publica el árbol con `loaded` para que la pantalla muestre el ratio del proyecto.
+- `features/tasks/task-list.ts`: integra los tres paneles. Si `GET /api/projects` devuelve `[]` (Personal), activa el alcance "Mis tareas": carga y busca en `/api/tasks/assigned` y oculta el selector de proyectos (US3.1); si el proyecto elegido tiene `canManageHierarchy`, muestra el botón "Estructura" y "👥 Asignar" en cada tarea con el contador de Personal asignado.
 - `src/design-system.css`: primitivas compartidas (botones, campos, avisos, tarjetas, modal, panel lateral, post-its). Vive en la hoja global porque la usan varios features.
 - Las subtareas no muestran prioridad, categoría ni cronómetro. US-18 (relaciones) se quitó del servicio, porque no tenía pantalla.
 

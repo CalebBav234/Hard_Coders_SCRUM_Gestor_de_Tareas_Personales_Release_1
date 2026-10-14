@@ -13,7 +13,9 @@
 :is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-delete, .btn-new-subtask,
     .btn-clear, .btn-cancel-delete, .btn-confirm-delete, .btn-editor-save, .btn-editor-cancel,
     .task-actions button, .page-header-actions button, .subtask-postit-actions button,
-    .category-editor-actions button, .form-actions button, .editor-actions button, .subtasks-button) {
+    .category-editor-actions button, .form-actions button, .editor-actions button, .subtasks-button,
+    .btn-wbs-toggle, .btn-wbs-save, .btn-wbs-cancel, .btn-wbs-status, .btn-wbs-edit,
+    .btn-assign-open, .btn-assign, .btn-unassign, .btn-assign-close) {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 40px; padding: 0 15px;
   border: 1px solid var(--martinica); border-radius: 6px;
@@ -26,18 +28,24 @@
 :is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask, .btn-clear,
     .btn-editor-save, .btn-editor-cancel, .task-actions button, .page-header-actions button,
     .subtask-postit-actions button, .category-editor-actions button, .form-actions button,
-    .editor-actions button, .subtasks-button):hover:not(:disabled) {
+    .editor-actions button, .subtasks-button, .btn-wbs-toggle, .btn-wbs-save, .btn-wbs-cancel,
+    .btn-wbs-status, .btn-wbs-edit, .btn-assign-open, .btn-assign, .btn-unassign,
+    .btn-assign-close):hover:not(:disabled) {
   background: var(--martinica); border-color: var(--cometa); transform: translateY(-1px);
 }
 
 :is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask, .btn-editor-save,
     .task-actions button, .page-header-actions button, .subtask-postit-actions button,
-    .form-actions button, .editor-actions button):active:not(:disabled) { transform: translateY(0); }
+    .form-actions button, .editor-actions button, .subtasks-button, .btn-wbs-toggle, .btn-wbs-save,
+    .btn-wbs-cancel, .btn-wbs-status, .btn-wbs-edit, .btn-assign-open, .btn-assign, .btn-unassign,
+    .btn-assign-close):active:not(:disabled) { transform: translateY(0); }
 
 :is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask, .btn-clear,
     .task-actions button, .page-header-actions button, .subtask-postit-actions button,
     .category-editor-actions button, .form-actions button, .editor-actions button, .subtasks-button,
-    .btn-editor-save):disabled { opacity: .45; cursor: not-allowed; }
+    .btn-editor-save, .btn-wbs-toggle, .btn-wbs-save, .btn-wbs-cancel, .btn-wbs-status,
+    .btn-wbs-edit, .btn-assign-open, .btn-assign, .btn-unassign,
+    .btn-assign-close):disabled { opacity: .45; cursor: not-allowed; }
 
 :is(.btn-refresh, .btn-search, .btn-completed, .btn-reopen, .btn-new-subtask):focus-visible,
 :is(.form-actions button, .editor-actions button):focus-visible { outline: 2px solid var(--scampi); outline-offset: 2px; }
@@ -49,6 +57,15 @@
 .btn-editor-save { border-color: var(--priority-alta); color: var(--priority-alta); }
 .btn-new-subtask { min-height: 32px; padding: 0 9px; font-size: 10px; }
 .btn-search { min-height: 38px; padding: 0 14px; }
+
+/* US2.2 / US2.3 — acciones de la WBS y de las asignaciones */
+.btn-wbs-toggle { border-color: var(--priority-alta); color: var(--priority-alta); }
+.btn-wbs-save { border-color: var(--priority-alta); color: var(--priority-alta); }
+:is(.btn-wbs-status, .btn-wbs-edit, .btn-assign-open, .btn-assign) { min-height: 30px; padding: 0 10px; font-size: 10px; }
+.btn-unassign { min-height: 30px; padding: 0 10px; border-color: #b96767; font-size: 10px; color: #eab8b8; }
+.btn-unassign:hover:not(:disabled) { background: #b96767; border-color: #b96767; color: #fff; }
+.btn-assign-close { min-height: 32px; width: 32px; padding: 0; border-radius: 999px; font-size: 15px; }
+.btn-wbs-edit { min-height: 30px; width: 30px; padding: 0; border-radius: 999px; font-size: 12px; }
 
 /* ---------------- campos de formulario ---------------- */
 :is(.form-group, .editor-field) label { display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: 12px; font-weight: 600; }

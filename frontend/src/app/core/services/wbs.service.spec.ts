@@ -67,6 +67,46 @@ describe('WbsService (jerarquía, asignaciones y progreso)', () => {
     request.flush(activity);
   });
 
+  it('updates a stage sending the displayed version', () => {
+    service
+      .updateStage(4, 'Construccion', 'Obra gruesa', 11)
+      .subscribe((updated) => expect(updated.name).toBe('Diseno'));
+
+    const request = http.expectOne('/api/stages/4');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ name: 'Construccion', description: 'Obra gruesa', version: 11 });
+    request.flush(stage);
+  });
+
+  it('changes the status of a stage through its own route', () => {
+    service.changeStageStatus(4, 'EN_PROGRESO', 11).subscribe((updated) => expect(updated.status).toBe('PENDIENTE'));
+
+    const request = http.expectOne('/api/stages/4/status');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ status: 'EN_PROGRESO', version: 11 });
+    request.flush(stage);
+  });
+
+  it('updates an activity sending the displayed version', () => {
+    service
+      .updateActivity(6, 'Analisis', 'Levantamiento', 21)
+      .subscribe((updated) => expect(updated.name).toBe('Analisis'));
+
+    const request = http.expectOne('/api/activities/6');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ name: 'Analisis', description: 'Levantamiento', version: 21 });
+    request.flush(activity);
+  });
+
+  it('changes the status of an activity through its own route', () => {
+    service.changeActivityStatus(6, 'COMPLETADA', 21).subscribe();
+
+    const request = http.expectOne('/api/activities/6/status');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ status: 'COMPLETADA', version: 21 });
+    request.flush(activity);
+  });
+
   it('assigns and revokes Personal, sending the task explicitly', () => {
     const assignment: AssignmentDto = {
       taskId: 8,

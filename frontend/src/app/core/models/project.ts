@@ -29,6 +29,8 @@ export interface Project {
   canEditDetails: boolean;
   canEditPlan: boolean;
   canDelegate: boolean;
+  /** US2.2/US2.3: el actor puede construir la WBS y asignar Personal en este proyecto. */
+  canManageHierarchy: boolean;
   allowedStatuses: ProjectStatusName[];
 }
 

@@ -38,6 +38,8 @@ export interface TaskDto {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** US2.3: ids del Personal asignado a la tarea. */
+  assignedWorkerIds: number[];
   subtasks: SubtaskDto[];
 }
 
@@ -181,9 +183,27 @@ export interface CreateStageBody {
   description: string | null;
 }
 
+export interface UpdateStageBody {
+  name: string;
+  description: string | null;
+  version: number;
+}
+
 export interface CreateActivityBody {
   name: string;
   description: string | null;
+}
+
+export interface UpdateActivityBody {
+  name: string;
+  description: string | null;
+  version: number;
+}
+
+/** Cambio de estado de etapa o actividad (PENDIENTE | EN_PROGRESO | COMPLETADA | CANCELADA). */
+export interface HierarchyStatusBody {
+  status: WorkStatusName;
+  version: number;
 }
 
 export interface AssignWorkerBody {

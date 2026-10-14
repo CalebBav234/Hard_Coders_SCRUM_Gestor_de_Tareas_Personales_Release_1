@@ -35,6 +35,8 @@ export interface Task {
   priority: TaskPriority;
   categoryId?: number | null;
   categoryName?: string | null;
+  /** US2.3: ids del Personal asignado a la tarea (solo en la vista de proyecto). */
+  assignedWorkerIds?: number[];
   parentTaskId?: number | null;
   activatedAt?: string | null;
   completedAt?: string | null;

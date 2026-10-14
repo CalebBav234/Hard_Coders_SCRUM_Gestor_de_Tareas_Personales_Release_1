@@ -32,6 +32,7 @@ function project(overrides: Partial<Project> = {}): Project {
     canEditDetails: true,
     canEditPlan: true,
     canDelegate: true,
+    canManageHierarchy: true,
     allowedStatuses: ['CANCELADO', 'EN_EJECUCION'],
     ...overrides,
   };

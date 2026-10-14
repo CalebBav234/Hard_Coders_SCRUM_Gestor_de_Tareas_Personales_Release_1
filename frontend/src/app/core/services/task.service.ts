@@ -66,6 +66,7 @@ export class TaskService {
               ...assigned,
               allocatedBudgetBob: 0,
               estimatedDurationMinutes: 0,
+              assignedWorkerIds: [],
             };
             return taskToView(taskDto);
           }),

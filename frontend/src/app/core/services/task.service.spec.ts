@@ -23,6 +23,7 @@ function taskDto(overrides: Partial<TaskDto> = {}): TaskDto {
     createdAt: '2026-10-01T10:00:00Z',
     updatedAt: '2026-10-01T10:00:00Z',
     version: 1001,
+    assignedWorkerIds: [],
     subtasks: [],
     ...overrides,
   };

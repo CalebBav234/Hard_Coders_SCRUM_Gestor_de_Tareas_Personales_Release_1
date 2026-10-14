@@ -1,0 +1,199 @@
+/* US2.2 — panel de estructura (etapas y actividades).
+   Las primitivas (botones, campos, avisos) vienen de src/design-system.css. */
+
+.wbs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--martinica);
+  border-radius: 12px;
+  background: var(--arcilla-ebano);
+}
+
+.wbs-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wbs-header h2 {
+  margin: 0;
+  color: #f4f4f8;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.wbs-header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.wbs-dismiss {
+  margin-left: 10px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.wbs-create {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: end;
+  padding: 14px;
+  border: 1px dashed var(--martinica);
+  border-radius: 10px;
+  background: var(--espejismo);
+}
+
+.wbs-create-actions,
+.wbs-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.wbs-edit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin: 8px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--martinica);
+  border-radius: 10px;
+  background: var(--espejismo);
+}
+
+.wbs-stages,
+.wbs-activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wbs-stages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wbs-stage {
+  border: 1px solid var(--martinica);
+  border-radius: 10px;
+  background: var(--espejismo);
+  overflow: hidden;
+}
+
+.wbs-stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.wbs-stage-toggle {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #f4f4f8;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wbs-chevron {
+  color: var(--scampi);
+  transition: transform .15s ease;
+}
+
+.wbs-chevron.open {
+  transform: rotate(90deg);
+}
+
+.wbs-count {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wbs-stage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wbs-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border: 1px solid var(--martinica);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.wbs-status-pendiente { border-color: var(--priority-media); color: var(--priority-media); }
+.wbs-status-en-progreso { border-color: var(--scampi); color: var(--scampi); }
+.wbs-status-completada { border-color: var(--priority-alta); color: var(--priority-alta); }
+.wbs-status-cancelada { border-color: #b96767; color: #b96767; }
+
+.wbs-activities {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--martinica);
+}
+
+.wbs-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.wbs-activity {
+  padding: 10px 12px;
+  border: 1px solid var(--martinica);
+  border-radius: 8px;
+  background: var(--arcilla-ebano);
+}
+
+.wbs-activity-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wbs-activity-name {
+  flex: 1;
+  min-width: 0;
+  color: #eceae4;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wbs-activity-description {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.wbs-create-activity {
+  margin-top: 10px;
+}

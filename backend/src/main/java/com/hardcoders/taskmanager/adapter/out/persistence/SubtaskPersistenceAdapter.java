@@ -100,7 +100,7 @@ class SubtaskPersistenceAdapter implements SubtaskRepository {
         if (likePattern != null) {
             query.setParameter("pattern", likePattern);
         }
-        List<Integer> ids = ((List<?>) query.getResultList().stream()).stream()
+        List<Integer> ids = ((List<?>) query.getResultList()).stream()
                 .map(row -> ((Number) row).intValue())
                 .toList();
         if (ids.isEmpty()) {

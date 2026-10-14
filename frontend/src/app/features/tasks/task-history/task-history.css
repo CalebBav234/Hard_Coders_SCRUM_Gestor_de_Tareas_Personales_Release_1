@@ -13,6 +13,11 @@
 .history-header p { margin: 8px 0 0; color: #aaaac2; font-size: 13px; line-height: 1.5; }
 .history-count { flex-shrink: 0; align-self: center; display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border: 1px solid var(--martinica); border-radius: 999px; background: var(--arcilla-ebano); color: #c8c8df; font-size: 11px; font-weight: 700; }
 .btn-refresh { flex-shrink: 0; min-height: 38px; padding: 0 14px; font-size: 11px; }
+.history-project { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding: 11px 14px; border: 1px solid var(--martinica); border-radius: 9px; background: var(--arcilla-ebano); }
+.history-project label { flex-shrink: 0; color: #c8c8d8; font-size: 11px; font-weight: 650; }
+.history-project select { flex: 1; min-width: 0; min-height: 36px; padding: 0 10px; border: 1px solid var(--martinica); border-radius: 6px; background: var(--espejismo); color: #eeeeF5; font-family: inherit; font-size: 12px; outline: none; }
+.history-project select:hover { border-color: var(--cometa); }
+.history-project select:focus { border-color: var(--scampi); box-shadow: 0 0 0 2px rgb(104 104 166 / 12%); }
 .history-search { margin-bottom: 28px; padding: 15px; border: 1px solid var(--martinica); border-radius: 9px; background: var(--arcilla-ebano); }
 .history-search label { display: block; margin-bottom: 8px; color: #c8c8d8; font-size: 11px; font-weight: 650; }
 .search-controls { display: flex; gap: 8px; }
