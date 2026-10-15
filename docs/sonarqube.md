@@ -28,7 +28,7 @@ Primero genera el bytecode Java y verifica las pruebas. Luego ejecuta el escáne
 
 ```powershell
 cd backend
-mvn clean test
+mvn clean verify
 cd ..
 .\scripts\sonar\Invoke-SonarScan.ps1 -Token 'TOKEN_CREADO_EN_SONARQUBE'
 ```
@@ -42,7 +42,10 @@ El token no se escribe en ningún archivo ni se sube a Git. El resultado correct
 3. Refactoriza sin ocultar código mediante exclusiones, ejecuta pruebas y lanza A2 con la misma clave.
 4. En **Quality Profiles**, copia `Sonar way` de Java a `Hard Coders - Java` y, como práctica, configura *Cognitive Complexity of methods should not be too high* con umbral 12. Asócialo al proyecto.
 5. En **Quality Gates**, crea `Hard Coders - Quality Gate` y asócialo al proyecto. Las condiciones usadas en la práctica son: New Code Issues > 0; New Code Security Hotspots Reviewed < 100%; New/Overall Duplicated Lines (%) > 3%; Overall Maintainability Rating peor que A; Overall Reliability Rating peor que B; Overall Security Rating peor que A.
-6. Ejecuta A3 y compara A1/A2/A3 desde Overview y Activity. No añadas todavía cobertura como condición de gate: el repositorio no genera ni importa un informe JaCoCo XML, por lo que 0% no demuestra ausencia de pruebas.
+6. Ejecuta A3 y compara A1/A2/A3 desde Overview y Activity. El backend ya genera
+   `backend/target/site/jacoco/jacoco.xml` durante `mvn clean verify`, y el escáner lo importa
+   mediante `sonar.coverage.jacoco.xmlReportPaths`. La cobertura mostrada por SonarQube deja así
+   de ser 0 % por falta de informe y pasa a reflejar las pruebas realmente ejecutadas.
 
 ## Detener o reiniciar
 
@@ -55,6 +58,6 @@ No ejecutes `down -v` salvo que quieras borrar de forma irreversible SonarQube, 
 
 ## Alcance del escáner
 
-Se analizan `backend/src/main/java` y `frontend/src`; se reconocen pruebas Java y Angular. Se excluyen únicamente dependencias, salidas generadas y archivos de prueba de la métrica de código fuente. `.scannerwork` es salida transitoria e ignorada por Git.
+Se analizan `backend/src/main/java` y `frontend/src`; se reconocen pruebas Java y Angular. Se excluyen únicamente dependencias, salidas generadas y archivos de prueba de la métrica de código fuente. La cobertura Java procede del XML de JaCoCo generado por Maven. `.scannerwork` es salida transitoria e ignorada por Git.
 
 El escáner corre dentro de Linux/Docker. Para que también funcione cuando el proyecto está abierto como un *worktree* Git de Windows, `sonar.scm.disabled=true` evita intentar importar *blame* con rutas de Windows no montadas en el contenedor. Esto no excluye archivos ni altera issues, reglas, métricas o el historial de los análisis; solo omite la atribución de líneas a autores.
