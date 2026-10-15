@@ -161,24 +161,27 @@ Se agregó JaCoCo 0.8.15 al ciclo Maven y se configuró:
 sonar.coverage.jacoco.xmlReportPaths=backend/target/site/jacoco/jacoco.xml
 ```
 
-El SonarQube local respondió `UP` en la versión `26.9.0.129388`. El escaneo de esta rama no pudo
-publicarse porque el token presente en la sesión respondió `401 Unauthorized`; por ello no se
-afirma que el dashboard ya contenga este commit. Para completar la evidencia:
+El SonarQube local respondió `UP` en la versión `26.9.0.129388`. El escaneo de esta rama se
+publicó correctamente con `ANALYSIS SUCCESSFUL` y `EXECUTION SUCCESS`; el importador confirmó
+la lectura de un informe JaCoCo XML.
 
-1. abrir `http://localhost:9000`;
-2. ir a **My Account → Security** y crear un token de análisis nuevo;
-3. en una terminal privada, desde la raíz de esta rama, ejecutar:
+El Quality Gate global quedó en **Failed**, no por fallos de JUnit, sino por dos condiciones del
+proyecto: 48 issues en código nuevo y cobertura de código nuevo de 40,6 %, inferior al 80 %
+configurado. SonarQube reportó 54 issues totales (7 de Reliability y 47 de Maintainability),
+2,11 % de duplicación y 0 Security Hotspots. La cobertura de SonarQube abarca el conjunto de
+código nuevo del backend y frontend; no contradice el 100 % medido por JaCoCo en las seis
+unidades específicamente asignadas.
 
-```powershell
-$env:SONAR_TOKEN = 'TOKEN_NUEVO'
-cd backend
-mvn clean verify
-cd ..
-.\scripts\sonar\Invoke-SonarScan.ps1 -Token $env:SONAR_TOKEN
-```
+Evidencias capturadas:
 
-4. comprobar `ANALYSIS SUCCESSFUL` y capturar **Overview**, **Issues** y **Measures → Coverage**;
-5. no guardar el token en Git, capturas, historial compartido ni documentación.
+- [Overview y Quality Gate](evidencias/sonarqube/01-sonarqube-overview.png)
+- [Issues y distribución por severidad](evidencias/sonarqube/02-sonarqube-issues.png)
+- [Coverage en código nuevo](evidencias/sonarqube/03-sonarqube-coverage-new-code.png)
+- [Complejidad](evidencias/sonarqube/04-sonarqube-complexity.png)
+- [Cobertura de BudgetPolicy](evidencias/sonarqube/05-budget-policy-coverage.png)
+- [Cobertura de DelegationPolicy](evidencias/sonarqube/06-delegation-policy-coverage.png)
+- [Cobertura de ProjectCommandService](evidencias/sonarqube/07-project-command-service-coverage.png)
+- [Cobertura de ProjectController](evidencias/sonarqube/08-project-controller-coverage.png)
 
 SonarQube analiza bugs, vulnerabilidades, hotspots, code smells, duplicación y complejidad. La
 cobertura no la calcula Sonar por sí solo: importa el XML producido por JaCoCo.
@@ -191,8 +194,9 @@ cobertura no la calcula Sonar por sí solo: importa el XML producido por JaCoCo.
 > JUnit 5, AssertJ, Mockito y MockMvc. La suite completa ejecutó 88 pruebas sin fallos ni errores.
 > JaCoCo registró 100 % de líneas (34/34) y ramas (20/20) en las seis unidades asignadas. La
 > cobertura global del backend quedó en 49,17 %, por lo que el resto del equipo debe cubrir sus
-> historias para alcanzar el mínimo global de 70 %. El XML JaCoCo quedó preparado para importarse
-> en SonarQube y relacionar cobertura dinámica con hallazgos estáticos.
+> historias para alcanzar el mínimo global de 70 %. SonarQube importó el XML JaCoCo y relacionó
+> la cobertura dinámica con sus hallazgos estáticos; el Quality Gate global quedó pendiente por
+> cobertura del código nuevo e issues ajenos al alcance de estas seis unidades.
 
 ## 10. Archivos relevantes
 
