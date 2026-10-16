@@ -41,14 +41,19 @@ function Format-Coverage([int]$covered, [int]$missed, [int]$digits = 1) {
     return ('{0}%' -f (100.0 * $covered / $total).ToString($format, [Globalization.CultureInfo]::InvariantCulture))
 }
 
-$title = 'Cobertura din' + [char]0x00E1 + 'mica - JaCoCo'
-$subtitle = 'US2.2 y US2.3 - m' + [char]0x00E9 + 'todos de construcci' + [char]0x00F3 + 'n WBS y asignaci' + [char]0x00F3 + 'n de personal'
+$title = if ($data.title) { [string]$data.title } else { 'Cobertura din' + [char]0x00E1 + 'mica - JaCoCo' }
+$subtitle = if ($data.subtitle) { [string]$data.subtitle } else { 'US2.2 y US2.3 - m' + [char]0x00E9 + 'todos de construcci' + [char]0x00F3 + 'n WBS y asignaci' + [char]0x00F3 + 'n de personal' }
 $g.DrawString($title, $fontTitle, [System.Drawing.SolidBrush]::new($blue), 70, 32)
 $g.DrawString($subtitle, $fontSubtitle, $brushGray, 70, 88)
 $g.DrawLine($penRule, 70, 130, 1850, 130)
+$isUs31Us32 = $null -ne $data.us31_lines
+$story1 = if ($isUs31Us32) { 'US3.1 - lineas' } else { 'US2.2 - lineas' }
+$story2 = if ($isUs31Us32) { 'US3.2 - lineas' } else { 'US2.3 - lineas' }
+$story1Lines = if ($isUs31Us32) { $data.us31_lines } else { $data.us22_lines }
+$story2Lines = if ($isUs31Us32) { $data.us32_lines } else { $data.us23_lines }
 $cards = @(
-    [pscustomobject]@{ Title = 'US2.2 - lineas'; Value = (Format-Coverage $data.us22_lines[0] $data.us22_lines[1]); Detail = "$($data.us22_lines[0])/$($data.us22_lines[0] + $data.us22_lines[1]) lineas"; Color = $orange },
-    [pscustomobject]@{ Title = 'US2.3 - lineas'; Value = (Format-Coverage $data.us23_lines[0] $data.us23_lines[1]); Detail = "$($data.us23_lines[0])/$($data.us23_lines[0] + $data.us23_lines[1]) lineas"; Color = $orange },
+    [pscustomobject]@{ Title = $story1; Value = (Format-Coverage $story1Lines[0] $story1Lines[1]); Detail = "$($story1Lines[0])/$($story1Lines[0] + $story1Lines[1]) lineas"; Color = $orange },
+    [pscustomobject]@{ Title = $story2; Value = (Format-Coverage $story2Lines[0] $story2Lines[1]); Detail = "$($story2Lines[0])/$($story2Lines[0] + $story2Lines[1]) lineas"; Color = $orange },
     [pscustomobject]@{ Title = 'Suite backend'; Value = "$($data.total_tests) pruebas"; Detail = "$($data.failures) fallos - $($data.errors) errores"; Color = $green },
     [pscustomobject]@{ Title = 'Cobertura global backend'; Value = (Format-Coverage $data.overall_lines[0] $data.overall_lines[1] 2); Detail = "$($data.overall_lines[0])/$($data.overall_lines[0] + $data.overall_lines[1]) lineas"; Color = $orange }
 )
@@ -88,8 +93,18 @@ for ($i = 0; $i -lt $data.rows.Count; $i++) {
     }
 }
 $notes = $bottom + 14
-$g.DrawString("Pruebas nuevas de US2.2/US2.3: $($data.new_tests) - Suite completa: $($data.total_tests)", $fontNote, $brushGray, 70, $notes)
-$g.DrawString('La cobertura por metodo usa toda la suite; el total global incluye todo el backend.', $fontNote, $brushGray, 70, $notes + 22)
+$ifFocused = if ($isUs31Us32) {
+    "Unidades asignadas: $($data.rows.Count); lineas $($data.selected_lines[0])/$($data.selected_lines[0] + $data.selected_lines[1]); ramas $($data.selected_branches[0])/$($data.selected_branches[0] + $data.selected_branches[1])"
+} else {
+    "Pruebas nuevas de US2.2/US2.3: $($data.new_tests) - Suite completa: $($data.total_tests)"
+}
+$g.DrawString($ifFocused, $fontNote, $brushGray, 70, $notes)
+$globalBranchNote = if ($isUs31Us32) {
+    "Cobertura global de ramas: $(Format-Coverage $data.overall_branches[0] $data.overall_branches[1] 2); la cobertura global incluye todo el backend."
+} else {
+    'La cobertura por metodo usa toda la suite; el total global incluye todo el backend.'
+}
+$g.DrawString($globalBranchNote, $fontNote, $brushGray, 70, $notes + 22)
 $g.DrawString('Fuente: backend/target/site/jacoco/jacoco.xml - backend/target/site/jacoco/index.html', $fontNote, $brushGray, 70, $notes + 44)
 
 $parent = Split-Path -Parent $data.output

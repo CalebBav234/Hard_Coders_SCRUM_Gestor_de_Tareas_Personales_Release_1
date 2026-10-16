@@ -82,12 +82,23 @@ function Wrap-Cell([string]$Text, [int]$MaxChars) {
     $words = $Text -split '\s+'
     $lines = [System.Collections.Generic.List[string]]::new()
     $line = ''
-    foreach ($word in $words) {
-        if ($line -and ($line.Length + 1 + $word.Length) -gt $MaxChars) {
-            $lines.Add($line)
-            $line = $word
-        } else {
-            $line = if ($line) { "$line $word" } else { $word }
+    foreach ($sourceWord in $words) {
+        $word = $sourceWord
+        while ($word.Length -gt $MaxChars) {
+            if ($line) {
+                $lines.Add($line)
+                $line = ''
+            }
+            $lines.Add($word.Substring(0, $MaxChars))
+            $word = $word.Substring($MaxChars)
+        }
+        if ($word) {
+            if ($line -and ($line.Length + 1 + $word.Length) -gt $MaxChars) {
+                $lines.Add($line)
+                $line = $word
+            } else {
+                $line = if ($line) { "$line $word" } else { $word }
+            }
         }
     }
     if ($line) { $lines.Add($line) }
@@ -134,7 +145,7 @@ foreach ($spec in $payload.specs) {
 
     $x0, $y0, $x1 = 55, 675, 1865
     $headerHeight = 46
-    $rowHeight = [Math]::Min(58, [int](360 / [Math]::Max($spec.rows.Count, 1)))
+    $rowHeight = [Math]::Min(58, [int](260 / [Math]::Max($spec.rows.Count, 1)))
     $widths = @(90, 470, 760, 490)
     $xs = [System.Collections.Generic.List[int]]::new()
     $xs.Add($x0)
@@ -170,7 +181,8 @@ foreach ($spec in $payload.specs) {
     }
     $note = [string]$spec.note
     $g.DrawString($note, $smallFont, $brushGray, 55, 990)
-    $g.DrawString('Hard Coders - Evidencia US2.2 / US2.3', $smallFont, [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#7B8085')), 1515, 1044)
+    $footer = if ($spec.footer) { [string]$spec.footer } else { 'Hard Coders - Evidencia US2.2 / US2.3' }
+    $g.DrawString($footer, $smallFont, [System.Drawing.SolidBrush]::new([System.Drawing.ColorTranslator]::FromHtml('#7B8085')), 1515, 1044)
 
     $outputPath = [string]$spec.output
     $bitmap.Save($outputPath, [System.Drawing.Imaging.ImageFormat]::Png)

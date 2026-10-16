@@ -1,6 +1,8 @@
-# Gestor de Tareas Personales - Release 1
+docker run --rm -it --network host -v "${PWD}\backend:/app" -w /app -e SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/gestor_tareas?currentSchema=task_manager" -e SPRING_DATASOURCE_USERNAME="gestor_tareas_app" -e SPRING_DATASOURCE_PASSWORD="apppass" eclipse-temurin:21-jre java -jar target/gestor-tareas-backend-0.0.1-SNAPSHOT.jar# Gestor de Tareas Personales - Release 1
 
 Aplicación web académica gestionada con Scrum, con frontend Angular, API Spring Boot y PostgreSQL.
+
+Consulta la [guía de estructura del proyecto](docs/estructura-proyecto.md) para conocer la organización del repositorio y sus componentes.
 
 ## Estado actual
 
