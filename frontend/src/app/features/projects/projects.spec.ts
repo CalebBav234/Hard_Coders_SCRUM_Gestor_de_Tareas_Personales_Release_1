@@ -53,6 +53,26 @@ function buttonLabels(element: HTMLElement): string[] {
   return Array.from(element.querySelectorAll('button')).map((b) => b.textContent?.trim() ?? '');
 }
 
+/** Pulsa un botón por el texto que muestra y refresca la vista. */
+function clickButton(
+  fixture: ComponentFixture<unknown>,
+  label: string,
+  scope: ParentNode = fixture.nativeElement,
+): void {
+  const button = Array.from(scope.querySelectorAll('button')).find((b) => b.textContent?.includes(label));
+  expect(button, `botón "${label}"`).toBeTruthy();
+  button!.click();
+  fixture.detectChanges();
+}
+
+/** Envía el formulario del diálogo como lo hace el navegador con el botón de tipo submit. */
+function submitForm(fixture: ComponentFixture<unknown>, scope: ParentNode = fixture.nativeElement): void {
+  const form = scope.querySelector('form') as HTMLFormElement;
+  expect(form, 'formulario del diálogo').toBeTruthy();
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+  fixture.detectChanges();
+}
+
 function setValue(element: HTMLElement, selector: string, value: string): void {
   const control = element.querySelector(selector) as HTMLInputElement | HTMLSelectElement;
   control.value = value;
@@ -148,6 +168,243 @@ describe('Épica 1 — Proyectos', () => {
       expect(items.length).toBe(2);
       expect(items[0].textContent).toContain('Ampliación');
     });
+
+    it('shows the loading message and the empty state of each role', async () => {
+      signIn(true);
+      const fixture = TestBed.createComponent(ProjectList);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('Cargando proyectos…');
+
+      http.expectOne('/api/projects').flush([]);
+      await fixture.whenStable();
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain('Aún no hay proyectos. Crea el primero.');
+    });
+
+    it('tells a manager that he does not lead any project yet', async () => {
+      signIn(false);
+      const fixture = await render([]);
+      expect(fixture.nativeElement.textContent).toContain('No diriges ningún proyecto todavía.');
+    });
+
+    it('reports that the projects could not be loaded', async () => {
+      signIn(true);
+      const fixture = TestBed.createComponent(ProjectList);
+      fixture.detectChanges();
+      http
+        .expectOne('/api/projects')
+        .flush({ error: 'VALIDATION_ERROR', message: 'Sin sesión' }, { status: 401, statusText: 'Unauthorized' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.error).toBe('Sin sesión');
+      expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('Sin sesión');
+      // Sin proyectos no se muestra el aviso de lista vacía: lo que hay es el error.
+      expect(fixture.nativeElement.textContent).not.toContain('Aún no hay proyectos');
+    });
+
+    it('reports that the plan history could not be loaded and hides it again', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      const historyButton = Array.from(element.querySelectorAll('button')).find(
+        (b) => b.textContent?.includes('Historial del plan'),
+      ) as HTMLButtonElement;
+      historyButton.click();
+      http.expectOne('/api/projects/10/plan-history').flush(null, { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+
+      expect(element.querySelector('.gt-alert-error')?.textContent).toContain('No se pudo cargar el historial');
+      expect(fixture.componentInstance.revisions(10)).toEqual([]);
+
+      // El historial fallido se puede volver a pedir: ahora llega vacío.
+      historyButton.click();
+      http.expectOne('/api/projects/10/plan-history').flush([]);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.revisions(10)).toEqual([]);
+
+      // Y el segundo toque repliega el panel del historial.
+      historyButton.click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.history[10]).toBeUndefined();
+      expect(element.textContent).not.toContain('No se pudo cargar el historial');
+    });
+
+    it('reports a failed status change and ignores the empty ones', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      // Sin opción elegida no se envía nada.
+      const apply = Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Aplicar') as HTMLButtonElement;
+      apply.click();
+      http.expectNone('/api/projects/10/status');
+
+      setValue(element, '#status-10', 'CANCELADO');
+      fixture.detectChanges();
+      apply.click();
+      http
+        .expectOne('/api/projects/10/status')
+        .flush({ error: 'INVALID_TRANSITION', message: 'No se puede cancelar' }, { status: 409, statusText: 'Conflict' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.error).toBe('No se puede cancelar');
+      expect(fixture.componentInstance.busyProjectId).toBeNull();
+    });
+
+    it('does not change the status of another project while one is in flight', async () => {
+      signIn(true);
+      const fixture = await render([project(), project({ projectId: 11, name: 'Edificio B' })]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      setValue(element, '#status-10', 'CANCELADO');
+      fixture.detectChanges();
+      const apply = Array.from(element.querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Aplicar') as HTMLButtonElement;
+      apply.click();
+
+      // El proyecto 10 está ocupado: el 11 se queda esperando.
+      const request = http.expectOne('/api/projects/10/status');
+      fixture.componentInstance.changeStatus(fixture.componentInstance.projects[1]);
+      http.expectNone('/api/projects/11/status');
+
+      request.flush(project({ status: 'CANCELADO', version: 112 }));
+      fixture.detectChanges();
+      expect(fixture.componentInstance.busyProjectId).toBeNull();
+    });
+
+    it('opens the dialog of every kind and closes it with its buttons', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      // Crear proyecto: el formulario pide los encargados disponibles.
+      clickButton(fixture as ComponentFixture<unknown>, '＋ Nuevo proyecto');
+      expect(element.textContent).toContain('Nuevo proyecto');
+      http.expectOne('/api/projects/eligible-managers').flush([JULIA, ANA]);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.dialogProject).toBeNull();
+      clickButton(fixture as ComponentFixture<unknown>, '×', element.querySelector('.gt-modal')!);
+      expect(fixture.componentInstance.dialog).toBeNull();
+
+      // Editar datos: el formulario llega con el nombre del proyecto.
+      clickButton(fixture as ComponentFixture<unknown>, '✎ Editar datos');
+      expect(element.textContent).toContain('Editar datos');
+      expect(element.querySelector<HTMLInputElement>('#project-name')?.value).toBe('Edificio A');
+      clickButton(fixture as ComponentFixture<unknown>, '×', element.querySelector('.gt-modal')!);
+      expect(fixture.componentInstance.dialog).toBeNull();
+
+      // Nueva revisión del plan.
+      clickButton(fixture as ComponentFixture<unknown>, 'Bs Editar plan');
+      expect(element.textContent).toContain('Nueva revisión del plan');
+      expect(element.querySelector('#plan-budget')).not.toBeNull();
+      // También se cierra pulsando el fondo del modal.
+      (element.querySelector('.gt-modal-backdrop') as HTMLElement).click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.dialog).toBeNull();
+
+      // Delegación: el diálogo carga los usuarios disponibles.
+      clickButton(fixture as ComponentFixture<unknown>, '⇄ Delegar');
+      expect(element.textContent).toContain('Delegar proyecto');
+      http.expectOne('/api/projects/eligible-managers').flush([LUIS]);
+      fixture.detectChanges();
+      expect(fixture.componentInstance.dialogProject?.projectId).toBe(10);
+      clickButton(fixture as ComponentFixture<unknown>, 'Cancelar', element.querySelector('.gt-modal')!);
+      expect(fixture.componentInstance.dialog).toBeNull();
+    });
+
+    it('delegates from the list and replaces the manager of the project', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      clickButton(fixture as ComponentFixture<unknown>, '⇄ Delegar');
+      http.expectOne('/api/projects/eligible-managers').flush([LUIS, JULIA]);
+      fixture.detectChanges();
+
+      setValue(element, '#delegate-manager', '3');
+      setValue(element, '#delegate-reason', 'Carga de trabajo');
+      fixture.detectChanges();
+      clickButton(fixture as ComponentFixture<unknown>, 'Delegar proyecto', element.querySelector('.gt-modal')!);
+
+      const request = http.expectOne('/api/projects/10/delegate');
+      expect(request.request.method).toBe('POST');
+      expect(request.request.body).toEqual({ managerUserId: 3, reason: 'Carga de trabajo', version: 111 });
+      request.flush(project({ manager: LUIS, version: 112 }));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.dialog).toBeNull();
+      expect(fixture.componentInstance.success).toBe('Proyecto delegado.');
+      expect(fixture.componentInstance.projects[0].manager.fullName).toBe('Luis Vaca');
+      expect(element.querySelector('.gt-alert-success')?.textContent).toContain('Proyecto delegado.');
+    });
+
+    it('adds a project created in the dialog to the top of the list', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      clickButton(fixture as ComponentFixture<unknown>, '＋ Nuevo proyecto');
+      http.expectOne('/api/projects/eligible-managers').flush([ANA]);
+      fixture.detectChanges();
+
+      setValue(element, '#project-name', '  Edificio C ');
+      setValue(element, '#project-manager', '2');
+      setValue(element, '#project-budget', '15000.50');
+      setValue(element, '#project-duration', '600');
+      setValue(element, '#project-reason', 'Plan inicial');
+      fixture.detectChanges();
+      submitForm(fixture as ComponentFixture<unknown>);
+
+      const request = http.expectOne('/api/projects');
+      expect(request.request.body).toEqual({
+        name: 'Edificio C',
+        description: null,
+        managerUserId: 2,
+        budgetBob: 15000.5,
+        estimatedDurationMinutes: 600,
+        reason: 'Plan inicial',
+      });
+      request.flush(project({ projectId: 20, name: 'Edificio C' }));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.dialog).toBeNull();
+      expect(fixture.componentInstance.success).toBe('Proyecto creado con su plan inicial.');
+      expect(fixture.componentInstance.projects.map((current) => current.name)).toEqual(['Edificio C', 'Edificio A']);
+      expect(element.querySelectorAll('.project-card h3')[0]?.textContent).toContain('Edificio C');
+    });
+
+    it('replaces the project edited in the details dialog', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+      const element: HTMLElement = fixture.nativeElement;
+
+      clickButton(fixture as ComponentFixture<unknown>, '✎ Editar datos');
+      setValue(element, '#project-name', 'Edificio A - Fase 2');
+      fixture.detectChanges();
+      submitForm(fixture as ComponentFixture<unknown>);
+
+      const request = http.expectOne('/api/projects/10');
+      expect(request.request.method).toBe('PUT');
+      expect(request.request.body).toEqual({ name: 'Edificio A - Fase 2', description: 'Obra gruesa', version: 111 });
+      request.flush(project({ name: 'Edificio A - Fase 2', version: 112 }));
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.dialog).toBeNull();
+      expect(fixture.componentInstance.success).toBe('Datos del proyecto actualizados.');
+      expect(fixture.componentInstance.projects[0].name).toBe('Edificio A - Fase 2');
+      expect(element.querySelector('.project-card h3')?.textContent).toContain('Edificio A - Fase 2');
+    });
+
+    it('closes the dialog when the form it holds is cancelled', async () => {
+      signIn(true);
+      const fixture = await render([project()]);
+
+      clickButton(fixture as ComponentFixture<unknown>, '✎ Editar datos');
+      expect(fixture.componentInstance.dialog?.kind).toBe('details');
+      clickButton(fixture as ComponentFixture<unknown>, 'Cancelar', fixture.nativeElement.querySelector('.gt-modal')!);
+
+      expect(fixture.componentInstance.dialog).toBeNull();
+    });
   });
 
   describe('ProjectForm', () => {
@@ -208,6 +465,116 @@ describe('Épica 1 — Proyectos', () => {
       expect(request.request.body).toEqual({ name: 'Edificio A - Fase 1', description: 'Obra gruesa', version: 111 });
       request.flush(project({ name: 'Edificio A - Fase 1' }));
     });
+
+    it('explains that the available managers could not be loaded', () => {
+      const fixture = TestBed.createComponent(ProjectForm);
+      fixture.detectChanges();
+      http
+        .expectOne('/api/projects/eligible-managers')
+        .flush({ error: 'INTERNAL' }, { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.error).toBe('No se pudieron cargar los encargados.');
+      expect(fixture.componentInstance.managers).toEqual([]);
+    });
+
+    it('asks for a non-blank name and for a manager', () => {
+      const fixture = TestBed.createComponent(ProjectForm);
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([JULIA, ANA]);
+      fixture.detectChanges();
+      const element: HTMLElement = fixture.nativeElement;
+      const form = element.querySelector('form') as HTMLFormElement;
+
+      setValue(element, '#project-name', '   ');
+      setValue(element, '#project-budget', '1000');
+      setValue(element, '#project-duration', '60');
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+      http.expectNone('/api/projects');
+      expect(element.textContent).toContain('El nombre es obligatorio');
+
+      // Con nombre pero sin encargado tampoco se envía nada.
+      setValue(element, '#project-name', 'Edificio A');
+      setValue(element, '#project-description', '  Obra gruesa y acabados  ');
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+      http.expectNone('/api/projects');
+      expect(element.querySelector('.gt-field-error')?.textContent).toContain('Elige quién dirigirá');
+    });
+
+    it('trims the description and the optional reason of a new project', () => {
+      const fixture = TestBed.createComponent(ProjectForm);
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([ANA]);
+      fixture.detectChanges();
+
+      setValue(fixture.nativeElement, '#project-name', 'Edificio A');
+      setValue(fixture.nativeElement, '#project-description', '  Obra gruesa  ');
+      setValue(fixture.nativeElement, '#project-manager', '2');
+      setValue(fixture.nativeElement, '#project-budget', '15000.50');
+      setValue(fixture.nativeElement, '#project-duration', '600');
+      setValue(fixture.nativeElement, '#project-reason', '  Plan inicial  ');
+      fixture.componentInstance.save();
+
+      expect(http.expectOne('/api/projects').request.body).toEqual({
+        name: 'Edificio A',
+        description: 'Obra gruesa',
+        managerUserId: 2,
+        budgetBob: 15000.5,
+        estimatedDurationMinutes: 600,
+        reason: 'Plan inicial',
+      });
+    });
+
+    it('reports a backend error when creating and when editing', () => {
+      const fixture = TestBed.createComponent(ProjectForm);
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([JULIA]);
+      fixture.detectChanges();
+      const element: HTMLElement = fixture.nativeElement;
+
+      setValue(element, '#project-name', 'Edificio A');
+      setValue(element, '#project-manager', '1');
+      setValue(element, '#project-budget', '1000');
+      setValue(element, '#project-duration', '60');
+      fixture.componentInstance.save();
+      http
+        .expectOne('/api/projects')
+        .flush({ error: 'VALIDATION_ERROR', message: 'Ese nombre ya existe' }, { status: 409, statusText: 'Conflict' });
+      fixture.detectChanges();
+      expect(element.querySelector('[role="alert"]')?.textContent).toContain('Ese nombre ya existe');
+
+      // Al editar la respuesta del backend se muestra igual.
+      const edit = TestBed.createComponent(ProjectForm);
+      edit.componentRef.setInput('project', project());
+      edit.detectChanges();
+      setValue(edit.nativeElement, '#project-name', 'Edificio A');
+      edit.componentInstance.save();
+      http.expectOne('/api/projects/10').flush({}, { status: 500, statusText: 'Server Error' });
+      expect(edit.componentInstance.error).toBe('No se pudo guardar el proyecto.');
+      expect(edit.componentInstance.saving).toBe(false);
+    });
+
+    it('does not save twice while the first request is in flight and can cancel', () => {
+      const fixture = TestBed.createComponent(ProjectForm);
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([ANA]);
+      fixture.detectChanges();
+      const cancelled = vi.fn();
+      fixture.componentInstance.cancelled.subscribe(cancelled);
+
+      setValue(fixture.nativeElement, '#project-name', 'Edificio A');
+      setValue(fixture.nativeElement, '#project-manager', '2');
+      setValue(fixture.nativeElement, '#project-budget', '1000');
+      setValue(fixture.nativeElement, '#project-duration', '60');
+      fixture.componentInstance.save();
+      fixture.componentInstance.save();
+      http.expectOne('/api/projects');
+
+      clickButton(fixture as ComponentFixture<unknown>, 'Cancelar');
+      expect(cancelled).toHaveBeenCalled();
+    });
   });
 
   describe('PlanForm', () => {
@@ -252,6 +619,76 @@ describe('Épica 1 — Proyectos', () => {
       fixture.detectChanges();
       expect(element.querySelector('[role="alert"]')?.textContent).toContain('Solo el Jefe');
     });
+
+    it('registers the revision and tells the list about it', () => {
+      const fixture = render();
+      const saved = vi.fn();
+      fixture.componentInstance.saved.subscribe(saved);
+
+      setValue(fixture.nativeElement, '#plan-budget', '20000');
+      setValue(fixture.nativeElement, '#plan-duration', '900');
+      setValue(fixture.nativeElement, '#plan-reason', 'Ampliacion');
+      fixture.detectChanges();
+      // También se puede registrar desde el botón del formulario.
+      submitForm(fixture as ComponentFixture<unknown>);
+
+      http.expectOne('/api/projects/10/plan').flush(
+        project({ budgetBob: 20000, estimatedDurationMinutes: 900, currentRevision: 2 }),
+      );
+      expect(saved).toHaveBeenCalled();
+      expect(fixture.componentInstance.saving).toBe(false);
+    });
+
+    it('requires a reason and allows cancelling the revision', () => {
+      const fixture = render();
+      const element: HTMLElement = fixture.nativeElement;
+      const cancelled = vi.fn();
+      fixture.componentInstance.cancelled.subscribe(cancelled);
+
+      setValue(element, '#plan-budget', '20000');
+      setValue(element, '#plan-reason', '   ');
+      fixture.componentInstance.save();
+      http.expectNone('/api/projects/10/plan');
+      fixture.detectChanges();
+      expect(element.querySelector('.gt-field-error')?.textContent).toContain('El motivo es obligatorio');
+
+      clickButton(fixture as ComponentFixture<unknown>, 'Cancelar');
+      expect(cancelled).toHaveBeenCalled();
+    });
+
+    it('warns about a budget that is not a valid amount', () => {
+      const fixture = render();
+      const element: HTMLElement = fixture.nativeElement;
+
+      // El backend rechaza los importes con más de dos decimales.
+      fixture.componentInstance.form.controls.budgetBob.setValue('12345.678' as unknown as number);
+      setValue(element, '#plan-reason', 'Recorte');
+      fixture.componentInstance.save();
+      fixture.detectChanges();
+      http.expectNone('/api/projects/10/plan');
+      expect(element.querySelector('.gt-field-error')?.textContent).toContain('hasta 2 decimales');
+    });
+
+    it('falls back to a generic message when the revision fails without one', () => {
+      const fixture = render();
+      setValue(fixture.nativeElement, '#plan-budget', '20000');
+      setValue(fixture.nativeElement, '#plan-reason', 'Ampliacion');
+      fixture.componentInstance.save();
+
+      http.expectOne('/api/projects/10/plan').flush({}, { status: 500, statusText: 'Server Error' });
+      expect(fixture.componentInstance.error).toBe('No se pudo registrar el nuevo plan.');
+      expect(fixture.componentInstance.saving).toBe(false);
+    });
+
+    it('does not send a second revision while the first is in flight', () => {
+      const fixture = render();
+      setValue(fixture.nativeElement, '#plan-budget', '20000');
+      setValue(fixture.nativeElement, '#plan-reason', 'Ampliacion');
+      fixture.componentInstance.save();
+      fixture.componentInstance.save();
+
+      http.expectOne('/api/projects/10/plan');
+    });
   });
 
   describe('DelegationDialog', () => {
@@ -295,6 +732,111 @@ describe('Épica 1 — Proyectos', () => {
         .flush({ error: 'VALIDATION_ERROR', message: 'No se puede delegar a un usuario inactivo' }, { status: 400, statusText: 'Bad Request' });
       fixture.detectChanges();
       expect(element.querySelector('[role="alert"]')?.textContent).toContain('usuario inactivo');
+    });
+
+    it('explains that the available users could not be loaded', () => {
+      const fixture = TestBed.createComponent(DelegationDialog);
+      fixture.componentRef.setInput('project', project());
+      fixture.detectChanges();
+
+      http.expectOne('/api/projects/eligible-managers').flush({ error: 'INTERNAL' }, { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.error).toBe('No se pudieron cargar los usuarios disponibles.');
+      expect(fixture.componentInstance.loading).toBe(false);
+      expect(fixture.componentInstance.candidates).toEqual([]);
+      // Con la búsqueda terminada el selector ya no está "ocupado".
+      expect(fixture.nativeElement.querySelector('#delegate-manager')?.getAttribute('aria-busy')).toBe('false');
+    });
+
+    it('shows the loading label and marks the chief candidates', () => {
+      const fixture = TestBed.createComponent(DelegationDialog);
+      fixture.componentRef.setInput('project', project());
+      fixture.detectChanges();
+      // Los usuarios todavía viajan: el selector lo dice y no se puede enviar.
+      expect(fixture.nativeElement.textContent).toContain('Cargando usuarios…');
+      expect(fixture.nativeElement.querySelector('button[type="submit"]')?.hasAttribute('disabled')).toBe(true);
+
+      http.expectOne('/api/projects/eligible-managers').flush([JULIA, LUIS]);
+      fixture.detectChanges();
+
+      const options = Array.from(fixture.nativeElement.querySelectorAll('#delegate-manager option')).map(
+        (option) => (option as HTMLOptionElement).textContent?.trim(),
+      );
+      expect(options).toContain('Julia Mendoza (Jefe)');
+      expect(options).toContain('Luis Vaca');
+      expect(fixture.nativeElement.querySelector('button[type="submit"]')?.hasAttribute('disabled')).toBe(false);
+    });
+
+    it('asks for a user and a reason before delegating', () => {
+      const fixture = TestBed.createComponent(DelegationDialog);
+      fixture.componentRef.setInput('project', project());
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([LUIS]);
+      fixture.detectChanges();
+      const element: HTMLElement = fixture.nativeElement;
+      const form = element.querySelector('form') as HTMLFormElement;
+
+      // Sin usuario no se envía nada.
+      setValue(element, '#delegate-reason', 'Carga de trabajo');
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+      http.expectNone('/api/projects/10/delegate');
+      expect(element.querySelector('.gt-field-error')?.textContent).toContain('Elige a quién delegar');
+
+      // Un motivo en blanco tampoco vale.
+      setValue(element, '#delegate-manager', '3');
+      setValue(element, '#delegate-reason', '   ');
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      fixture.detectChanges();
+      http.expectNone('/api/projects/10/delegate');
+      expect(element.querySelector('.gt-field-error')?.textContent).toContain('El motivo es obligatorio');
+    });
+
+    it('does not delegate twice while the first request is in flight', () => {
+      const fixture = TestBed.createComponent(DelegationDialog);
+      fixture.componentRef.setInput('project', project());
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([LUIS]);
+      fixture.detectChanges();
+      const element: HTMLElement = fixture.nativeElement;
+
+      setValue(element, '#delegate-manager', '3');
+      setValue(element, '#delegate-reason', 'Carga');
+      fixture.componentInstance.save();
+      fixture.componentInstance.save();
+      http.expectOne('/api/projects/10/delegate');
+    });
+
+    it('cancels the delegation with its cancel button', () => {
+      const fixture = TestBed.createComponent(DelegationDialog);
+      fixture.componentRef.setInput('project', project());
+      const cancelled = vi.fn();
+      fixture.componentInstance.cancelled.subscribe(cancelled);
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([LUIS]);
+      fixture.detectChanges();
+
+      clickButton(fixture as ComponentFixture<unknown>, 'Cancelar');
+      expect(cancelled).toHaveBeenCalled();
+    });
+
+    it('falls back to a generic message when the delegation fails without one', () => {
+      const fixture = TestBed.createComponent(DelegationDialog);
+      fixture.componentRef.setInput('project', project());
+      fixture.detectChanges();
+      http.expectOne('/api/projects/eligible-managers').flush([LUIS]);
+      fixture.detectChanges();
+      const element: HTMLElement = fixture.nativeElement;
+
+      setValue(element, '#delegate-manager', '3');
+      setValue(element, '#delegate-reason', 'Carga');
+      fixture.componentInstance.save();
+      http.expectOne('/api/projects/10/delegate').flush({}, { status: 500, statusText: 'Server Error' });
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.error).toBe('No se pudo delegar el proyecto.');
+      expect(fixture.componentInstance.saving).toBe(false);
     });
   });
 });
