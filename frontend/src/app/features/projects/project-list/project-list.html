@@ -48,6 +48,13 @@
         </dl>
 
         <div class="project-actions">
+          <button type="button" class="gt-btn gt-btn-small" (click)="goToTasks(project.projectId)">
+            Ver tareas
+          </button>
+
+          @if (project.canEditDetails) {
+            <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'details', project })">✎ Editar datos</button>
+          }
           @if (project.canEditDetails) {
             <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'details', project })">✎ Editar datos</button>
           }

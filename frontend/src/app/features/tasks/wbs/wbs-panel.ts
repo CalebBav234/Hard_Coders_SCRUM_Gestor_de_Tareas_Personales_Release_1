@@ -8,11 +8,6 @@ import {
 } from '../../../core/models/api';
 import { WbsService } from '../../../core/services/wbs.service';
 
-/**
- * US2.2 — constructor de la WBS: etapas y actividades del proyecto elegido.
- * El panel solo aparece cuando el actor puede gestionar la jerarquía (`canManage`),
- * pero las validaciones reales las hace el backend en cada petición.
- */
 @Component({
   selector: 'app-wbs-panel',
   standalone: true,
@@ -38,6 +33,20 @@ export class WbsPanel implements OnInit {
   loadingActivities = false;
   error: string | null = null;
   success: string | null = null;
+
+  searchTermWbs = '';
+
+  get filteredStages(): StageDto[] {
+    if (!this.searchTermWbs.trim()) return this.stages;
+    const term = this.searchTermWbs.toLowerCase();
+    return this.stages.filter(stage => stage.name.toLowerCase().includes(term));
+  }
+
+  get filteredActivities(): ActivityDetailDto[] {
+    if (!this.searchTermWbs.trim()) return this.activities;
+    const term = this.searchTermWbs.toLowerCase();
+    return this.activities.filter(activity => activity.name.toLowerCase().includes(term));
+  }
 
   /** Formulario de nueva etapa. */
   newStageName = '';
@@ -97,8 +106,6 @@ export class WbsPanel implements OnInit {
   }
 
   toggleStage(stage: StageDto): void {
-    // Mientras haya una mutación en vuelo no se cambia de etapa: su respuesta llegaría
-    // a escribir en la lista recién cargada de otra etapa.
     if (this.busyId !== null) {
       return;
     }
@@ -129,8 +136,6 @@ export class WbsPanel implements OnInit {
       },
       error: () => {
         this.loadingActivities = false;
-        // Sin la lista no se puede mostrar nada: se vacía para no dejar actividades de
-        // otra etapa bajo el título de la que falló.
         if (this.expandedStageId === stageId) {
           this.activities = [];
           this.error = 'No se pudieron cargar las actividades de la etapa.';

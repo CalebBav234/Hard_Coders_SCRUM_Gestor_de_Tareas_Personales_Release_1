@@ -13,6 +13,7 @@ import { ProjectService, apiErrorMessage } from '../../../core/services/project.
 import { DelegationDialog } from '../delegation-dialog/delegation-dialog';
 import { PlanForm } from '../plan-form/plan-form';
 import { ProjectForm } from '../project-form/project-form';
+import { Router } from '@angular/router';
 
 type Dialog =
   | { kind: 'create' }
@@ -34,6 +35,7 @@ type Dialog =
 export class ProjectList implements OnInit {
   private readonly projectService = inject(ProjectService);
   private readonly changeDetector = inject(ChangeDetectorRef);
+  private readonly router = inject(Router);
   readonly auth = inject(AuthService);
 
   projects: Project[] = [];
@@ -150,5 +152,9 @@ export class ProjectList implements OnInit {
       delete this.history[project.projectId];
     }
     this.changeDetector.markForCheck();
+  }
+
+  goToTasks(projectId: number): void {
+    this.router.navigate(['/'], { queryParams: { projectId } });
   }
 }
