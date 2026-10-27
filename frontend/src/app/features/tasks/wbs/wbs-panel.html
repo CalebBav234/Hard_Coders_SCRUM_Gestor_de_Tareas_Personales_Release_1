@@ -9,6 +9,16 @@
       </p>
     </div>
 
+    <div style="flex-grow: 1; margin: 0 20px;">
+      <input
+        type="text"
+        class="search-input"
+        [(ngModel)]="searchTermWbs"
+        placeholder="Buscar etapa o actividad..."
+        style="width: 100%; max-width: 300px; padding: 8px 12px; border-radius: 6px; background-color: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: inherit;"
+      />
+    </div>
+
     @if (canManage) {
       <button
         type="button"
@@ -98,7 +108,7 @@
 
     <ul class="wbs-stages">
 
-      @for (stage of stages; track stage.stageId) {
+      @for (stage of filteredStages; track stage.stageId) {
 
         <li class="wbs-stage">
 
@@ -207,7 +217,7 @@
 
                   <ul class="wbs-activity-list">
 
-                    @for (activity of activities; track activity.activityId) {
+                    @for (activity of filteredActivities; track activity.activityId) {
 
                       <li class="wbs-activity">
 

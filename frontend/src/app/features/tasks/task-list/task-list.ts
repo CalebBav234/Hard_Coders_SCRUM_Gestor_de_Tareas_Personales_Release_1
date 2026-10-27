@@ -24,6 +24,8 @@ import { WbsPanel } from '../wbs/wbs-panel';
 import { AssignmentDialog } from '../assignment-dialog/assignment-dialog';
 import { ProgressPanel } from '../progress-panel/progress-panel';
 
+import { ActivatedRoute } from '@angular/router';
+
 @Component({
   selector: 'app-task-list',
   standalone: true,
@@ -115,14 +117,27 @@ export class TaskList implements OnInit {
     private readonly changeDetector: ChangeDetectorRef
   ) {}
 
+  private readonly route = inject(ActivatedRoute);
+
+
   ngOnInit(): void {
+    // 1. Escuchar si viene un proyecto desde la URL
+    this.route.queryParamMap.subscribe(params => {
+      const pid = params.get('projectId');
+      if (pid) {
+        const id = Number(pid);
+        this.previousProjectId = id; // Se guarda para que loadProjects lo tome
+
+        if (this.projectsLoaded) {
+          this.selectProject(id);
+        }
+      }
+    });
+
     this.loadProjects();
     this.startTimer();
   }
 
-  // =========================================================
-  // PROYECTO SELECCIONADO (US2.2)
-  // =========================================================
 
   loadProjects(): void {
     this.projectService.list().subscribe({
@@ -132,14 +147,17 @@ export class TaskList implements OnInit {
 
         // Sin sesión previa no se preselecciona ningún proyecto: es una decisión del usuario.
         if (this.selectedProjectId === null && this.previousProjectId !== null) {
-          this.selectedProjectId = this.projects.some((p) => p.projectId === this.previousProjectId)
-            ? this.previousProjectId
-            : null;
+          const exists = this.projects.some((p) => p.projectId === this.previousProjectId);
+          if (exists) {
+            // CORRECCIÓN: Antes solo se asignaba la variable, ahora sí carga sus etapas y tareas
+            this.selectProject(this.previousProjectId);
+          }
         }
         // US3.1: el Personal no tiene proyectos que seleccionar; ve solo lo que le asignaron.
-        if (this.usesPersonalScope && this.selectedProjectId === null && !this.loadedAssignedOnce) {
+        else if (this.usesPersonalScope && this.selectedProjectId === null && !this.loadedAssignedOnce) {
           this.loadAssignedTasks();
         }
+
         this.changeDetector.markForCheck();
       },
       error: () => {
@@ -148,6 +166,7 @@ export class TaskList implements OnInit {
       },
     });
   }
+
 
   /** Último proyecto elegido por el usuario en esta sesión (nunca el primero de la lista). */
   private previousProjectId: number | null = null;

@@ -4,10 +4,6 @@ import { AssignmentDto } from '../../../core/models/api';
 import { UserSummary } from '../../../core/models/project';
 import { WbsService } from '../../../core/services/wbs.service';
 
-/**
- * US2.3 — asignación de Personal a una tarea. El Encargado del proyecto (o el Jefe) elige un
- * trabajador activo; el backend rechaza usuario inactivo, duplicado y auto-asignación.
- */
 @Component({
   selector: 'app-assignment-dialog',
   standalone: true,
@@ -22,7 +18,6 @@ export class AssignmentDialog implements OnInit {
   @Input({ required: true }) taskId!: number;
   @Input({ required: true }) taskTitle!: string;
   @Input({ required: true }) projectId!: number;
-  /** Avisa de que las asignaciones cambiaron (la lista debe recargar el contador). */
   @Output() changed = new EventEmitter<void>();
   @Output() closed = new EventEmitter<void>();
 
@@ -36,6 +31,29 @@ export class AssignmentDialog implements OnInit {
   saving = false;
   error: string | null = null;
   success: string | null = null;
+
+  searchTermWorker = '';
+
+  /** Trabajadores que todavía no están asignados a esta tarea. */
+  get availableWorkerss(): UserSummary[] {
+    const assigned = new Set(this.assignments.map((assignment) => assignment.workerUserId));
+    return this.workers.filter((worker) => !assigned.has(worker.userId));
+  }
+
+  // ==========================================
+  // NUEVO: FILTRO PARA EL SELECTOR
+  // ==========================================
+  get filteredAvailableWorkers(): UserSummary[] {
+    const available = this.availableWorkers;
+    if (!this.searchTermWorker.trim()) {
+      return available;
+    }
+    const term = this.searchTermWorker.toLowerCase();
+    return available.filter(worker =>
+      worker.fullName.toLowerCase().includes(term) ||
+      (worker.chief && 'jefe'.includes(term)) // Permite buscar escribiendo "jefe"
+    );
+  }
 
   ngOnInit(): void {
     this.load();

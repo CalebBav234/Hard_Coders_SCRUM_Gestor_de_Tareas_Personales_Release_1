@@ -1,125 +1,24 @@
 <div class="task-list-page">
 
   <!-- =========================================================
-       ENCABEZADO
+       1. JERARQUÍA (PROYECTO, ETAPA, ACTIVIDAD) - MOVIDO ARRIBA
        ========================================================= -->
-
-  <header class="page-header">
-
-    <div>
-      <h1 class="page-title">
-        @if (usesPersonalScope) {
-          Tareas asignadas
-        } @else {
-          Mis tareas
-        }
-
-        <span class="task-count">
-          {{ parentTasks.length }}
-        </span>
-      </h1>
-
-      <p class="page-subtitle">
-        @if (usesPersonalScope) {
-          Estas son las tareas que tu Encargado te asignó.
-        } @else {
-          Organiza, activa y completa tus tareas.
-        }
-      </p>
-    </div>
-
-    <div class="page-header-actions">
-
-      @if (completedTasks.length > 0) {
-
-        <button
-          type="button"
-          class="btn-completed"
-          (click)="openCompletedAside()"
-        >
-          ✓ Completadas
-
-          <span class="completed-count">
-            {{ completedTasks.length }}
-          </span>
-        </button>
-
-      }
-
-      @if (canManageHierarchy) {
-
-        <button
-          type="button"
-          class="btn-wbs-toggle"
-          [class.active]="wbsPanelOpen"
-          (click)="toggleWbsPanel()"
-        >
-          ▤ Estructura
-        </button>
-
-      }
-
-      <button
-        type="button"
-        class="btn-refresh"
-        (click)="loadTasks()"
-        [disabled]="loading"
-      >
-        ↻ Actualizar
-      </button>
-
-    </div>
-
-  </header>
-
-
-  <!-- =========================================================
-       INDICACIÓN DE SWIPE
-       ========================================================= -->
-
-  <div class="swipe-hint">
-
-    <span class="swipe-hint-delete">
-      ← Desliza para eliminar
-    </span>
-
-    <span class="swipe-hint-complete">
-      Desliza para completar →
-    </span>
-
-  </div>
-
-
-  <!-- =========================================================
-       US2.2 — ESPACIO DE TRABAJO: PROYECTO + ETAPA
-       El usuario elige el proyecto. No hay proyecto por defecto:
-       si no hay ninguno seleccionado no se cargan datos.
-       ========================================================= -->
-
   @if (!usesPersonalScope) {
-
     <section class="workspace-bar">
-
       <label for="workspace-project">Proyecto</label>
-
       <select
         id="workspace-project"
         [(ngModel)]="selectedProjectId"
         (ngModelChange)="selectProject($event)"
       >
         <option [ngValue]="null">— Selecciona un proyecto —</option>
-
         @for (project of projects; track project.projectId) {
-          <option [ngValue]="project.projectId">
-            {{ project.name }}
-          </option>
+          <option [ngValue]="project.projectId">{{ project.name }}</option>
         }
-
       </select>
 
       @if (selectedStageId !== null || stages.length > 0) {
         <label for="workspace-stage">Etapa</label>
-
         <select
           id="workspace-stage"
           [(ngModel)]="selectedStageId"
@@ -130,17 +29,14 @@
           }
         </select>
 
-        <!-- US2.2: la actividad concreta donde se crean las tareas nuevas -->
         @if (categories.length > 0) {
           <label for="workspace-activity">Actividad</label>
-
           <select
             id="workspace-activity"
             [(ngModel)]="selectedActivityId"
             (ngModelChange)="selectActivity($event)"
           >
             <option [ngValue]="null">— Selecciona —</option>
-
             @for (category of categories; track category.id) {
               <option [ngValue]="category.id">{{ category.name }}</option>
             }
@@ -148,13 +44,18 @@
         }
       }
 
+      @if (canManageHierarchy) {
+        <button type="button" class="btn-wbs-toggle" [class.active]="wbsPanelOpen" (click)="toggleWbsPanel()">
+          ▤ Estructura
+        </button>
+        }
+
       @if (selectedProjectId !== null) {
         <span class="ratio">{{ progressRatio }} % completado</span>
       }
-
     </section>
 
-    <!-- US2.2 — constructor de la WBS (etapas y actividades) -->
+    <!-- Constructor de la WBS y Progreso -->
     @if (wbsPanelOpen && selectedProjectId !== null) {
       <app-wbs-panel
         [projectId]="selectedProjectId"
@@ -164,57 +65,64 @@
     }
 
     @if (selectedProjectId !== null) {
-
-      <!-- US3.3 — progreso en cascada con el árbol completo -->
       <app-progress-panel
         [projectId]="selectedProjectId"
         (loaded)="onProgressLoaded($event)"
       ></app-progress-panel>
-
     }
-
   }
 
+  <!-- =========================================================
+       2. FORMULARIO DE CREACIÓN (PROYECTADO DESDE TASK-HOME)
+       ========================================================= -->
+  <ng-content select="[task-form]"></ng-content>
+
 
   <!-- =========================================================
-       BUSCADOR
+       3. ENCABEZADO "MIS TAREAS" (MOVIDO ABAJO DEL FORMULARIO)
        ========================================================= -->
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">
+        @if (usesPersonalScope) { Tareas asignadas } @else { Mis tareas }
+        <span class="task-count">{{ parentTasks.length }}</span>
+      </h1>
+      <p class="page-subtitle">
+        @if (usesPersonalScope) { Estas son las tareas que tu Encargado te asignó. }
+        @else { Organiza, activa y completa tus tareas. }
+      </p>
+    </div>
 
-  <section class="search-container">
-
-    <form
-      class="search-form"
-      (ngSubmit)="searchTasks()"
-    >
-      <label for="task-search">Buscar tareas</label>
-
-      <input
-        id="task-search"
-        type="text"
-        class="search-input"
-        [(ngModel)]="searchTerm"
-        name="searchTerm"
-        placeholder="Buscar tareas..."
-      />
-
-      <button
-        type="submit"
-        class="btn-search"
-        [disabled]="loading"
-      >
-        Buscar
+    <div class="page-header-actions">
+      @if (completedTasks.length > 0) {
+        <button type="button" class="btn-completed" (click)="openCompletedAside()">
+          ✓ Completadas <span class="completed-count">{{ completedTasks.length }}</span>
+        </button>
+      }
+      <button type="button" class="btn-refresh" (click)="loadTasks()" [disabled]="loading">
+        ↻ Actualizar
       </button>
+    </div>
+  </header>
 
+  <!-- =========================================================
+       4. BUSCADOR Y LISTA
+       ========================================================= -->
+  <section class="search-container">
+    <form class="search-form" (ngSubmit)="searchTasks()">
+      <label for="task-search">Buscar tareas</label>
+      <input id="task-search" type="text" class="search-input" [(ngModel)]="searchTerm" name="searchTerm" placeholder="Buscar tareas..."/>
+      <button type="submit" class="btn-search" [disabled]="loading">Buscar</button>
     </form>
-
   </section>
 
+  <div class="swipe-hint">
+    <span class="swipe-hint-delete">← Desliza para eliminar</span>
+    <span class="swipe-hint-complete">Desliza para completar →</span>
+  </div>
 
-  <!-- =========================================================
-       MENSAJE DE ÉXITO
-       ========================================================= -->
 
-  @if (successMessage) {
+@if (successMessage) {
 
     <div class="alert alert-success">
       {{ successMessage }}
@@ -222,10 +130,6 @@
 
   }
 
-
-  <!-- =========================================================
-       MENSAJE DE ERROR
-       ========================================================= -->
 
   @if (errorMessage) {
 
@@ -236,14 +140,6 @@
   }
 
 
-  <!-- =========================================================
-       CARGANDO
-       ========================================================= -->
-
-  <!-- =========================================================
-       ESTADO: NINGÚN PROYECTO SELECCIONADO
-       Antes aquí se cargaba el primer proyecto automáticamente.
-       ========================================================= -->
 
   @if (!usesPersonalScope && selectedProjectId === null) {
 
@@ -856,7 +752,7 @@
           'Subtareas de ' +
           subtasksModalParent.title
         "
-        
+
       >
 
         <!-- =====================================================

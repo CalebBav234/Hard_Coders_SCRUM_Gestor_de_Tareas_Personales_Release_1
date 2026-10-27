@@ -1,25 +1,23 @@
 <div class="task-home">
 
-  <!-- FORMULARIO NORMAL PARA CREAR TAREAS -->
-  <section class="create-section">
-    <!-- US2.2: la tarea se crea en la actividad elegida en la barra de trabajo de la lista. -->
-    <app-task-form
-      [activityId]="taskList.selectedActivityId"
-      [activityName]="taskList.selectedActivityName"
-      (taskCreated)="onTaskCreated(taskList, $event)"
-    ></app-task-form>
-  </section>
-
-  <!-- LISTA DE TAREAS -->
+  <!-- LISTA DE TAREAS Y JERARQUÍA -->
   <section class="tasks-section">
     <app-task-list
       #taskList
       (editRequested)="openEditor($event)"
       (subtaskRequested)="openSubtaskForm($event)"
-    ></app-task-list>
+    >
+      <!-- PROYECTAMOS EL FORMULARIO DE CREACIÓN AL INTERIOR DEL TASK-LIST -->
+      <section class="create-section" task-form>
+        <app-task-form
+          [activityId]="taskList.selectedActivityId"
+          [activityName]="taskList.selectedActivityName"
+          (taskCreated)="onTaskCreated(taskList, $event)"
+        ></app-task-form>
+      </section>
+
+    </app-task-list>
   </section>
-
-
   <!-- =========================
        MODAL DE EDICIÓN
        ========================= -->
