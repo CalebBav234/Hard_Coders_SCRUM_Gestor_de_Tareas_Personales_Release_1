@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -46,7 +47,61 @@ class HierarchyQueryServiceTest {
         List<ActivityResult> activities = queries.activitiesOf(stageId);
 
         assertThat(stages).extracting(StageResult::name).containsExactly("Etapa A");
+        assertThat(stages).extracting(StageResult::activityCount).containsExactly(1);
         assertThat(activities).extracting(ActivityResult::name).containsExactly("Análisis");
+        assertThat(activities).extracting(ActivityResult::taskCount).containsExactly(0);
+    }
+
+    @Test
+    void reportsZeroActivityCountWhenStageHasNoActivities() {
+        Integer emptyStage = ports.seedStage(InMemoryPorts.PROJECT, "Vacía").id();
+
+        List<StageResult> stages = queries.stagesOf(InMemoryPorts.PROJECT);
+        assertThat(stages).extracting(StageResult::stageId).contains(emptyStage);
+        assertThat(stages).filteredOn(stage -> stage.stageId().equals(emptyStage))
+                .extracting(StageResult::activityCount).containsExactly(0);
+    }
+
+    @Test
+    void reportsTaskCountPerActivity() {
+        ports.seedTask(activityId, "Tarea 1", InMemoryPorts.ACTOR);
+        ports.seedTask(activityId, "Tarea 2", InMemoryPorts.ACTOR);
+
+        List<ActivityResult> activities = queries.activitiesOf(stageId);
+        assertThat(activities).filteredOn(activity -> activity.activityId().equals(activityId))
+                .extracting(ActivityResult::taskCount).containsExactly(2);
+    }
+
+    @Test
+    void countMethodsReturnEmptyMapForEmptyInput() {
+        assertThat(ports.hierarchy.countActivitiesByStage(List.of())).isEmpty();
+        assertThat(ports.hierarchy.countTasksByActivity(List.of())).isEmpty();
+    }
+
+    @Test
+    void countsActivitiesByStageIgnoringActivitiesOfOtherStages() {
+        Integer stageOne = ports.seedStage(InMemoryPorts.PROJECT, "Etapa uno").id();
+        Integer stageTwo = ports.seedStage(InMemoryPorts.PROJECT, "Etapa dos").id();
+        ports.seedActivity(stageOne, "Actividad 1.1");
+        ports.seedActivity(stageOne, "Actividad 1.2");
+        ports.seedActivity(stageTwo, "Actividad 2.1");
+
+        Map<Integer, Integer> byBoth = ports.hierarchy.countActivitiesByStage(List.of(stageOne, stageTwo));
+        assertThat(byBoth).containsExactly(Map.entry(stageOne, 2), Map.entry(stageTwo, 1));
+
+        Map<Integer, Integer> byOne = ports.hierarchy.countActivitiesByStage(List.of(stageOne));
+        assertThat(byOne).containsExactly(Map.entry(stageOne, 2));
+    }
+
+    @Test
+    void countsTasksByActivity() {
+        ports.seedTask(activityId, "Tarea 1", InMemoryPorts.ACTOR);
+        ports.seedTask(activityId, "Tarea 2", InMemoryPorts.ACTOR);
+        Integer otherActivity = ports.seedActivity(stageId, "Otra actividad").id();
+        ports.seedTask(otherActivity, "Tarea 3", InMemoryPorts.ACTOR);
+
+        Map<Integer, Integer> byActivity = ports.hierarchy.countTasksByActivity(List.of(activityId, otherActivity));
+        assertThat(byActivity).containsExactly(Map.entry(activityId, 2), Map.entry(otherActivity, 1));
     }
 
     @Test

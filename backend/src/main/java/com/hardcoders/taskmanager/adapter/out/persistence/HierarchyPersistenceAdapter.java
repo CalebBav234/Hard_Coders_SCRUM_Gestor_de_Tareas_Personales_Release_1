@@ -10,14 +10,13 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
-/**
- * Adaptador de salida JPA de la jerarquía Proyecto → Etapa → Actividad.
- * Sustituye al antiguo "espacio de trabajo": ya no se selecciona el primer proyecto.
- */
 @Component
 class HierarchyPersistenceAdapter implements HierarchyRepository {
 
@@ -43,11 +42,7 @@ class HierarchyPersistenceAdapter implements HierarchyRepository {
 
     @Override
     public List<Stage> stagesOf(Integer projectId) {
-        return entityManager.createQuery("""
-                        select s from StageEntity s join fetch s.status
-                        where s.project.projectId = :projectId
-                        order by s.createdAt, s.stageId
-                        """, StageEntity.class)
+        return entityManager.createQuery("select s from StageEntity s join fetch s.status where s.project.projectId = :projectId order by s.sortOrder, s.createdAt, s.stageId", StageEntity.class)
                 .setParameter("projectId", projectId)
                 .getResultList().stream()
                 .map(this::toDomain)
@@ -57,8 +52,7 @@ class HierarchyPersistenceAdapter implements HierarchyRepository {
     @Override
     public Stage save(Stage stage) {
         StageEntity entity = stage.isNew() ? new StageEntity() : entityManager.find(StageEntity.class, stage.id());
-        entity.setProject(entityManager.getReference(
-                com.hardcoders.taskmanager.adapter.out.persistence.entity.ProjectEntity.class, stage.projectId()));
+        entity.setProject(entityManager.getReference(com.hardcoders.taskmanager.adapter.out.persistence.entity.ProjectEntity.class, stage.projectId()));
         entity.setName(stage.name());
         entity.setDescription(stage.description());
         entity.setStatus(catalogs.workStatus(stage.status()));
@@ -68,7 +62,6 @@ class HierarchyPersistenceAdapter implements HierarchyRepository {
             entityManager.persist(entity);
         }
         entityManager.flush();
-        // updated_at lo fija el trigger: se relee para devolver el token de versión real.
         entityManager.refresh(entity);
         return toDomain(entity);
     }
@@ -86,11 +79,7 @@ class HierarchyPersistenceAdapter implements HierarchyRepository {
 
     @Override
     public List<Activity> activitiesOf(Integer stageId) {
-        return entityManager.createQuery("""
-                        select a from ActivityEntity a join fetch a.status
-                        where a.stage.stageId = :stageId
-                        order by lower(a.name), a.activityId
-                        """, ActivityEntity.class)
+        return entityManager.createQuery("select a from ActivityEntity a join fetch a.status where a.stage.stageId = :stageId order by a.sortOrder, lower(a.name), a.activityId", ActivityEntity.class)
                 .setParameter("stageId", stageId)
                 .getResultList().stream()
                 .map(this::toDomain)
@@ -112,7 +101,6 @@ class HierarchyPersistenceAdapter implements HierarchyRepository {
             entityManager.persist(entity);
         }
         entityManager.flush();
-        // updated_at lo fija el trigger: se relee para devolver el token de versión real.
         entityManager.refresh(entity);
         return toDomain(entity);
     }
@@ -127,5 +115,133 @@ class HierarchyPersistenceAdapter implements HierarchyRepository {
         return Activity.restore(entity.getActivityId(), entity.getStage().getStageId(), entity.getName(),
                 entity.getDescription(), WorkStatus.valueOf(entity.getStatus().getName()),
                 entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+
+    @Override
+    public List<Stage> searchStages(String likePattern) {
+        if (likePattern == null) {
+            return List.of();
+        }
+        String normalize = "translate(lower(coalesce(%s, '')), 'áéíóúüñ', 'aeiouun')";
+        return entityManager.createQuery("select s from StageEntity s join fetch s.status where " + normalize.formatted("s.name") + " LIKE :pattern ESCAPE '" + "\\" + "' or " + normalize.formatted("s.description") + " LIKE :pattern ESCAPE '" + "\\" + "' order by s.stageId desc", StageEntity.class)
+                .setParameter("pattern", likePattern)
+                .getResultList().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Activity> searchActivities(String likePattern) {
+        if (likePattern == null) {
+            return List.of();
+        }
+        String normalize = "translate(lower(coalesce(%s, '')), 'áéíóúüñ', 'aeiouun')";
+        return entityManager.createQuery("select a from ActivityEntity a join fetch a.status where " + normalize.formatted("a.name") + " LIKE :pattern ESCAPE '" + "\\" + "' or " + normalize.formatted("a.description") + " LIKE :pattern ESCAPE '" + "\\" + "' order by a.activityId desc", ActivityEntity.class)
+                .setParameter("pattern", likePattern)
+                .getResultList().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Stage> searchStagesVisibleFor(Integer userId, String likePattern) {
+        if (likePattern == null) {
+            return List.of();
+        }
+        String normalize = "translate(lower(coalesce(%s, '')), 'áéíóúüñ', 'aeiouun')";
+        return entityManager.createQuery(
+                "select distinct s from StageEntity s join fetch s.status join com.hardcoders.taskmanager.adapter.out.persistence.entity.ProjectEntity p on p.projectId = s.project.projectId where p.manager.userId = :userId and (" + normalize.formatted("s.name") + " LIKE :pattern ESCAPE '" + "\\" + "' or " + normalize.formatted("s.description") + " LIKE :pattern ESCAPE '" + "\\" + "') order by s.stageId desc", StageEntity.class)
+                .setParameter("userId", userId)
+                .setParameter("pattern", likePattern)
+                .getResultList().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Activity> searchActivitiesVisibleFor(Integer userId, String likePattern) {
+        if (likePattern == null) {
+            return List.of();
+        }
+        String normalize = "translate(lower(coalesce(%s, '')), 'áéíóúüñ', 'aeiouun')";
+        return entityManager.createQuery("select distinct a from ActivityEntity a join fetch a.status join StageEntity s on s.stageId = a.stage.stageId join com.hardcoders.taskmanager.adapter.out.persistence.entity.ProjectEntity p on p.projectId = s.project.projectId where p.manager.userId = :userId and (" + normalize.formatted("a.name") + " LIKE :pattern ESCAPE '" + "\\" + "' or " + normalize.formatted("a.description") + " LIKE :pattern ESCAPE '" + "\\" + "') order by a.activityId desc", ActivityEntity.class)
+                .setParameter("userId", userId)
+                .setParameter("pattern", likePattern)
+                .getResultList().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public void reorderStages(Integer projectId, List<Integer> stageIds) {
+        if (stageIds == null || stageIds.isEmpty()) {
+            return;
+        }
+        int idx = 0;
+        for (Integer id : stageIds) {
+            entityManager.createQuery("update StageEntity s set s.sortOrder = :order where s.stageId = :id and s.project.projectId = :projectId")
+                    .setParameter("order", idx++)
+                    .setParameter("id", id)
+                    .setParameter("projectId", projectId)
+                    .executeUpdate();
+        }
+    }
+
+    @Override
+    @Transactional
+    public void reorderActivities(Integer stageId, List<Integer> activityIds) {
+        if (activityIds == null || activityIds.isEmpty()) {
+            return;
+        }
+        int idx = 0;
+        for (Integer id : activityIds) {
+            entityManager.createQuery("update ActivityEntity a set a.sortOrder = :order where a.activityId = :id and a.stage.stageId = :stageId")
+                    .setParameter("order", idx++)
+                    .setParameter("id", id)
+                    .setParameter("stageId", stageId)
+                    .executeUpdate();
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Integer, Integer> countActivitiesByStage(List<Integer> stageIds) {
+        if (stageIds == null || stageIds.isEmpty()) {
+            return Map.of();
+        }
+        // Consulta nativa para evitar caché de entidades de Hibernate y leer el conteo real de la BD.
+        jakarta.persistence.Query q = entityManager.createNativeQuery(
+                "select stage_id, count(*) from task_manager.activity where stage_id in :ids group by stage_id");
+        q.setParameter("ids", stageIds);
+        List<Object[]> rows = q.getResultList();
+        Map<Integer, Integer> counts = new HashMap<>();
+        for (Integer id : stageIds) {
+            counts.put(id, 0);
+        }
+        for (Object[] row : rows) {
+            counts.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
+        }
+        return counts;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Integer, Integer> countTasksByActivity(List<Integer> activityIds) {
+        if (activityIds == null || activityIds.isEmpty()) {
+            return Map.of();
+        }
+        jakarta.persistence.Query q = entityManager.createNativeQuery(
+                "select activity_id, count(*) from task_manager.task where activity_id in :ids group by activity_id");
+        q.setParameter("ids", activityIds);
+        List<Object[]> rows = q.getResultList();
+        Map<Integer, Integer> counts = new HashMap<>();
+        for (Integer id : activityIds) {
+            counts.put(id, 0);
+        }
+        for (Object[] row : rows) {
+            counts.put(((Number) row[0]).intValue(), ((Number) row[1]).intValue());
+        }
+        return counts;
     }
 }

@@ -126,6 +126,6 @@ class TaskControllerTest {
     }
 
     private static ActivityResult activity() {
-        return new ActivityResult(21, 11, "Actividad", null, "PENDIENTE", NOW, NOW, 100L);
+        return new ActivityResult(21, 11, "Actividad", null, "PENDIENTE", NOW, NOW, 100L, 0);
     }
 }

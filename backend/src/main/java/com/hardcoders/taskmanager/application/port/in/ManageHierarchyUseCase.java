@@ -9,6 +9,8 @@ import com.hardcoders.taskmanager.application.command.HierarchyCommands.UpdateSt
 import com.hardcoders.taskmanager.application.result.ActivityResult;
 import com.hardcoders.taskmanager.application.result.StageResult;
 
+import java.util.List;
+
 /** Puerto de entrada de la Épica 2: construcción de la jerarquía Proyecto → Etapa → Actividad. */
 public interface ManageHierarchyUseCase {
 
@@ -23,4 +25,8 @@ public interface ManageHierarchyUseCase {
     ActivityResult updateActivity(UpdateActivityCommand command);
 
     ActivityResult changeActivityStatus(ActivityStatusCommand command);
+
+    void reorderStages(Integer projectId, List<Integer> stageIds);
+
+    void reorderActivities(Integer stageId, List<Integer> activityIds);
 }

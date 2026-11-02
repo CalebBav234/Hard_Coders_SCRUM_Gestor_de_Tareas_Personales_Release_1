@@ -21,6 +21,10 @@ public interface ProjectRepository {
     /** Proyectos que dirige el usuario (vista del Encargado). */
     List<Project> findManagedBy(Integer managerUserId);
 
+    List<Project> search(String likePattern);
+
+    List<Project> searchManagedBy(Integer managerUserId, String likePattern);
+
     /** Suma de {@code allocated_budget_bob} de las tareas no canceladas del proyecto. */
     BigDecimal allocatedBudget(Integer projectId);
 

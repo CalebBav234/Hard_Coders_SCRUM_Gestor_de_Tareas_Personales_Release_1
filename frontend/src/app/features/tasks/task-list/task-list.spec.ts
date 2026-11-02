@@ -1,11 +1,16 @@
+import { ChangeDetectorRef } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { ActivityDetailDto, AssignmentDto, ProjectProgressDto, StageDto, SubtaskDto, TaskDto } from '../../../core/models/api';
 import { Project } from '../../../core/models/project';
 import { Task } from '../../../core/models/task';
 import { TaskEditor } from '../task-editor/task-editor';
 import { TaskList } from './task-list';
+import { TaskService } from '../../../core/services/task.service';
+import { WbsService } from '../../../core/services/wbs.service';
+import { ProjectService } from '../../../core/services/project.service';
 
 describe('TaskList sobre la API V4', () => {
   let fixture: ComponentFixture<TaskList>;
@@ -264,7 +269,7 @@ describe('TaskList sobre la API V4', () => {
     await TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TaskList],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), TaskService, WbsService, ProjectService],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TaskList);
@@ -980,6 +985,128 @@ describe('TaskList sobre la API V4', () => {
     component.openSubtasksModal(component.tasks[0]);
     expect(component.subtasksModalParent?.title).toBe('Original');
   });
+
+  it('page title reflects the current hierarchy context', () => {
+    const component = fixture.componentInstance;
+    expect(component.pageTitle()).toBe('Tareas de Proyecto de pruebas');
+
+    component.selectedActivityId = 1;
+    component.categories = [{ id: 1, name: 'Cimentación' }];
+    expect(component.pageTitle()).toBe('Tareas de Cimentación');
+
+    component.selectedActivityId = null;
+    component.selectedStageId = 4;
+    component.stages = [{ stageId: 4, name: 'Diseño', projectId: 42, description: null, status: 'PENDIENTE', createdAt: '', updatedAt: '', version: 0, activityCount: 0 }];
+    expect(component.pageTitle()).toBe('Tareas de Diseño');
+
+    component.selectedProjectId = null;
+    component.selectedStageId = null;
+    component.selectedActivityId = null;
+    expect(component.pageTitle()).toBe('Mis tareas');
+  });
+
+  it('page subtitle reflects the current hierarchy context', () => {
+    const component = fixture.componentInstance;
+    expect(component.pageSubtitle()).toBe('Elige una etapa y una actividad para crear tareas.');
+
+    component.selectedStageId = 4;
+    expect(component.pageSubtitle()).toBe('Elige una actividad para crear y gestionar sus tareas.');
+
+    component.selectedActivityId = 1;
+    expect(component.pageSubtitle()).toBe('Organiza, activa y completa las tareas de esta actividad.');
+
+    component.selectedProjectId = null;
+    component.selectedStageId = null;
+    component.selectedActivityId = null;
+    expect(component.pageSubtitle()).toBe('Selecciona un proyecto para comenzar.');
+  });
+
+  it('isChief is false when there is no authenticated session', () => {
+    expect(fixture.componentInstance.isChief).toBe(false);
+  });
+
+  it('canCreateTask requires a selected project and hierarchy permissions', () => {
+    const component = fixture.componentInstance;
+    expect(component.canCreateTask).toBe(true);
+
+    component.selectedProjectId = null;
+    expect(component.canCreateTask).toBe(false);
+  });
+
+  it('selecting a stage loads its activities as categories', () => {
+    const component = fixture.componentInstance;
+    component.selectedStageId = 4;
+    component.selectStage(4);
+
+    http.expectOne('/api/activities?stageId=4')
+      .flush([{ activityId: 1, stageId: 4, name: 'Cimentación', description: null, status: 'PENDIENTE', createdAt: '', updatedAt: '', version: 0, taskCount: 0 }]);
+    fixture.detectChanges();
+
+    expect(component.selectedStageId).toBe(4);
+    expect(component.categories.map((c) => c.name)).toContain('Cimentación');
+  });
+
+  it('restoreRouteContext selects another project and loads its stages', () => {
+    const component = fixture.componentInstance;
+    component.projectsLoaded = true;
+    (component as any).restoreRouteContext(99, null);
+    http.expectOne('/api/projects/99/stages').flush([]);
+    fixture.detectChanges();
+    // El panel de progreso se recrea para el nuevo proyecto.
+    http.expectOne('/api/projects/99/progress').flush(progress);
+    fixture.detectChanges();
+    expect(component.selectedProjectId).toBe(99);
+  });
+
+  it('restoreRouteContext selects a stage of the current project', () => {
+    const component = fixture.componentInstance;
+    component.stages = [{ stageId: 4, projectId: 42, name: 'Diseño', description: null, status: 'PENDIENTE', createdAt: '', updatedAt: '', version: 0, activityCount: 0 }];
+    (component as any).restoreRouteContext(42, 4);
+    http.expectOne('/api/activities?stageId=4').flush([]);
+    fixture.detectChanges();
+    expect(component.selectedStageId).toBe(4);
+  });
+
+  it('muestra pantalla de seleccion cuando no hay proyecto', () => {
+    const component = fixture.componentInstance;
+    component.selectedProjectId = null;
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Selecciona un proyecto');
+  });
+
+  it('muestra encabezado de etapa cuando se selecciona una etapa', () => {
+    const component = fixture.componentInstance;
+    component.selectedStageId = 4;
+    component.stages = stages();
+    component.selectStage(4);
+    http.expectOne('/api/activities?stageId=4').flush(activities());
+    fixture.detectChanges();
+    // Sin actividad seleccionada, la miga de pan muestra "Tareas".
+    expect(element.textContent).toContain('Tareas');
+    expect(component.selectedStageId).toBe(4);
+  });
+
+  it('muestra encabezado de actividad cuando se selecciona una actividad', () => {
+    const component = fixture.componentInstance;
+    component.selectedStageId = 4;
+    component.selectedActivityId = 3;
+    component.stages = stages();
+    component.categories = activities().map((a) => ({ id: a.activityId, name: a.name }));
+    component.selectStage(4);
+    http.expectOne('/api/activities?stageId=4').flush(activities());
+    fixture.detectChanges();
+    expect(component.selectedActivityId).toBe(3);
+    expect(element.textContent).toContain('Tareas de');
+  });
+
+  it('muestra boton de tareas completadas cuando existen', () => {
+    const component = fixture.componentInstance;
+    const completed = parentView({ status: 'TERMINADA', completedAt: '2026-10-02T10:00:00Z' });
+    component.tasks = [completed];
+    component.changeDetector.markForCheck();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('Completadas');
+  });
 });
 
 describe('TaskList como Personal — US3.1 (solo tareas asignadas)', () => {
@@ -990,7 +1117,7 @@ describe('TaskList como Personal — US3.1 (solo tareas asignadas)', () => {
     await TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TaskList],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), TaskService, WbsService, ProjectService],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TaskList);

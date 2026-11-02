@@ -18,6 +18,31 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'projects/:projectId',
+    component: TaskHome,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'projects/:projectId/stages/:stageId',
+    component: TaskHome,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'projects/:projectId/stages/:stageId/activities/:activityId',
+    component: TaskHome,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'projects/:projectId/stages/:stageId/activities/:activityId/tasks/:taskId',
+    component: TaskHome,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'projects/:projectId/stages/:stageId/activities/:activityId/tasks/:taskId/subtasks/:subtaskId',
+    component: TaskHome,
+    canActivate: [authGuard],
+  },
+  {
     path: 'history',
     component: TaskHistory,
     canActivate: [authGuard],

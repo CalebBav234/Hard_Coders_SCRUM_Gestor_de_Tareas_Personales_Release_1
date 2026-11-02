@@ -9,6 +9,7 @@ import com.hardcoders.taskmanager.domain.model.Actor;
 import com.hardcoders.taskmanager.domain.model.Activity;
 import com.hardcoders.taskmanager.domain.model.Project;
 import com.hardcoders.taskmanager.domain.model.Stage;
+import com.hardcoders.taskmanager.domain.model.SearchText;
 import com.hardcoders.taskmanager.domain.model.Subtask;
 import com.hardcoders.taskmanager.domain.model.Task;
 import com.hardcoders.taskmanager.domain.policy.ProjectAccessPolicy;
@@ -51,7 +52,38 @@ public class HierarchyQueryService implements QueryHierarchyUseCase {
     @Override
     public List<StageResult> stagesOf(Integer projectId) {
         requireVisibleProject(currentActor.current(), projectId);
-        return hierarchy.stagesOf(projectId).stream().map(HierarchyQueryService::toResult).toList();
+        List<Stage> stages = hierarchy.stagesOf(projectId);
+        Map<Integer, Integer> activityCounts = hierarchy.countActivitiesByStage(
+                stages.stream().map(Stage::id).toList());
+        return stages.stream()
+                .map(stage -> toResult(stage, activityCounts.getOrDefault(stage.id(), 0)))
+                .toList();
+    }
+
+    @Override
+    public List<StageResult> searchStages(String query) {
+        Actor actor = currentActor.current();
+        if (actor == null || !actor.active()) {
+            return List.of();
+        }
+        String like = SearchText.likePattern(query).orElse(null);
+        List<Stage> stages = actor.chief() ? hierarchy.searchStages(like) : hierarchy.searchStagesVisibleFor(actor.userId(), like);
+        Map<Integer, Integer> activityCounts = hierarchy.countActivitiesByStage(
+                stages.stream().map(Stage::id).toList());
+        return stages.stream()
+                .map(stage -> toResult(stage, activityCounts.getOrDefault(stage.id(), 0)))
+                .toList();
+    }
+
+    @Override
+    public List<ActivityResult> searchActivities(String query) {
+        Actor actor = currentActor.current();
+        if (actor == null || !actor.active()) {
+            return List.of();
+        }
+        String like = SearchText.likePattern(query).orElse(null);
+        List<Activity> activities = actor.chief() ? hierarchy.searchActivities(like) : hierarchy.searchActivitiesVisibleFor(actor.userId(), like);
+        return activities.stream().map(activity -> ResultMapper.toResult(activity)).toList();
     }
 
     @Override
@@ -59,7 +91,16 @@ public class HierarchyQueryService implements QueryHierarchyUseCase {
         Stage stage = hierarchy.findStage(stageId)
                 .orElseThrow(() -> new NotFoundException(Stage.ENTITY, stageId));
         requireVisibleProject(currentActor.current(), stage.projectId());
-        return hierarchy.activitiesOf(stageId).stream().map(ResultMapper::toResult).toList();
+        List<Activity> activities = hierarchy.activitiesOf(stageId);
+        Map<Integer, Integer> taskCounts = hierarchy.countTasksByActivity(
+                activities.stream().map(Activity::id).toList());
+        return activities.stream()
+                .map(activity -> toResult(activity, taskCounts.getOrDefault(activity.id(), 0)))
+                .toList();
+    }
+
+    private static ActivityResult toResult(Activity activity, int taskCount) {
+        return ResultMapper.toResult(activity, taskCount);
     }
 
     @Override
@@ -97,8 +138,9 @@ public class HierarchyQueryService implements QueryHierarchyUseCase {
         }
     }
 
-    private static StageResult toResult(Stage stage) {
+    private static StageResult toResult(Stage stage, int activityCount) {
         return new StageResult(stage.id(), stage.projectId(), stage.name(), stage.description(),
-                stage.status().name(), stage.createdAt(), stage.updatedAt(), stage.version());
+                stage.status().name(), stage.createdAt(), stage.updatedAt(), stage.version(),
+                activityCount);
     }
 }

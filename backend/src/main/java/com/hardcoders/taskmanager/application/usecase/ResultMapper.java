@@ -83,6 +83,12 @@ final class ResultMapper {
 
     static ActivityResult toResult(Activity activity) {
         return new ActivityResult(activity.id(), activity.stageId(), activity.name(), activity.description(),
-                activity.status().name(), activity.createdAt(), activity.updatedAt(), activity.version());
+                activity.status().name(), activity.createdAt(), activity.updatedAt(), activity.version(), 0);
+    }
+
+    static ActivityResult toResult(Activity activity, int taskCount) {
+        return new ActivityResult(activity.id(), activity.stageId(), activity.name(), activity.description(),
+                activity.status().name(), activity.createdAt(), activity.updatedAt(), activity.version(),
+                taskCount);
     }
 }

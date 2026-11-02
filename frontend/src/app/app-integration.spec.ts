@@ -2,10 +2,14 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { provideRouter } from '@angular/router';
 import { ProjectProgressDto, TaskDto } from './core/models/api';
 import { TaskForm } from './features/tasks/task-form/task-form';
 import { TaskHome } from './features/tasks/task-home/task-home';
 import { TaskList } from './features/tasks/task-list/task-list';
+import { TaskService } from './core/services/task.service';
+import { WbsService } from './core/services/wbs.service';
+import { ProjectService } from './core/services/project.service';
 
 describe('Pantalla de tareas integrada con la API V4', () => {
   const created: TaskDto = {
@@ -32,7 +36,7 @@ describe('Pantalla de tareas integrada con la API V4', () => {
   it('creates a task and then a subtask, showing both without reloading the page', async () => {
     await TestBed.configureTestingModule({
       imports: [TaskHome],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), TaskService, WbsService, ProjectService],
     }).compileComponents();
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(TaskHome);
@@ -160,7 +164,7 @@ describe('Pantalla de tareas integrada con la API V4', () => {
   it('hands the chosen activity to the create form (US2.2)', async () => {
     await TestBed.configureTestingModule({
       imports: [TaskHome],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), TaskService, WbsService, ProjectService],
     }).compileComponents();
     const http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(TaskHome);

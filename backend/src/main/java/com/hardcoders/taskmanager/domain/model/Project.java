@@ -49,6 +49,14 @@ public final class Project {
         this.lastRevisionNumber = lastRevisionNumber;
     }
 
+    public static Project of(Integer id, String name, String description, Integer managerUserId, ProjectStatus status,
+                             BigDecimal budgetBob, Integer estimatedDurationMinutes, Integer createdByUserId,
+                             Instant createdAt, Instant updatedAt, int lastRevisionNumber) {
+        return new Project(id, name, description, managerUserId, status, budgetBob,
+                estimatedDurationMinutes == null ? 0 : estimatedDurationMinutes, createdByUserId,
+                createdAt, updatedAt, lastRevisionNumber);
+    }
+
     /** AC-US1.1-01: nuevo proyecto PLANIFICADO con su revisión 1. */
     public static Project create(String name, String description, Integer managerUserId, BigDecimal budgetBob,
                                  Integer estimatedDurationMinutes, String reason, Integer actorId, Instant now) {

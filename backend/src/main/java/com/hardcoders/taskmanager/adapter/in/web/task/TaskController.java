@@ -57,6 +57,11 @@ public class TaskController {
         return HierarchyController.toResponses(queryTasks.listTasks(projectId, q));
     }
 
+    @GetMapping(value = "/tasks", params = {"q"})
+    public List<TaskResponses.TaskResponse> searchTasks(@RequestParam("q") String q) {
+        return HierarchyController.toResponses(queryTasks.search(q));
+    }
+
     /** US3.1: "Mis tareas", tareas asignadas al usuario del token y sin datos financieros. */
     @GetMapping("/tasks/assigned")
     public List<TaskResponses.AssignedTaskResponse> assignedTasks(@RequestParam(required = false) String q) {

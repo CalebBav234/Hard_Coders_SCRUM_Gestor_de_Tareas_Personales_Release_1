@@ -6,8 +6,356 @@ import { AuthService } from './core/auth/auth.service';
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
-  templateUrl: './app.html',
-  styleUrl: './app.css',
+  template: `<div class="app-container">
+
+  <header class="app-header">
+
+    <div class="app-header-left">
+
+      <div class="app-logo">
+        ✓
+      </div>
+
+      <div class="app-brand">
+        <h1>Gestor de Tareas</h1>
+        <p>Organiza y administra tus tareas personales</p>
+      </div>
+
+    </div>
+
+    @if (auth.user(); as user) {
+    <nav
+      aria-label="Secciones de tareas"
+      class="section-nav"
+    >
+
+      <a
+        routerLink="/"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="nav-link"
+      >
+        Mis tareas
+      </a>
+
+      <a
+        routerLink="/projects"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        Proyectos
+      </a>
+
+      <a
+        routerLink="/history"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        Historial
+      </a>
+
+    </nav>
+
+    <div class="session-box">
+      <span class="session-user">
+        {{ user.fullName }}
+        <small>{{ user.chief ? 'Jefe' : 'Usuario' }}</small>
+      </span>
+      <button type="button" class="session-logout" (click)="logout()">Salir</button>
+    </div>
+    }
+
+  </header>
+
+  <main>
+    <router-outlet></router-outlet>
+  </main>
+
+</div>`,
+  styles: [`.app-container {
+min-height: 100vh;
+width: 100%;
+
+padding: 0 48px 80px;
+
+background: var(--espejismo);
+}
+
+/* =========================================================
+   APP HEADER
+   ========================================================= */
+
+.app-header {
+
+  width: 100%;
+
+  max-width: 1480px;
+
+  height: 76px;
+
+  margin: 0 auto;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  /* Mantener el navbar visible al hacer scroll */
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+
+  /* Fondo para que el contenido no se vea por detrás */
+  background: var(--espejismo);
+
+  border-bottom: 1px solid var(--martinica);
+}
+
+/* =========================================================
+HEADER LEFT
+========================================================= */
+
+.app-header-left {
+display: flex;
+align-items: center;
+
+gap: 13px;
+}
+
+.app-logo {
+width: 34px;
+height: 34px;
+
+display: flex;
+align-items: center;
+justify-content: center;
+
+border-radius: 7px;
+
+background: var(--scampi);
+color: #FFFFFF;
+
+font-size: 17px;
+font-weight: 700;
+
+box-shadow:
+0 2px 5px rgba(0, 0, 0, 0.18);
+}
+
+/* =========================================================
+BRAND
+========================================================= */
+
+.app-brand h1 {
+margin: 0;
+
+color: var(--text-primary);
+
+font-size: 25px;
+line-height: 1.2;
+font-weight: 650;
+
+letter-spacing: -0.15px;
+}
+
+.app-brand p {
+margin: 3px 0 0;
+
+color: var(--text-muted);
+
+font-size: 11px;
+line-height: 1.3;
+}
+
+/* =========================================================
+NAVIGATION
+========================================================= */
+
+.section-nav {
+height: 100%;
+
+display: flex;
+align-items: stretch;
+
+gap: 2px;
+}
+
+.nav-link {
+position: relative;
+
+min-width: 112px;
+
+padding: 0 18px;
+
+display: flex;
+align-items: center;
+justify-content: center;
+
+color: var(--text-muted);
+
+font-size: 13px;
+font-weight: 600;
+
+transition:
+color 0.18s ease,
+background-color 0.18s ease;
+}
+
+.nav-link:hover {
+color: var(--text-secondary);
+
+background: rgba(80, 80, 119, 0.16);
+}
+
+.nav-link.active {
+color: var(--text-primary);
+}
+
+.nav-link.active::after {
+content: "";
+
+position: absolute;
+
+left: 18px;
+right: 18px;
+bottom: -1px;
+
+height: 2px;
+
+border-radius: 2px;
+
+background: var(--scampi);
+}
+
+/* =========================================================
+MAIN
+========================================================= */
+
+main {
+width: 100%;
+max-width: 1480px;
+
+margin: 0 auto;
+}
+
+
+/* =========================================================
+HISTORY
+========================================================= */
+
+.history-section {
+width: 100%;
+
+margin-top: 72px;
+padding-top: 44px;
+
+border-top: 1px solid var(--martinica);
+}
+
+/* =========================================================
+RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+.app-container {
+padding: 0 28px 60px;
+}
+
+.app-header {
+height: auto;
+min-height: 76px;
+
+padding: 16px 0;
+
+}
+
+.section-nav {
+height: 44px;
+}
+
+.nav-link {
+min-width: 100px;
+}
+}
+
+@media (max-width: 650px) {
+.app-container {
+padding: 0 16px 45px;
+}
+
+.app-header {
+align-items: flex-start;
+
+flex-direction: column;
+
+gap: 15px;
+
+}
+
+.app-header-left {
+width: 100%;
+}
+
+.app-brand p {
+display: none;
+}
+
+.section-nav {
+width: 100%;
+height: 42px;
+}
+
+.nav-link {
+flex: 1;
+min-width: 0;
+}
+
+.create-section {
+margin-top: 28px;
+}
+}
+
+/* =========================================================
+SESIÓN
+========================================================= */
+
+.session-box {
+display: flex;
+align-items: center;
+gap: 12px;
+}
+
+.session-user {
+display: flex;
+flex-direction: column;
+align-items: flex-end;
+color: var(--text-secondary);
+font-size: 12px;
+font-weight: 600;
+}
+
+.session-user small {
+color: var(--text-muted);
+font-size: 10px;
+font-weight: 500;
+}
+
+.session-logout {
+min-height: 32px;
+padding: 0 12px;
+border: 1px solid var(--cometa);
+border-radius: 6px;
+background: transparent;
+color: var(--text-primary);
+font-size: 12px;
+cursor: pointer;
+}
+
+.session-logout:hover {
+background: var(--surface-hover);
+}
+`],
 })
 export class App {
   readonly auth = inject(AuthService);

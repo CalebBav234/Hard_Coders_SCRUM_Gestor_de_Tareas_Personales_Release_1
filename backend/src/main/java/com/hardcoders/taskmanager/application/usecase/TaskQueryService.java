@@ -59,6 +59,17 @@ public class TaskQueryService implements QueryTasksUseCase {
     }
 
     @Override
+    public List<TaskResult> search(String query) {
+        Actor actor = currentActor.current();
+        if (actor == null || !actor.active()) {
+            return List.of();
+        }
+        String like = pattern(query);
+        List<Task> found = actor.chief() ? tasks.searchAll(like) : tasks.searchVisibleFor(actor.userId(), like);
+        return toResults(found);
+    }
+
+    @Override
     public TaskResult getTask(Integer taskId) {
         Actor actor = currentActor.current();
         Task task = loadVisible(actor, taskId);

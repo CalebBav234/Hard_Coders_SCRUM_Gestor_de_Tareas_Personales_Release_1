@@ -10,10 +10,13 @@ import {
 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 
 import { TaskService } from '../../../core/services/task.service';
 import { WbsService } from '../../../core/services/wbs.service';
 import { ProjectService } from '../../../core/services/project.service';
+import { HierarchyStateService } from '../../../core/services/hierarchy-state.service';
+import { AuthService } from '../../../core/auth/auth.service';
 import { Task } from '../../../core/models/task';
 import { Project } from '../../../core/models/project';
 import { ProjectProgressDto, StageDto } from '../../../core/models/api';
@@ -24,7 +27,8 @@ import { WbsPanel } from '../wbs/wbs-panel';
 import { AssignmentDialog } from '../assignment-dialog/assignment-dialog';
 import { ProgressPanel } from '../progress-panel/progress-panel';
 
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, ParamMap } from '@angular/router';
+import { combineLatest } from 'rxjs';
 
 @Component({
   selector: 'app-task-list',
@@ -32,14 +36,1385 @@ import { ActivatedRoute } from '@angular/router';
   imports: [
     CommonModule,
     FormsModule,
+    DragDropModule,
     TaskForm,
     TaskEditor,
     WbsPanel,
     AssignmentDialog,
     ProgressPanel
   ],
-  templateUrl: './task-list.html',
-  styleUrl: './task-list.css'
+  template: `<div class="task-list-page">
+
+  <!-- =========================================================
+       1. JERARQUÍA (PROYECTO, ETAPA, ACTIVIDAD) - MOVIDO ARRIBA
+       ========================================================= -->
+  @if (!usesPersonalScope) {
+    <section class="workspace-bar">
+      <label for="workspace-project">Proyecto</label>
+      <select
+        id="workspace-project"
+        [(ngModel)]="selectedProjectId"
+        (ngModelChange)="selectProject($event)"
+      >
+        <option [ngValue]="null">— Selecciona un proyecto —</option>
+        @for (project of projects; track project.projectId) {
+          <option [ngValue]="project.projectId">{{ project.name }}</option>
+        }
+      </select>
+
+      @if (selectedStageId !== null || stages.length > 0) {
+        <label for="workspace-stage">Etapa</label>
+        <select
+          id="workspace-stage"
+          [(ngModel)]="selectedStageId"
+          (ngModelChange)="selectStage($event)"
+        >
+          @for (stage of stages; track stage.stageId) {
+            <option [ngValue]="stage.stageId">{{ stage.name }}</option>
+          }
+        </select>
+
+        @if (categories.length > 0) {
+          <label for="workspace-activity">Actividad</label>
+          <select
+            id="workspace-activity"
+            [(ngModel)]="selectedActivityId"
+            (ngModelChange)="selectActivity($event)"
+          >
+            <option [ngValue]="null">— Selecciona —</option>
+            @for (category of categories; track category.id) {
+              <option [ngValue]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        }
+      }
+
+      @if (canManageHierarchy) {
+        <button type="button" class="btn-wbs-toggle" [class.active]="wbsPanelOpen" (click)="toggleWbsPanel()">
+          ▤ Estructura
+        </button>
+        }
+
+      @if (selectedProjectId !== null) {
+        <span class="ratio">{{ progressRatio }} % completado</span>
+      }
+    </section>
+
+    <!-- Constructor de la WBS y Progreso -->
+    @if (wbsPanelOpen && selectedProjectId !== null) {
+      <app-wbs-panel
+        [projectId]="selectedProjectId"
+        [canManage]="canManageHierarchy"
+        (structureChanged)="loadCategories(); loadTasks()"
+      ></app-wbs-panel>
+    }
+
+    @if (selectedProjectId !== null) {
+      <app-progress-panel
+        [projectId]="selectedProjectId"
+        (loaded)="onProgressLoaded($event)"
+      ></app-progress-panel>
+    }
+  }
+
+  <!-- =========================================================
+       2. FORMULARIO DE CREACIÓN (PROYECTADO DESDE TASK-HOME)
+       ========================================================= -->
+  <ng-content select="[task-form]"></ng-content>
+
+
+  <!-- =========================================================
+       3. ENCABEZADO CONTEXTUAL (proyecto → etapa → actividad)
+       ========================================================= -->
+  <header class="page-header">
+    <div class="page-header-left">
+      <nav class="breadcrumb" aria-label="Ruta actual">
+        <ol>
+          <li><a routerLink="/" (click)="selectProject(null)">Proyectos</a><span class="breadcrumb-sep">›</span></li>
+          @if (selectedProjectId !== null) {
+            <li><a routerLink="/" (click)="selectProject(selectedProjectId)">{{ selectedProject?.name }}</a><span class="breadcrumb-sep">›</span></li>
+            @if (selectedStageId !== null) {
+              <li><a routerLink="/" (click)="selectStage(selectedStageId)">{{ stageName(selectedStageId) }}</a><span class="breadcrumb-sep">›</span></li>
+              @if (selectedActivityId !== null) {
+                <li><span class="breadcrumb-current">{{ activityName(selectedActivityId) }}</span></li>
+              } @else {
+                <li><span class="breadcrumb-current">Tareas</span></li>
+              }
+            } @else {
+              <li><span class="breadcrumb-current">Etapas</span></li>
+            }
+          }
+        </ol>
+      </nav>
+      <div>
+        <h1 class="page-title">{{ pageTitle() }}</h1>
+        <p class="page-subtitle">{{ pageSubtitle() }}</p>
+      </div>
+    </div>
+
+    <div class="page-header-actions">
+      @if (completedTasks.length > 0) {
+        <button type="button" class="btn-completed" (click)="openCompletedAside()">
+          ✓ Completadas <span class="completed-count">{{ completedTasks.length }}</span>
+        </button>
+      }
+      <button type="button" class="btn-refresh" (click)="loadTasks()" [disabled]="loading">
+        ↻ Actualizar
+      </button>
+      @if (selectedProjectId !== null && selectedActivityId !== null && canCreateTask) {
+        <button type="button" class="gt-btn gt-btn-primary" (click)="openTaskForm()">
+          ＋ Nueva tarea
+        </button>
+      } @else if (selectedProjectId !== null && selectedActivityId === null && categories.length > 0 && canCreateTask) {
+        <button type="button" class="gt-btn gt-btn-primary" (click)="selectActivity(categories[0].id)">
+          ＋ Nueva tarea
+        </button>
+      } @else if (selectedProjectId !== null && stages.length > 0 && selectedStageId === null && canManageHierarchy) {
+        <button type="button" class="gt-btn gt-btn-primary" (click)="toggleWbsPanel()">
+          ＋ Crear etapa
+        </button>
+      } @else if (selectedProjectId === null && projects.length > 0 && isChief) {
+        <button type="button" class="gt-btn gt-btn-primary" (click)="openTaskForm()">
+          ＋ Nuevo proyecto
+        </button>
+      } @else if (selectedProjectId === null && projects.length === 0 && isChief) {
+        <button type="button" class="gt-btn gt-btn-primary" (click)="openTaskForm()">
+          ＋ Crear primer proyecto
+        </button>
+      }
+    </div>
+  </header>
+
+  <!-- =========================================================
+       4. BUSCADOR Y LISTA
+       ========================================================= -->
+  <section class="search-container">
+    <form class="search-form" (ngSubmit)="searchTasks()">
+      <label for="task-search">Buscar tareas</label>
+      <input id="task-search" type="text" class="search-input" [(ngModel)]="searchTerm" name="searchTerm" placeholder="Buscar tareas..."/>
+      <button type="submit" class="btn-search" [disabled]="loading">Buscar</button>
+    </form>
+  </section>
+
+  <div class="swipe-hint">
+    <span class="swipe-hint-delete">← Desliza para eliminar</span>
+    <span class="swipe-hint-complete">Desliza para completar →</span>
+  </div>
+
+
+@if (successMessage) {
+
+    <div class="alert alert-success">
+      {{ successMessage }}
+    </div>
+
+  }
+
+
+  @if (errorMessage) {
+
+    <div class="alert alert-error">
+      {{ errorMessage }}
+    </div>
+
+  }
+
+
+
+  @if (!usesPersonalScope && selectedProjectId === null) {
+
+    <div class="empty-state">
+
+      <div class="empty-state-icon">
+        📁
+      </div>
+
+      <h3>
+        Selecciona un proyecto
+      </h3>
+
+      <p>
+        Elige el proyecto sobre el que quieres trabajar. Las tareas
+        siempre pertenecen a una etapa y una actividad de ese proyecto.
+      </p>
+
+    </div>
+
+  } @else if (loading) {
+
+    <div class="empty-state">
+
+      <div class="empty-state-icon">
+        ⏳
+      </div>
+
+      <h3>
+        Cargando tareas...
+      </h3>
+
+      <p>
+        Espera un momento.
+      </p>
+
+    </div>
+
+  }
+
+
+  <!-- =========================================================
+       LISTA DE TAREAS PRINCIPALES
+       ========================================================= -->
+
+  @else if (parentTasks.length > 0) {
+
+    <section class="tasks" cdkDropList (cdkDropListDropped)="onDropTasks($event)" [cdkDropListData]="parentTasks">
+
+      @for (task of parentTasks; track task.id) {
+
+        <div class="swipe-container" cdkDrag [cdkDragData]="task">
+
+          <!-- ACCIÓN ELIMINAR -->
+
+          <div
+            class="swipe-action swipe-delete"
+            [class.revealed]="getSwipeOffset(task.id) < -20"
+          >
+
+            <span class="swipe-icon">
+              🗑
+            </span>
+
+            <strong>
+              ELIMINAR
+            </strong>
+
+          </div>
+
+
+          <!-- ACCIÓN COMPLETAR -->
+
+          <div
+            class="swipe-action swipe-complete"
+            [class.revealed]="getSwipeOffset(task.id) > 20"
+          >
+
+            <span class="swipe-icon">
+              ✓
+            </span>
+
+            <strong>
+              COMPLETAR
+            </strong>
+
+          </div>
+
+
+          <!-- TARJETA PRINCIPAL -->
+
+          <article
+            class="task-card"
+            [ngClass]="getTaskColorClass(task.id)"
+            [id]="'task-card-' + task.id"
+            [class.is-swiping]="isSwiping(task.id)"
+            [style.transform]="
+              'translate3d(' +
+              getSwipeOffset(task.id) +
+              'px, 0, 0)'
+            "
+            (pointerdown)="startSwipe($event, task)"
+            (pointermove)="moveSwipe($event, task)"
+            (pointerup)="endSwipe($event, task)"
+            (pointercancel)="cancelSwipe(task.id)"
+          >
+
+            <!-- CABECERA -->
+
+            <div class="task-header">
+
+              <span class="wbs-drag-handle" cdkDragHandle title="Arrastre para reordenar">⠿</span>
+
+              <h2 class="task-title">
+                {{ task.title }}
+              </h2>
+
+              <span
+                class="task-status"
+                [class.status-activa]="task.status === 'ACTIVA'"
+                [class.status-inactiva]="task.status === 'INACTIVA'"
+                [class.status-terminada]="task.status === 'TERMINADA'"
+              >
+                {{ task.status }}
+              </span>
+
+            </div>
+
+
+            <!-- DESCRIPCIÓN -->
+
+            @if (task.description) {
+
+              <p class="task-description">
+                {{ task.description }}
+              </p>
+
+            }
+
+
+            <!-- INFORMACIÓN -->
+
+            <div class="task-meta">
+
+              <span
+                class="meta-item priority"
+                [class.priority-alta]="task.priority === 'ALTA'"
+                [class.priority-media]="task.priority === 'MEDIA'"
+                [class.priority-baja]="task.priority === 'BAJA'"
+              >
+                Prioridad:
+                {{ task.priority }}
+              </span>
+
+            </div>
+
+
+            <!-- TIEMPO ACTIVO -->
+
+            @if (task.totalActiveSeconds !== undefined) {
+
+              <div class="active-time">
+
+                <span>
+                  Tiempo activo
+                </span>
+
+                <strong>
+                  {{ formatActiveTime(getActiveSeconds(task)) }}
+                </strong>
+
+              </div>
+
+            }
+
+
+            <!-- SUBTAREAS -->
+
+            @if (getSubtasks(task.id).length > 0) {
+
+              <button
+                type="button"
+                class="subtasks-button"
+                (click)="openSubtasksModal(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+
+                <span>
+                  ▣ Subtareas
+                </span>
+
+                <span class="subtasks-count">
+                  {{ getSubtasks(task.id).length }}
+                </span>
+
+              </button>
+
+            }
+
+
+            <!-- BOTONES DE ACCIÓN -->
+
+            <div class="task-actions">
+
+              <!-- US2.3 — asignar Personal a la tarea -->
+
+              @if (canManageHierarchy) {
+
+                <button
+                  type="button"
+                  (click)="openAssignment(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  👥 Asignar
+
+                  @if (assignedCount(task) > 0) {
+                    <span class="assigned-count">
+                      {{ assignedCount(task) }}
+                    </span>
+                  }
+                </button>
+
+              }
+
+              @if (task.status === 'INACTIVA') {
+
+                <button
+                  type="button"
+                  (click)="activate(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ▶ Activar
+                </button>
+
+              }
+
+              @if (task.status === 'ACTIVA') {
+
+                <button
+                  type="button"
+                  (click)="pause(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ⏸ Pausar
+                </button>
+
+                <button
+                  type="button"
+                  (click)="complete(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ✓ Completar
+                </button>
+
+              }
+
+              @if (task.status === 'TERMINADA') {
+
+                <button
+                  type="button"
+                  class="btn-reopen"
+                  (click)="reopen(task)"
+                  [disabled]="actionsDisabled(task)"
+                >
+                  ↻ Reabrir tarea
+                </button>
+
+              }
+
+
+              <!-- CREAR SUBTAREA -->
+
+              <button
+                type="button"
+                (click)="createSubtask(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                ＋ Subtarea
+              </button>
+
+
+              <!-- EDITAR TAREA PRINCIPAL -->
+
+              <button
+                type="button"
+                (click)="editTask(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                ✎ Editar
+              </button>
+
+
+              <!-- ELIMINAR -->
+
+              <button
+                type="button"
+                class="btn-delete"
+                (click)="requestDelete(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                🗑 Eliminar
+              </button>
+
+            </div>
+
+
+            <!-- CONFIRMACIÓN DE ELIMINACIÓN -->
+
+            @if (confirmingDelete === task.id) {
+
+              <section class="delete-confirmation">
+
+                <div class="delete-warning-icon">
+                  ⚠
+                </div>
+
+                <div class="delete-warning-content">
+
+                  <h4>
+                    ¿Eliminar "{{ task.title }}"?
+                  </h4>
+
+                  <p>
+                    La tarea dejará de aparecer
+                    en la lista.
+                    Su historial se conservará.
+                  </p>
+
+                </div>
+
+                <div class="delete-confirmation-actions">
+
+                  <button
+                    type="button"
+                    class="btn-cancel-delete"
+                    (click)="cancelDelete()"
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-confirm-delete"
+                    (click)="deleteTask(task)"
+                    [disabled]="busyTaskId === task.id"
+                  >
+                    Eliminar
+                  </button>
+
+                </div>
+
+              </section>
+
+            }
+
+          </article>
+
+        </div>
+
+      }
+
+    </section>
+
+  }
+
+
+  <!-- =========================================================
+       SIN TAREAS
+       ========================================================= -->
+
+  @else {
+
+    <div class="empty-state">
+
+      <div class="empty-state-icon">
+        📝
+      </div>
+
+      <h3>
+        @if (usesPersonalScope) {
+          No tienes tareas asignadas
+        } @else {
+          No hay tareas
+        }
+      </h3>
+
+      <p>
+        @if (usesPersonalScope) {
+          Cuando tu Encargado te asigne una tarea aparecerá aquí.
+        } @else {
+          Crea una tarea para comenzar a organizar tu trabajo.
+        }
+      </p>
+
+    </div>
+
+  }
+
+
+  <!-- =========================================================
+       US2.3 — DIÁLOGO DE ASIGNACIÓN DE PERSONAL
+       ========================================================= -->
+
+  @if (assigningTask) {
+
+    <app-assignment-dialog
+      [taskId]="assignmentTaskId(assigningTask)"
+      [taskTitle]="assigningTask.title"
+      [projectId]="selectedProjectId ?? 0"
+      (changed)="onAssignmentsChanged()"
+      (closed)="closeAssignment()"
+    ></app-assignment-dialog>
+
+  }
+
+
+  <!-- =========================================================
+       ASIDE DE TAREAS COMPLETADAS
+       ========================================================= -->
+
+  @if (completedAsideOpen) {
+
+    <div
+      class="completed-overlay"
+      (click)="closeCompletedAside()"
+    ></div>
+
+    <aside
+      class="completed-aside"
+      aria-label="Tareas completadas"
+    >
+
+      <header class="completed-aside-header">
+
+        <div>
+
+          <h2>
+            Tareas completadas
+          </h2>
+
+          <p>
+            {{ completedTasks.length }}
+            tarea(s) terminada(s)
+          </p>
+
+        </div>
+
+        <button
+          type="button"
+          class="completed-aside-close"
+          aria-label="Cerrar tareas completadas"
+          (click)="closeCompletedAside()"
+        >
+          ×
+        </button>
+
+      </header>
+
+
+      <div class="completed-aside-content">
+
+        @for (task of completedTasks; track task.id) {
+
+          <article class="completed-task">
+
+            <div class="completed-task-check">
+              ✓
+            </div>
+
+            <div class="completed-task-content">
+
+              <!-- IDENTIFICADOR DEL TIPO DE TAREA -->
+
+              @if (task.parentTaskId) {
+
+                <span class="completed-task-type subtask-type">
+                  SUBTAREA
+                </span>
+
+              } @else {
+
+                <span class="completed-task-type main-task-type">
+                  TAREA PRINCIPAL
+                </span>
+
+              }
+
+
+              <!-- TÍTULO -->
+
+              <h3>
+                {{ task.title }}
+              </h3>
+
+
+              <!-- TAREA PRINCIPAL DE LA SUBTAREA -->
+
+              @if (task.parentTaskId) {
+
+                @if (getParentTask(task); as parentTask) {
+
+                  <p class="completed-parent-task">
+                    Tarea principal:
+                    <strong>
+                      {{ parentTask.title }}
+                    </strong>
+                  </p>
+
+                }
+
+              }
+
+
+              <!-- DESCRIPCIÓN -->
+
+              @if (task.description) {
+
+                <p>
+                  {{ task.description }}
+                </p>
+
+              }
+
+
+              <!-- INFORMACIÓN -->
+
+              <div class="completed-task-meta">
+
+                @if (!task.parentTaskId) {
+                <span
+                  class="completed-priority"
+                  [class.priority-alta]="task.priority === 'ALTA'"
+                  [class.priority-media]="task.priority === 'MEDIA'"
+                  [class.priority-baja]="task.priority === 'BAJA'"
+                >
+                  {{ task.priority }}
+                </span>
+                }
+
+                @if (task.categoryName) {
+
+                  <span>
+                    {{ task.categoryName }}
+                  </span>
+
+                }
+
+              </div>
+
+
+              <!-- REABRIR -->
+
+              <button
+                type="button"
+                class="btn-reopen"
+                (click)="reopen(task)"
+                [disabled]="actionsDisabled(task)"
+              >
+                ↻ Reabrir
+              </button>
+
+            </div>
+
+          </article>
+
+        } @empty {
+
+          <div class="completed-empty">
+
+            <div>
+              ✓
+            </div>
+
+            <h3>
+              No hay tareas completadas
+            </h3>
+
+            <p>
+              Las tareas que completes aparecerán aquí.
+            </p>
+
+          </div>
+
+        }
+
+      </div>
+
+    </aside>
+
+  }
+
+
+  <!-- =========================================================
+       POPUP DE SUBTAREAS
+       ========================================================= -->
+
+  @if (subtasksModalParent) {
+
+    <div
+      class="subtasks-modal-overlay"
+      (click)="
+        $event.target === $event.currentTarget &&
+        closeSubtasksModal()
+      "
+    >
+
+      <dialog
+        class="subtasks-modal"
+        open
+        aria-modal="true"
+        [attr.aria-label]="
+          'Subtareas de ' +
+          subtasksModalParent.title
+        "
+
+      >
+
+        <!-- =====================================================
+             VISTA LISTA
+             ===================================================== -->
+
+        @if (subtaskModalMode === 'list') {
+
+          <div class="subtasks-modal-header">
+
+            <div>
+
+              <h2>
+                Subtareas
+              </h2>
+
+              <p>
+                Subtareas de "{{ subtasksModalParent.title }}"
+              </p>
+
+            </div>
+
+
+            <!-- BOTÓN ÚNICO DE NUEVA SUBTAREA -->
+
+            <div class="subtasks-modal-header-actions">
+
+              <button
+                type="button"
+                class="btn-new-subtask"
+                (click)="openCreateSubtask()"
+                [disabled]="actionsDisabled(subtasksModalParent)"
+              >
+                + Nueva subtarea
+              </button>
+
+              <button
+                type="button"
+                class="subtasks-modal-close"
+                (click)="closeSubtasksModal()"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="subtasks-modal-content">
+
+            <div class="subtasks-modal-summary">
+
+              {{ getSubtasks(subtasksModalParent.id).length }}
+              subtarea(s)
+
+            </div>
+
+
+            <section class="subtasks-modal-grid">
+
+              @for (
+                subtask of getSubtasks(subtasksModalParent.id);
+                track subtask.id
+              ) {
+                <!-- CONTENEDOR SWIPE -->
+
+                <div class="subtask-swipe-container">
+
+                  <!-- SWIPE ELIMINAR -->
+
+                  <div
+                    class="subtask-swipe-actions subtask-swipe-delete"
+                    [class.revealed]="getSwipeOffset(subtask.id) < -20"
+                  >
+
+                    <span>
+                      🗑
+                    </span>
+
+                    <strong>
+                      ELIMINAR
+                    </strong>
+
+                  </div>
+
+
+                  <!-- SWIPE COMPLETAR -->
+
+                  <div
+                    class="subtask-swipe-actions subtask-swipe-complete"
+                    [class.revealed]="getSwipeOffset(subtask.id) > 20"
+                  >
+
+                    <span>
+                      ✓
+                    </span>
+
+                    <strong>
+                      COMPLETAR
+                    </strong>
+
+                  </div>
+
+
+                  <!-- SUBTAREA -->
+
+                  <article
+                    class="subtask-postit"
+                    [ngClass]="getTaskColorClass(subtask.id)"
+                    [class.is-swiping]="isSwiping(subtask.id)"
+                    [style.transform]="
+                      'translate3d(' +
+                      getSwipeOffset(subtask.id) +
+                      'px, 0, 0)'
+                    "
+                    (pointerdown)="startSwipe($event, subtask)"
+                    (pointermove)="moveSwipe($event, subtask)"
+                    (pointerup)="endSwipe($event, subtask)"
+                    (pointercancel)="cancelSwipe(subtask.id)"
+                  >
+
+                    <!-- CABECERA SUBTAREA -->
+
+                    <header class="subtask-postit-header">
+
+                      <h3>
+                        {{ subtask.title }}
+                      </h3>
+
+                      <span
+                        class="task-status"
+                        [class.status-activa]="subtask.status === 'ACTIVA'"
+                        [class.status-inactiva]="subtask.status === 'INACTIVA'"
+                        [class.status-terminada]="subtask.status === 'TERMINADA'"
+                      >
+                        {{ subtask.status }}
+                      </span>
+
+                    </header>
+
+
+                    <!-- DESCRIPCIÓN -->
+
+                    @if (subtask.description) {
+
+                      <p class="subtask-postit-description">
+                        {{ subtask.description }}
+                      </p>
+
+                    }
+
+
+                    <!-- INFORMACIÓN -->
+
+                    <!-- En V4 las subtareas no tienen prioridad ni cronómetro propios. -->
+                    @if (subtask.kind !== 'SUBTASK') {
+                    <div class="task-meta">
+
+                      <span
+                        class="meta-item priority"
+                        [class.priority-alta]="subtask.priority === 'ALTA'"
+                        [class.priority-media]="subtask.priority === 'MEDIA'"
+                        [class.priority-baja]="subtask.priority === 'BAJA'"
+                      >
+                        Prioridad:
+                        {{ subtask.priority }}
+                      </span>
+
+                    </div>
+                    }
+
+
+                    <!-- TIEMPO ACTIVO -->
+
+                    @if (subtask.totalActiveSeconds !== undefined) {
+
+                      <div class="active-time">
+
+                        <span>
+                          Tiempo activo
+                        </span>
+
+                        <strong>
+                          {{ formatActiveTime(getActiveSeconds(subtask)) }}
+                        </strong>
+
+                      </div>
+
+                    }
+
+
+                    <!-- EDITOR DE CATEGORÍA -->
+
+                    @if (editingCategoryId === subtask.id) {
+
+                      <div class="subtask-category-editor">
+                        <label for="subtask-category-{{ subtask.id }}">
+                          Categoría
+                        </label>
+
+                        <select
+                          id="subtask-category-{{ subtask.id }}"
+                          [(ngModel)]="selectedCategoryName"
+                          name="subtask-category-{{ subtask.id }}"
+                        >
+
+                          <option [ngValue]="null">
+                            Sin categoría
+                          </option>
+
+                          @for (category of categories; track category.id) {
+
+                            <option [ngValue]="category.name">
+                              {{ category.name }}
+                            </option>
+
+                          }
+
+                        </select>
+
+
+                        <div class="category-editor-actions">
+
+                          <button
+                            type="button"
+                            (click)="saveCategory(subtask)"
+                            [disabled]="busyTaskId === subtask.id"
+                          >
+                            Guardar
+                          </button>
+
+                          <button
+                            type="button"
+                            (click)="cancelCategoryEdit()"
+                            [disabled]="busyTaskId === subtask.id"
+                          >
+                            Cancelar
+                          </button>
+
+                        </div>
+
+                      </div>
+
+                    }
+
+
+                    <!-- ACCIONES SUBTAREA -->
+
+                    <div class="subtask-postit-actions">
+
+                      @if (subtask.status === 'INACTIVA') {
+
+                        <button
+                          type="button"
+                          (click)="activate(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ▶ Activar
+                        </button>
+
+                      }
+
+                      @if (subtask.status === 'ACTIVA') {
+
+                        <button
+                          type="button"
+                          (click)="pause(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ⏸ Pausar
+                        </button>
+
+                        <button
+                          type="button"
+                          (click)="complete(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ✓ Completar
+                        </button>
+
+                      }
+
+                      @if (subtask.status === 'TERMINADA') {
+
+                        <button
+                          type="button"
+                          class="btn-reopen"
+                          (click)="reopen(subtask)"
+                          [disabled]="actionsDisabled(subtask)"
+                        >
+                          ↻ Reabrir
+                        </button>
+
+                      }
+
+
+                      <!-- EDITAR SUBTAREA -->
+
+                      <button
+                        type="button"
+                        (click)="openEditSubtask(subtask)"
+                        [disabled]="actionsDisabled(subtask)"
+                      >
+                        ✎ Editar
+                      </button>
+
+
+                      <!-- ELIMINAR -->
+
+                      <button
+                        type="button"
+                        class="btn-delete"
+                        (click)="requestDelete(subtask)"
+                        [disabled]="actionsDisabled(subtask)"
+                      >
+                        🗑 Eliminar
+                      </button>
+
+                    </div>
+
+
+                    <!-- CONFIRMACIÓN ELIMINAR SUBTAREA -->
+
+                    @if (confirmingDelete === subtask.id) {
+
+                      <section class="subtask-delete-confirm">
+
+                        <div class="delete-warning-icon">
+                          ⚠
+                        </div>
+
+                        <div class="delete-warning-content">
+
+                          <h4>
+                            ¿Eliminar "{{ subtask.title }}"?
+                          </h4>
+
+                          <p>
+                            La subtarea dejará de aparecer
+                            en la lista.
+                            Su historial se conservará.
+                          </p>
+
+                        </div>
+
+                        <div class="delete-confirmation-actions">
+
+                          <button
+                            type="button"
+                            class="btn-cancel-delete"
+                            (click)="cancelDelete()"
+                          >
+                            Cancelar
+                          </button>
+
+                          <button
+                            type="button"
+                            class="btn-confirm-delete"
+                            (click)="deleteTask(subtask)"
+                            [disabled]="busyTaskId === subtask.id"
+                          >
+                            Eliminar
+                          </button>
+
+                        </div>
+
+                      </section>
+
+                    }
+
+                  </article>
+
+                </div>
+
+              } @empty {
+
+                <div class="subtasks-empty-state">
+
+                  <div>
+                    ▣
+                  </div>
+
+                  <h3>
+                    No hay subtareas
+                  </h3>
+
+                  <p>
+                    Crea una subtarea para organizar
+                    mejor esta tarea.
+                  </p>
+
+                </div>
+
+              }
+
+            </section>
+
+          </div>
+
+        }
+
+
+        <!-- =====================================================
+             VISTA CREAR SUBTAREA
+             ===================================================== -->
+
+        @if (subtaskModalMode === 'create') {
+
+          <header class="subtasks-modal-header">
+
+            <div>
+
+              <h2>
+                Nueva subtarea
+              </h2>
+
+              <p>
+                {{ subtasksModalParent.title }}
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              class="subtasks-modal-close"
+              aria-label="Cerrar"
+              (click)="closeSubtasksModal()"
+            >
+              ×
+            </button>
+
+          </header>
+
+
+          <div class="subtask-form-view">
+
+            <app-task-form
+              [parentTaskId]="subtasksModalParent.id"
+              (taskCreated)="onSubtaskCreated($event)"
+              (cancelled)="backToSubtasks()"
+            ></app-task-form>
+
+          </div>
+
+        }
+
+
+        <!-- =====================================================
+             VISTA EDITAR SUBTAREA
+             ===================================================== -->
+
+        @if (
+          subtaskModalMode === 'edit' &&
+          editingSubtask
+        ) {
+
+          <header class="subtasks-modal-header">
+
+            <div>
+
+              <h2>
+                Editar subtarea
+              </h2>
+
+              <p>
+                {{ subtasksModalParent.title }}
+              </p>
+
+            </div>
+
+            <button
+              type="button"
+              class="subtasks-modal-close"
+              aria-label="Cerrar"
+              (click)="closeSubtasksModal()"
+            >
+              ×
+            </button>
+
+          </header>
+
+
+          <div class="subtask-form-view">
+
+            <app-task-editor
+              [task]="editingSubtask"
+              (saved)="onSubtaskSaved($event)"
+              (cancelled)="backToSubtasks()"
+            ></app-task-editor>
+
+          </div>
+
+        }
+
+      </dialog>
+
+    </div>
+
+  }
+
+</div>
+`,
+  styles: [`/* MIS TAREAS — estilos propios de esta pantalla.
+   Las primitivas compartidas (botones, tarjetas, chips, modal, panel lateral,
+   campos y avisos) viven en src/design-system.css. La hoja anterior pesaba
+   22,08 kB por duplicarlas todas y rompía el presupuesto de producción. */
+
+:host { display: block; min-height: 100vh; background: var(--espejismo); }
+
+/* ---------------- shell de la página ---------------- */
+.task-list-page { width: 100%; min-height: 100vh; padding: 40px 4px 70px; box-sizing: border-box; background: var(--espejismo); color: var(--text-primary); }
+.page-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px 32px; margin-bottom: 20px; padding: 0 4px; }
+.page-title { margin: 0; color: #f4f4f8; font-size: 31px; line-height: 1.2; font-weight: 650; letter-spacing: -0.03em; }
+.page-subtitle { margin: 9px 0 0; color: #aaaac2; font-size: 13px; line-height: 1.5; }
+.page-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+.page-header-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; flex: 1; }
+
+.breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.breadcrumb li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.breadcrumb li a { color: var(--scampi); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: pointer; font-weight: 600; }
+.breadcrumb li a:hover { color: #8a8ac9; }
+.breadcrumb-sep { color: var(--text-muted); font-weight: 700; user-select: none; }
+.breadcrumb-current { color: var(--text-primary); font-weight: 650; }
+
+/* ---------------- barra de proyecto (US2.2): ya no hay proyecto por defecto ---------------- */
+.workspace-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 4px 22px; padding: 12px 16px; border: 1px solid var(--martinica); border-radius: 10px; background: var(--arcilla-ebano); }
+.workspace-bar label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.workspace-bar select { min-height: 38px; min-width: 260px; padding: 0 12px; border: 1px solid var(--martinica); border-radius: 6px; background: var(--espejismo); color: var(--text-primary); font-size: 13px; }
+.workspace-bar select:focus { outline: none; border-color: var(--cometa); }
+.workspace-bar .ratio { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--priority-media); }
+
+/* ---------------- estructura y asignaciones (US2.2 / US2.3) ---------------- */
+.btn-wbs-toggle.active { background: var(--martinica); border-color: var(--cometa); }
+.assigned-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--scampi); color: #fff; font-size: 10px; font-weight: 700; }
+
+/* ---------------- rejilla y buscador ---------------- */
+.tasks { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; padding: 0 4px; }
+.search-form { margin: 0 4px 22px; }
+.search-container { display: flex; gap: 8px; }
+.search-input { flex: 1; min-height: 40px; padding: 0 14px; border: 1px solid var(--martinica); border-radius: 6px; background: var(--arcilla-ebano); color: var(--text-primary); font-size: 13px; }
+.search-input::placeholder { color: var(--text-placeholder); }
+.search-input:hover, .search-input:focus { border-color: var(--cometa); outline: none; }
+
+/* ---------------- subtareas ---------------- */
+.subtasks-count { color: var(--text-muted); font-size: 12px; }
+.subtasks-button { align-self: flex-start; }
+.subtasks-modal { display: flex; flex-direction: column; width: min(1020px, 100%); max-height: calc(100vh - 24px); border: 1px solid var(--martinica); border-radius: 14px; background: var(--arcilla-ebano); overflow: hidden; }
+.subtasks-modal-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--martinica); }
+.subtasks-modal-header h2 { margin: 0; font-size: 19px; font-weight: 650; }
+.subtasks-modal-header p { margin: 4px 0 0; color: var(--text-muted); font-size: 12px; }
+.subtasks-modal-header-actions { display: flex; align-items: center; gap: 6px; }
+.subtasks-modal-summary { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.subtasks-modal-content { padding: 22px 18px 20px; overflow: auto; }
+.subtasks-modal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.subtask-postit { display: flex; flex-direction: column; gap: 10px; min-height: 240px; padding: 16px; border: 1px solid var(--martinica); border-left: 4px solid var(--scampi); border-radius: 12px; background: var(--espejismo); }
+.subtask-postit.is-swiping { transform: scale(.99); }
+.subtask-postit-header { display: flex; flex-direction: column; gap: 6px; }
+.subtask-postit-header h3 { margin: 0; font-size: 15px; font-weight: 650; }
+.subtask-postit-description { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.subtask-postit-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: auto; }
+.subtask-category-editor { display: flex; flex-wrap: wrap; gap: 6px; }
+.subtask-form-view { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------------- responsive ---------------- */
+@media (max-width: 900px) {
+  .tasks { grid-template-columns: 1fr; }
+  .subtasks-modal-grid { grid-template-columns: 1fr; }
+  .page-header { flex-direction: column; }
+}
+@media (max-width: 620px) {
+  .task-list-page { padding: 24px 4px 50px; }
+  .page-title { font-size: 24px; }
+  .subtask-postit { min-height: 220px; }
+  .subtask-postit-actions { grid-template-columns: minmax(0, 1fr); }
+  .workspace-bar select { min-width: 100%; }
+}
+`]
 })
 export class TaskList implements OnInit {
 
@@ -110,40 +1485,74 @@ export class TaskList implements OnInit {
 
   currentTime = Date.now();
 
-  constructor(
-    private readonly taskService: TaskService,
-    private readonly wbsService: WbsService,
-    private readonly projectService: ProjectService,
-    private readonly changeDetector: ChangeDetectorRef
-  ) {}
-
+  private readonly taskService = inject(TaskService);
+  private readonly wbsService = inject(WbsService);
+  private readonly projectService = inject(ProjectService);
+  private readonly hierarchyState = inject(HierarchyStateService);
+  private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly route = inject(ActivatedRoute);
+  private readonly auth = inject(AuthService);
 
+  /** Mensaje de éxito/feedback mostrado tras una acción. */
+  success = '';
+
+  /** Mensaje de error mostrado tras una acción fallida. */
+  error: string | null = null;
 
   ngOnInit(): void {
-    // 1. Escuchar si viene un proyecto desde la URL
-    this.route.queryParamMap.subscribe(params => {
-      const pid = params.get('projectId');
-      if (pid) {
-        const id = Number(pid);
-        this.previousProjectId = id; // Se guarda para que loadProjects lo tome
+    // 1. Escuchar parámetros de ruta (enlaces profundos) y de consulta para restaurar el
+    //    contexto del jerarquía: proyecto → etapa → actividad.
+    combineLatest([this.route.paramMap, this.route.queryParamMap]).subscribe(([paramMap, queryMap]) => {
+      const projectId = paramMap.get('projectId') ?? queryMap.get('projectId');
+      const stageId = paramMap.get('stageId') ?? queryMap.get('stageId');
+      const activityId = paramMap.get('activityId') ?? queryMap.get('activityId');
 
-        if (this.projectsLoaded) {
-          this.selectProject(id);
-        }
-      }
+      const pid = projectId ? Number(projectId) : null;
+      const sid = stageId ? Number(stageId) : null;
+      const aid = activityId ? Number(activityId) : null;
+
+      // Anotar la etapa y actividad pendientes de restaurar.
+      this.pendingStageId = sid;
+      this.pendingActivityId = aid;
+
+      this.restoreRouteContext(pid, sid);
     });
 
     this.loadProjects();
     this.startTimer();
+
+    // Sincronización reactiva: las etapas y actividades que el panel WBS (u otro
+    // componente) publique en el estado compartido se reflejan aquí inmediatamente.
+    this.hierarchyState.stages$.subscribe((stages) => {
+      this.stages = stages;
+      this.changeDetector.markForCheck();
+    });
+    this.hierarchyState.activities$.subscribe((activities) => {
+      this.categories = activities.map((activity) => ({
+        id: activity.activityId,
+        name: activity.name,
+      }));
+      // Mantener la actividad seleccionada si aún existe.
+      if (
+        this.selectedActivityId !== null &&
+        !this.categories.some((category) => category.id === this.selectedActivityId)
+      ) {
+        this.selectedActivityId = this.categories.length > 0 ? this.categories[0].id : null;
+      }
+      this.changeDetector.markForCheck();
+    });
   }
 
-
   loadProjects(): void {
+    if (this.loadingProjects) {
+      return;
+    }
+    this.loadingProjects = true;
     this.projectService.list().subscribe({
       next: (projects) => {
         this.projects = projects;
         this.projectsLoaded = true;
+        this.loadingProjects = false;
 
         // Sin sesión previa no se preselecciona ningún proyecto: es una decisión del usuario.
         if (this.selectedProjectId === null && this.previousProjectId !== null) {
@@ -160,22 +1569,53 @@ export class TaskList implements OnInit {
 
         this.changeDetector.markForCheck();
       },
-      error: () => {
-        this.errorMessage = 'No se pudieron cargar los proyectos.';
-        this.changeDetector.markForCheck();
-      },
+        error: () => {
+          this.loadingProjects = false;
+          this.errorMessage = 'No se pudieron cargar los proyectos.';
+          this.changeDetector.markForCheck();
+        },
     });
+  }
+
+  /** Restaura el contexto de un enlace profundo: proyecto → etapa (y actividad pendiente). */
+  private restoreRouteContext(pid: number | null, sid: number | null): void {
+    if (pid !== null && pid !== this.selectedProjectId) {
+      this.previousProjectId = pid;
+      if (this.projectsLoaded) {
+        this.selectProject(pid);
+      }
+    } else if (
+      pid !== null &&
+      pid === this.selectedProjectId &&
+      sid !== null &&
+      this.stages.length > 0
+    ) {
+      // Proyecto ya seleccionado: restaurar la etapa directamente si está cargada.
+      if (this.stages.some((stage) => stage.stageId === sid)) {
+        this.selectStage(sid);
+        this.pendingStageId = null;
+      }
+    }
   }
 
 
   /** Último proyecto elegido por el usuario en esta sesión (nunca el primero de la lista). */
   private previousProjectId: number | null = null;
 
+  /** Etapa pendiente de restaurar desde un enlace profundo (se activa tras cargar las etapas). */
+  private pendingStageId: number | null = null;
+
+  /** Actividad pendiente de restaurar desde un enlace profundo (se activa tras cargar las actividades). */
+  private pendingActivityId: number | null = null;
+
   /** US3.1: la vista del Personal ya se cargó al menos una vez (no se repite en cada reload). */
   private loadedAssignedOnce = false;
 
   /** Los proyectos ya se consultaron: distingue "Personal sin proyectos" de "aún cargando". */
   private projectsLoaded = false;
+
+  /** Evita consultar la lista de proyectos más de una vez mientras la primera está en vuelo. */
+  private loadingProjects = false;
 
   selectProject(projectId: number | null): void {
     this.selectedProjectId = projectId;
@@ -200,10 +1640,19 @@ export class TaskList implements OnInit {
     this.wbsService.listStages(projectId).subscribe({
       next: (stages) => {
         this.stages = stages;
+        this.hierarchyState.setStages(stages);
+        this.hierarchyState.selectProject(projectId);
+        // Continuar la restauración del enlace profundo con la etapa solicitada.
+        if (this.pendingStageId !== null && stages.some((stage) => stage.stageId === this.pendingStageId)) {
+          const stageToRestore = this.pendingStageId;
+          this.pendingStageId = null;
+          this.selectStage(stageToRestore);
+        }
         this.changeDetector.markForCheck();
       },
       error: () => {
         this.stages = [];
+        this.hierarchyState.setStages([]);
         this.changeDetector.markForCheck();
       },
     });
@@ -221,6 +1670,33 @@ export class TaskList implements OnInit {
   selectActivity(activityId: number | null): void {
     this.selectedActivityId = activityId;
     this.changeDetector.markForCheck();
+  }
+
+  /** Reordena tareas de una actividad (arrastrar y soltar) con actualización optimista y rollback. */
+  onDropTasks(event: CdkDragDrop<Task[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    const activityId = this.selectedActivityId;
+    if (activityId == null) {
+      return;
+    }
+    const previous = [...this.tasks];
+    moveItemInArray(this.tasks, event.previousIndex, event.currentIndex);
+    const newOrder = this.tasks.map((task) => task.id);
+    this.changeDetector.markForCheck();
+
+    this.taskService.reorderTasks(activityId, newOrder).subscribe({
+      next: () => {
+        this.success = 'Orden de tareas actualizado.';
+        this.changeDetector.markForCheck();
+      },
+      error: () => {
+        this.tasks = previous;
+        this.error = 'No se pudo guardar el orden de las tareas.';
+        this.changeDetector.markForCheck();
+      },
+    });
   }
 
   /** Nombre de la actividad elegida (el formulario de crear tarea lo muestra). */
@@ -242,6 +1718,61 @@ export class TaskList implements OnInit {
   /** US2.2/US2.3: el backend autoriza siempre; esto solo muestra u oculta acciones. */
   get canManageHierarchy(): boolean {
     return this.selectedProject?.canManageHierarchy === true;
+  }
+
+  /** Puede el usuario actual crear tareas en la actividad seleccionada. */
+  get canCreateTask(): boolean {
+    return this.selectedProjectId !== null && (this.usesPersonalScope || this.canManageHierarchy);
+  }
+
+  /** El rol Jefe gestiona todos los proyectos (defensa ante sesiones sin AuthService en pruebas). */
+  get isChief(): boolean {
+    return this.auth?.isChief() ?? false;
+  }
+
+  stageName(stageId: number): string {
+    return this.stages.find((stage) => stage.stageId === stageId)?.name ?? '';
+  }
+
+  activityName(activityId: number): string {
+    return this.categories.find((category) => category.id === activityId)?.name ?? '';
+  }
+
+  pageTitle(): string {
+    if (this.usesPersonalScope) {
+      return 'Tareas asignadas';
+    }
+    if (this.selectedActivityId !== null) {
+      return `Tareas de ${this.activityName(this.selectedActivityId)}`;
+    }
+    if (this.selectedStageId !== null) {
+      return `Tareas de ${this.stageName(this.selectedStageId)}`;
+    }
+    if (this.selectedProjectId !== null) {
+      return `Tareas de ${this.selectedProject?.name}`;
+    }
+    return 'Mis tareas';
+  }
+
+  pageSubtitle(): string {
+    if (this.usesPersonalScope) {
+      return 'Estas son las tareas que tu Encargado te asignó.';
+    }
+    if (this.selectedActivityId !== null) {
+      return 'Organiza, activa y completa las tareas de esta actividad.';
+    }
+    if (this.selectedStageId !== null) {
+      return 'Elige una actividad para crear y gestionar sus tareas.';
+    }
+    if (this.selectedProjectId !== null) {
+      return 'Elige una etapa y una actividad para crear tareas.';
+    }
+    return 'Selecciona un proyecto para comenzar.';
+  }
+
+  /** El formulario de creación se proyecta siempre dentro del listado; esta acción solo lo marca para renderizar. */
+  openTaskForm(): void {
+    this.changeDetector.markForCheck();
   }
 
   /** US2.2: abre o cierra el panel de etapas y actividades. */
@@ -389,10 +1920,29 @@ export class TaskList implements OnInit {
     this.taskService.listCategories(this.selectedStageId).subscribe({
       next: (categories) => {
         this.categories = categories;
+        this.hierarchyState.setActivities(
+          categories.map((category) => ({
+            activityId: category.id,
+            stageId: this.selectedStageId ?? 0,
+            name: category.name,
+            description: null,
+            status: 'PENDIENTE',
+            createdAt: '',
+            updatedAt: '',
+            version: 0,
+          })),
+        );
 
-        // US2.2: la primera actividad queda preseleccionada para poder crear la tarea sin
-        // pasos extra; si la elegida ya no existe (etapa cambiada) se toma la primera.
-        if (
+        // Continuar la restauración del enlace profundo con la actividad solicitada.
+        if (this.pendingActivityId !== null) {
+          const activityToRestore = this.pendingActivityId;
+          this.pendingActivityId = null;
+          if (categories.some((category) => category.id === activityToRestore)) {
+            this.selectedActivityId = activityToRestore;
+          } else {
+            this.selectedActivityId = categories.length > 0 ? categories[0].id : null;
+          }
+        } else if (
           this.selectedActivityId === null ||
           !categories.some((category) => category.id === this.selectedActivityId)
         ) {

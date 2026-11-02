@@ -74,6 +74,57 @@ class TaskPersistenceAdapter implements TaskRepository {
     }
 
     @Override
+    public List<Task> searchAll(String likePattern) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT DISTINCT t.task_id, t.sort_order
+                FROM task_manager.task t
+                JOIN task_manager.activity a ON a.activity_id = t.activity_id
+                JOIN task_manager.stage s ON s.stage_id = a.stage_id
+                JOIN task_manager.work_status ws ON ws.work_status_id = t.work_status_id
+                WHERE ws.name IN ('PENDIENTE', 'EN_PROGRESO', 'COMPLETADA')""");
+        if (likePattern != null) {
+            sql.append(" AND (").append(NORMALIZE.formatted("t.title"))
+                    .append(" LIKE :pattern ESCAPE '" + "\\" + "' OR ")
+                    .append(NORMALIZE.formatted("t.description")).append(" LIKE :pattern ESCAPE '" + "\\" + "' OR EXISTS (")
+                    .append("SELECT 1 FROM task_manager.subtask st ")
+                    .append("JOIN task_manager.work_status sws ON sws.work_status_id = st.work_status_id ")
+                    .append("WHERE st.task_id = t.task_id AND sws.name <> 'CANCELADA' AND (")
+                    .append(NORMALIZE.formatted("st.title")).append(" LIKE :pattern ESCAPE '" + "\\" + "' OR ")
+                    .append(NORMALIZE.formatted("st.description")).append(" LIKE :pattern ESCAPE '" + "\\" + "')))");
+        }
+        sql.append(" ORDER BY t.sort_order, t.task_id DESC");
+        var query = entityManager.createNativeQuery(sql.toString());
+        if (likePattern != null) {
+            query.setParameter("pattern", likePattern);
+        }
+        List<Integer> ids = ((List<Object[]>) query.getResultList()).stream()
+                .map(row -> ((Number) row[0]).intValue()).toList();
+        return load(ids);
+    }
+
+    @Override
+    public List<Task> searchVisibleFor(Integer workerUserId, String likePattern) {
+        List<Integer> ids = assignedTaskIds(workerUserId, likePattern);
+        return load(ids);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void reorderTasks(Integer activityId, List<Integer> taskIds) {
+        if (taskIds == null || taskIds.isEmpty()) {
+            return;
+        }
+        int idx = 0;
+        for (Integer id : taskIds) {
+            entityManager.createQuery("update TaskEntity t set t.sortOrder = :order where t.taskId = :id and t.activity.activityId = :activityId")
+                    .setParameter("order", idx++)
+                    .setParameter("id", id)
+                    .setParameter("activityId", activityId)
+                    .executeUpdate();
+        }
+    }
+
+    @Override
     public List<Task> findAssignedTo(Integer workerUserId, String likePattern) {
         List<Integer> ids = assignedTaskIds(workerUserId, likePattern);
         return load(ids);
@@ -170,8 +221,8 @@ class TaskPersistenceAdapter implements TaskRepository {
                   AND ws.name IN\s""").append(VISIBLE_STATUSES);
         if (likePattern != null) {
             sql.append(" AND (").append(NORMALIZE.formatted("t.title"))
-                    .append(" LIKE :pattern ESCAPE '\\' OR ")
-                    .append(NORMALIZE.formatted("t.description")).append(" LIKE :pattern ESCAPE '\\')");
+                    .append(" LIKE :pattern ESCAPE '" + "\\" + "' OR ")
+                    .append(NORMALIZE.formatted("t.description")).append(" LIKE :pattern ESCAPE '" + "\\" + "')");
         }
         sql.append(" ORDER BY t.created_at DESC, t.task_id DESC");
         var query = entityManager.createNativeQuery(sql.toString()).setParameter("workerId", workerUserId);
@@ -197,13 +248,13 @@ class TaskPersistenceAdapter implements TaskRepository {
         }
         if (likePattern != null) {
             sql.append(" AND (")
-                    .append(NORMALIZE.formatted("t.title")).append(" LIKE :pattern ESCAPE '\\' OR ")
-                    .append(NORMALIZE.formatted("t.description")).append(" LIKE :pattern ESCAPE '\\' OR EXISTS (")
+                    .append(NORMALIZE.formatted("t.title")).append(" LIKE :pattern ESCAPE '" + "\\" + "' OR ")
+                    .append(NORMALIZE.formatted("t.description")).append(" LIKE :pattern ESCAPE '" + "\\" + "' OR EXISTS (")
                     .append("SELECT 1 FROM task_manager.subtask st ")
                     .append("JOIN task_manager.work_status sws ON sws.work_status_id = st.work_status_id ")
                     .append("WHERE st.task_id = t.task_id AND sws.name <> 'CANCELADA' AND (")
-                    .append(NORMALIZE.formatted("st.title")).append(" LIKE :pattern ESCAPE '\\' OR ")
-                    .append(NORMALIZE.formatted("st.description")).append(" LIKE :pattern ESCAPE '\\')))");
+                    .append(NORMALIZE.formatted("st.title")).append(" LIKE :pattern ESCAPE '" + "\\" + "' OR ")
+                    .append(NORMALIZE.formatted("st.description")).append(" LIKE :pattern ESCAPE '" + "\\" + "')))");
         }
         sql.append(" ORDER BY CASE WHEN ws.name IN ('COMPLETADA', 'CANCELADA')")
                 .append(" THEN COALESCE(CASE WHEN ws.name = 'COMPLETADA' THEN t.completed_at END, t.updated_at)")

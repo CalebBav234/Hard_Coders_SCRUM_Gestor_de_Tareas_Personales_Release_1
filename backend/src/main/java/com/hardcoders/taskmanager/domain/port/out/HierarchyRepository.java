@@ -4,6 +4,7 @@ import com.hardcoders.taskmanager.domain.model.Activity;
 import com.hardcoders.taskmanager.domain.model.Stage;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -32,4 +33,22 @@ public interface HierarchyRepository {
     List<Activity> activitiesOf(Integer stageId);
 
     Activity save(Activity activity);
+
+    List<Stage> searchStages(String likePattern);
+
+    List<Activity> searchActivities(String likePattern);
+
+    List<Stage> searchStagesVisibleFor(Integer userId, String likePattern);
+
+    List<Activity> searchActivitiesVisibleFor(Integer userId, String likePattern);
+
+    void reorderStages(Integer projectId, List<Integer> stageIds);
+
+    void reorderActivities(Integer stageId, List<Integer> activityIds);
+
+    /** Número de actividades por etapa (clave: stageId, valor: conteo). */
+    Map<Integer, Integer> countActivitiesByStage(List<Integer> stageIds);
+
+    /** Número de tareas por actividad (clave: activityId, valor: conteo). */
+    Map<Integer, Integer> countTasksByActivity(List<Integer> activityIds);
 }

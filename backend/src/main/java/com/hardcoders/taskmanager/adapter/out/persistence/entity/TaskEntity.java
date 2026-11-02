@@ -36,9 +36,20 @@ public class TaskEntity extends AuditedEntity {
     @JoinColumn(name = "work_status_id", nullable = false)
     private WorkStatusEntity status;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "task_priority_id", nullable = false)
     private TaskPriorityEntity priority;
+
+    public Integer getSortOrder() {
+        return sortOrder == null ? 0 : sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder;
+    }
 
     @Column(name = "allocated_budget_bob", nullable = false, precision = 15, scale = 2)
     private BigDecimal allocatedBudgetBob = BigDecimal.ZERO.setScale(2);

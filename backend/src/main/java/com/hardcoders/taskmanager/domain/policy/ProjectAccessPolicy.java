@@ -33,4 +33,15 @@ public final class ProjectAccessPolicy {
             throw new ForbiddenException("No puedes editar este proyecto");
         }
     }
+
+    /** Gestionar jerarquía: el Jefe o el Encargado del proyecto. */
+    public static boolean canManageHierarchy(Actor actor, Project project) {
+        if (actor == null || !actor.active()) {
+            return false;
+        }
+        if (actor.chief()) {
+            return true;
+        }
+        return project != null && project.managerUserId() != null && project.managerUserId().equals(actor.userId());
+    }
 }

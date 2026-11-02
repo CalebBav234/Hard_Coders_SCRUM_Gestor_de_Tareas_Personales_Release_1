@@ -97,6 +97,31 @@ final class InMemoryPorts {
         }
 
         @Override
+        public List<com.hardcoders.taskmanager.domain.model.Project> search(String likePattern) {
+            if (likePattern == null) {
+                return findAll();
+            }
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return projects.values().stream()
+                    .filter(p -> p.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (p.description() != null && p.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public List<com.hardcoders.taskmanager.domain.model.Project> searchManagedBy(Integer managerUserId, String likePattern) {
+            if (likePattern == null) {
+                return findManagedBy(managerUserId);
+            }
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return projects.values().stream()
+                    .filter(p -> Objects.equals(p.managerUserId(), managerUserId))
+                    .filter(p -> p.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (p.description() != null && p.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
         public List<com.hardcoders.taskmanager.domain.model.PlanRevision> planHistory(Integer projectId) {
             return List.of();
         }
@@ -166,6 +191,105 @@ final class InMemoryPorts {
             activities.put(id, stored);
             return stored;
         }
+
+        @Override
+        public List<Stage> searchStages(String likePattern) {
+            if (likePattern == null) return List.of();
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return stages.values().stream()
+                    .filter(s -> s.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (s.description() != null && s.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public List<Activity> searchActivities(String likePattern) {
+            if (likePattern == null) return List.of();
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return activities.values().stream()
+                    .filter(a -> a.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (a.description() != null && a.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public List<Stage> searchStagesVisibleFor(Integer userId, String likePattern) {
+            if (likePattern == null) return List.of();
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return stages.values().stream()
+                    .filter(s -> projects.containsKey(s.projectId())
+                            && Objects.equals(projects.get(s.projectId()).managerUserId(), userId))
+                    .filter(s -> s.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (s.description() != null && s.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public List<Activity> searchActivitiesVisibleFor(Integer userId, String likePattern) {
+            if (likePattern == null) return List.of();
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return activities.values().stream()
+                    .filter(a -> stages.containsKey(a.stageId())
+                            && projects.containsKey(stages.get(a.stageId()).projectId())
+                            && Objects.equals(projects.get(stages.get(a.stageId()).projectId()).managerUserId(), userId))
+                    .filter(a -> a.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (a.description() != null && a.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public void reorderStages(Integer projectId, List<Integer> stageIds) {
+            if (stageIds == null || stageIds.isEmpty()) return;
+            int idx = 0;
+            for (Integer id : stageIds) {
+                Stage s = stages.get(id);
+                if (s != null && s.projectId().equals(projectId)) {
+                    stages.put(id, Stage.restore(s.id(), s.projectId(), s.name(), s.description(), s.status(),
+                            s.createdAt(), writeTime()));
+                }
+            }
+        }
+
+        @Override
+        public void reorderActivities(Integer stageId, List<Integer> activityIds) {
+            if (activityIds == null || activityIds.isEmpty()) return;
+            int idx = 0;
+            for (Integer id : activityIds) {
+                Activity a = activities.get(id);
+                if (a != null && a.stageId().equals(stageId)) {
+                    activities.put(id, Activity.restore(a.id(), a.stageId(), a.name(), a.description(), a.status(),
+                            a.createdAt(), writeTime()));
+                }
+            }
+        }
+
+        @Override
+        public Map<Integer, Integer> countActivitiesByStage(List<Integer> stageIds) {
+            if (stageIds == null || stageIds.isEmpty()) return Map.of();
+            Map<Integer, Integer> counts = new LinkedHashMap<>();
+            for (Integer id : stageIds) counts.put(id, 0);
+            for (Activity a : activities.values()) {
+                Integer stageId = a.stageId();
+                if (counts.containsKey(stageId)) {
+                    counts.put(stageId, counts.get(stageId) + 1);
+                }
+            }
+            return counts;
+        }
+
+        @Override
+        public Map<Integer, Integer> countTasksByActivity(List<Integer> activityIds) {
+            if (activityIds == null || activityIds.isEmpty()) return Map.of();
+            Map<Integer, Integer> counts = new LinkedHashMap<>();
+            for (Integer id : activityIds) counts.put(id, 0);
+            for (Task t : tasks.values()) {
+                Integer activityId = t.activity().id();
+                if (counts.containsKey(activityId)) {
+                    counts.put(activityId, counts.get(activityId) + 1);
+                }
+            }
+            return counts;
+        }
     };
 
     final TaskRepository taskRepository = new TaskRepository() {
@@ -231,6 +355,39 @@ final class InMemoryPorts {
                     task.createdAt(), writeTime(), history, revision);
             tasks.put(id, stored);
             return stored;
+        }
+
+        @Override
+        public void reorderTasks(Integer activityId, List<Integer> taskIds) {
+            if (taskIds == null || taskIds.isEmpty()) return;
+            int idx = 0;
+            for (Integer id : taskIds) {
+                Task t = tasks.get(id);
+                if (t != null && t.activity().id().equals(activityId)) {
+                tasks.put(id, Task.of(id, t.activity(), t.title(), t.description(), t.status(),
+                        t.priority(), t.allocatedBudgetBob(), t.estimatedDurationMinutes(),
+                        t.actualDurationMinutes(), t.completedAt(), t.completedByUserId(),
+                        t.createdAt(), t.updatedAt(), t.history(), t.lastRevisionNumber()));
+                }
+            }
+        }
+
+        @Override
+        public List<Task> searchAll(String likePattern) {
+            if (likePattern == null) return List.of();
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return tasks.values().stream()
+                    .filter(t -> t.title().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (t.description() != null && t.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public List<Task> searchVisibleFor(Integer workerUserId, String likePattern) {
+            return assignedTaskIds(workerUserId).stream()
+                    .map(tasks::get)
+                    .filter(Objects::nonNull)
+                    .toList();
         }
     };
 

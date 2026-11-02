@@ -169,11 +169,37 @@ public class HierarchyCommandService implements ManageHierarchyUseCase {
 
     private static StageResult toResult(Stage stage) {
         return new StageResult(stage.id(), stage.projectId(), stage.name(), stage.description(),
-                stage.status().name(), stage.createdAt(), stage.updatedAt(), stage.version());
+                stage.status().name(), stage.createdAt(), stage.updatedAt(), stage.version(), 0);
     }
 
     private static ActivityResult toResult(Activity activity) {
         return new ActivityResult(activity.id(), activity.stageId(), activity.name(), activity.description(),
-                activity.status().name(), activity.createdAt(), activity.updatedAt(), activity.version());
+                activity.status().name(), activity.createdAt(), activity.updatedAt(), activity.version(), 0);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void reorderStages(java.lang.Integer projectId, java.util.List<java.lang.Integer> stageIds) {
+        com.hardcoders.taskmanager.domain.model.Actor actor = currentActor.current();
+        com.hardcoders.taskmanager.domain.model.Project project = projects.findById(projectId)
+                .orElseThrow(() -> new com.hardcoders.taskmanager.domain.exception.NotFoundException(com.hardcoders.taskmanager.domain.model.Project.ENTITY, projectId));
+        if (!com.hardcoders.taskmanager.domain.policy.ProjectAccessPolicy.canManageHierarchy(actor, project)) {
+            throw new com.hardcoders.taskmanager.domain.exception.NotFoundException(com.hardcoders.taskmanager.domain.model.Project.ENTITY, projectId);
+        }
+        hierarchy.reorderStages(projectId, stageIds);
+    }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional
+    public void reorderActivities(java.lang.Integer stageId, java.util.List<java.lang.Integer> activityIds) {
+        com.hardcoders.taskmanager.domain.model.Actor actor = currentActor.current();
+        com.hardcoders.taskmanager.domain.model.Stage stage = hierarchy.findStage(stageId)
+                .orElseThrow(() -> new com.hardcoders.taskmanager.domain.exception.NotFoundException(com.hardcoders.taskmanager.domain.model.Stage.ENTITY, stageId));
+        com.hardcoders.taskmanager.domain.model.Project project = projects.findById(stage.projectId())
+                .orElseThrow(() -> new com.hardcoders.taskmanager.domain.exception.NotFoundException(com.hardcoders.taskmanager.domain.model.Project.ENTITY, stage.projectId()));
+        if (!com.hardcoders.taskmanager.domain.policy.ProjectAccessPolicy.canManageHierarchy(actor, project)) {
+            throw new com.hardcoders.taskmanager.domain.exception.NotFoundException(com.hardcoders.taskmanager.domain.model.Stage.ENTITY, stageId);
+        }
+        hierarchy.reorderActivities(stageId, activityIds);
     }
 }

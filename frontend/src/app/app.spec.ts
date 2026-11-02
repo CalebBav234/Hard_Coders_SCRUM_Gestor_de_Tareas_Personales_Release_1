@@ -8,15 +8,15 @@ import { SESSION_STORAGE_KEY } from './core/auth/auth.service';
 describe('App', () => {
   beforeEach(async () => {
     sessionStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [App],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
   });
 
   afterEach(() => sessionStorage.clear());
 
   async function create() {
-    await TestBed.configureTestingModule({
-      imports: [App],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
-    }).compileComponents();
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;

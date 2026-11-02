@@ -18,6 +18,7 @@ describe('WbsPanel — US2.2 (etapas y actividades)', () => {
     createdAt: '2026-10-01T10:00:00Z',
     updatedAt: '2026-10-01T10:00:00Z',
     version: 11,
+    activityCount: 1,
   };
 
   const activity: ActivityDetailDto = {
@@ -29,6 +30,7 @@ describe('WbsPanel — US2.2 (etapas y actividades)', () => {
     createdAt: '2026-10-01T10:00:00Z',
     updatedAt: '2026-10-01T10:00:00Z',
     version: 21,
+    taskCount: 0,
   };
 
   function buttons(scope: ParentNode = element): HTMLButtonElement[] {
@@ -142,6 +144,8 @@ describe('WbsPanel — US2.2 (etapas y actividades)', () => {
     expect(request.request.body).toEqual({ name: 'Cimentacion', description: null });
     request.flush({ ...activity, activityId: 8, name: 'Cimentacion' });
     http.expectOne('/api/stages/4/activities').flush([activity, { ...activity, activityId: 8, name: 'Cimentacion' }]);
+    // loadStages refreshed so the stage activityCount updates without refresh.
+    http.expectOne('/api/projects/42/stages').flush([{ ...stage, stageId: 4, activityCount: 2 }]);
     fixture.detectChanges();
 
     expect(fixture.componentInstance.activities.map((a) => a.name)).toEqual(['Analisis', 'Cimentacion']);
@@ -161,6 +165,8 @@ describe('WbsPanel — US2.2 (etapas y actividades)', () => {
     click('Crear actividad');
     http.expectOne('/api/stages/4/activities').flush({ ...activity, name: 'Cimentacion' });
     http.expectOne('/api/stages/4/activities').flush([activity]);
+    // loadStages refreshed so the stage activityCount updates without refresh.
+    http.expectOne('/api/projects/42/stages').flush([{ ...stage, stageId: 4, activityCount: 1 }]);
     fixture.detectChanges();
 
     expect(emitted.length).toBe(1);
@@ -616,6 +622,51 @@ describe('WbsPanel — US2.2 (etapas y actividades)', () => {
 
     expect(fixture.componentInstance.error).toBeNull();
     expect(element.querySelector('.alert-error')).toBeNull();
+  });
+
+  it('reorders stages on drop with optimistic update and rollback on error', () => {
+    fixture.componentInstance.stages = [
+      { ...stage, stageId: 1 },
+      { ...stage, stageId: 2, name: 'B' },
+    ];
+    const component = fixture.componentInstance;
+
+    // Éxito: se reordena y se confirma.
+    component.onDropStages({ previousIndex: 0, currentIndex: 1 } as unknown as Parameters<typeof component.onDropStages>[0]);
+    http.expectOne('/api/projects/42/stages/reorder').flush(null);
+    fixture.detectChanges();
+    expect(component.success).toContain('Orden de etapas actualizado');
+    expect(component.filteredStages.map((s) => s.stageId)).toEqual([2, 1]);
+
+    // Fallo: se deshace el reordenamiento y queda como estaba antes del intento fallido.
+    component.onDropStages({ previousIndex: 0, currentIndex: 1 } as unknown as Parameters<typeof component.onDropStages>[0]);
+    http.expectOne('/api/projects/42/stages/reorder').flush({ error: 'INTERNAL' }, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(component.error).toContain('No se pudo guardar el orden de las etapas');
+    expect(component.filteredStages.map((s) => s.stageId)).toEqual([2, 1]);
+  });
+
+  it('reorders activities of the expanded stage on drop', () => {
+    const component = fixture.componentInstance;
+    component.expandedStageId = 4;
+    component.activities = [activity, { ...activity, activityId: 8, name: 'B' }];
+
+    component.onDropActivities({ previousIndex: 0, currentIndex: 1 } as unknown as Parameters<typeof component.onDropActivities>[0]);
+    const request = http.expectOne('/api/stages/4/activities/reorder');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual([8, 6]);
+    request.flush(null);
+    fixture.detectChanges();
+    expect(component.success).toContain('Orden de actividades actualizado');
+    expect(component.filteredActivities.map((a) => a.activityId)).toEqual([8, 6]);
+  });
+
+  it('ignores a drop to the same position', () => {
+    fixture.componentInstance.stages = [{ ...stage, stageId: 1 }];
+    const component = fixture.componentInstance;
+    component.onDropStages({ previousIndex: 0, currentIndex: 0 } as unknown as Parameters<typeof component.onDropStages>[0]);
+    http.expectNone((candidate) => candidate.url === '/api/projects/42/stages/reorder');
+    expect(component.filteredStages.map((s) => s.stageId)).toEqual([1]);
   });
 });
 

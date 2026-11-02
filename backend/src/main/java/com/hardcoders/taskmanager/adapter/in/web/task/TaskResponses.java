@@ -106,11 +106,13 @@ public final class TaskResponses {
             String status,
             Instant createdAt,
             Instant updatedAt,
-            long version
+            long version,
+            int activityCount
     ) {
         public static StageResponse from(StageResult result) {
             return new StageResponse(result.stageId(), result.projectId(), result.name(), result.description(),
-                    result.status(), result.createdAt(), result.updatedAt(), result.version());
+                    result.status(), result.createdAt(), result.updatedAt(), result.version(),
+                    result.activityCount());
         }
     }
 
@@ -122,11 +124,13 @@ public final class TaskResponses {
             String status,
             Instant createdAt,
             Instant updatedAt,
-            long version
+            long version,
+            int taskCount
     ) {
         public static ActivityResponse from(ActivityResult result) {
             return new ActivityResponse(result.activityId(), result.stageId(), result.name(), result.description(),
-                    result.status(), result.createdAt(), result.updatedAt(), result.version());
+                    result.status(), result.createdAt(), result.updatedAt(), result.version(),
+                    result.taskCount());
         }
     }
 

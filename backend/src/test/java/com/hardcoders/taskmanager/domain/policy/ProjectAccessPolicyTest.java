@@ -87,4 +87,15 @@ class ProjectAccessPolicyTest {
         assertThatCode(() -> ProjectAccessPolicy.requireCanEditDetails(new Actor(2, false, true),
                 projectManagedBy(2))).doesNotThrowAnyException();
     }
+
+    @Test
+    @DisplayName("canManageHierarchy: jefe puede, encargado de otro proyecto no, nulo no")
+    void canManageHierarchyCoversBranches() {
+        Project p = projectManagedBy(2);
+        assertThat(ProjectAccessPolicy.canManageHierarchy(new Actor(1, true, true), p)).isTrue();
+        assertThat(ProjectAccessPolicy.canManageHierarchy(new Actor(2, false, true), p)).isTrue();
+        assertThat(ProjectAccessPolicy.canManageHierarchy(new Actor(9, false, true), p)).isFalse();
+        assertThat(ProjectAccessPolicy.canManageHierarchy(null, p)).isFalse();
+        assertThat(ProjectAccessPolicy.canManageHierarchy(new Actor(2, false, false), p)).isFalse();
+    }
 }

@@ -91,4 +91,53 @@ describe('Login', () => {
     expect(fixture.componentInstance.error).toBeNull();
     expect(navigate).toHaveBeenCalled();
   });
+
+  it('navigates to home when there is no returnUrl', () => {
+    const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
+    fill('jefe@gestor.local', 'Gestor2026!');
+
+    http.expectOne('/api/auth/login').flush({
+      token: 'jwt-de-prueba',
+      expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+      user: { userId: 1, email: 'jefe@gestor.local', givenNames: 'Julia', familyNames: 'Mendoza', fullName: 'Julia Mendoza', chief: true, active: true },
+    });
+    fixture.detectChanges();
+
+    expect(navigate).toHaveBeenCalledWith('/');
+  });
+
+  it('shows default message when 403 error has no message', () => {
+    fill('inactivo@gestor.local', 'Gestor2026!');
+
+    http
+      .expectOne('/api/auth/login')
+      .flush(
+        { error: 'USER_INACTIVE', message: null },
+        { status: 403, statusText: 'Forbidden' },
+      );
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.error).toBe('Tu usuario está inactivo. Contacta al administrador.');
+  });
+
+  it('ignores a second submit while already submitting', () => {
+    const component = fixture.componentInstance;
+    component.form.setValue({ email: 'jefe@gestor.local', password: 'Gestor2026!' });
+    component.submitting = true;
+    component.submit();
+    fixture.detectChanges();
+
+    expect(component.submitting).toBe(true);
+    http.expectNone('/api/auth/login');
+  });
+
+  it('does not submit when the form is invalid', () => {
+    const component = fixture.componentInstance;
+    component.form.setValue({ email: '', password: '' });
+    component.submit();
+    fixture.detectChanges();
+
+    expect(component.submitting).toBe(false);
+    http.expectNone('/api/auth/login');
+  });
 });

@@ -294,4 +294,13 @@ describe('TaskService (fachada sobre la API V4)', () => {
     expect(history[1].events.map((event) => event.toStatus)).toEqual(['TERMINADA', 'INACTIVA']);
     expect(history[0]).toMatchObject({ status: 'TERMINADA', deletedAt: null, events: [] });
   });
+
+  it('reorders tasks of an activity', () => {
+    service.reorderTasks(4, [7, 2, 9]).subscribe();
+
+    const request = http.expectOne('/api/activities/4/tasks/reorder');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual([7, 2, 9]);
+    request.flush(null);
+  });
 });

@@ -11,6 +11,7 @@ import com.hardcoders.taskmanager.application.command.HierarchyCommands.UpdateAc
 import com.hardcoders.taskmanager.application.command.HierarchyCommands.UpdateStageCommand;
 import com.hardcoders.taskmanager.application.port.in.ManageAssignmentsUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageHierarchyUseCase;
+import com.hardcoders.taskmanager.application.port.in.ManageTasksUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryHierarchyUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryProjectsUseCase;
 import com.hardcoders.taskmanager.application.result.ActivityResult;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
@@ -43,13 +45,16 @@ public class HierarchyController {
     private final ManageHierarchyUseCase manageHierarchy;
     private final QueryHierarchyUseCase queryHierarchy;
     private final ManageAssignmentsUseCase manageAssignments;
+    private final ManageTasksUseCase manageTasks;
     private final QueryProjectsUseCase queryProjects;
 
     public HierarchyController(ManageHierarchyUseCase manageHierarchy, QueryHierarchyUseCase queryHierarchy,
-                               ManageAssignmentsUseCase manageAssignments, QueryProjectsUseCase queryProjects) {
+                               ManageAssignmentsUseCase manageAssignments, ManageTasksUseCase manageTasks,
+                               QueryProjectsUseCase queryProjects) {
         this.manageHierarchy = manageHierarchy;
         this.queryHierarchy = queryHierarchy;
         this.manageAssignments = manageAssignments;
+        this.manageTasks = manageTasks;
         this.queryProjects = queryProjects;
     }
 
@@ -58,6 +63,16 @@ public class HierarchyController {
     @GetMapping("/projects/{projectId}/stages")
     public List<TaskResponses.StageResponse> stages(@PathVariable Integer projectId) {
         return queryHierarchy.stagesOf(projectId).stream().map(TaskResponses.StageResponse::from).toList();
+    }
+
+    @GetMapping(value = "/stages", params = "q")
+    public List<TaskResponses.StageResponse> searchStages(@RequestParam("q") String q) {
+        return queryHierarchy.searchStages(q).stream().map(TaskResponses.StageResponse::from).toList();
+    }
+
+    @GetMapping(value = "/activities", params = "q")
+    public List<TaskResponses.ActivityResponse> searchActivities(@RequestParam("q") String q) {
+        return queryHierarchy.searchActivities(q).stream().map(TaskResponses.ActivityResponse::from).toList();
     }
 
     @PostMapping("/projects/{projectId}/stages")
@@ -121,6 +136,24 @@ public class HierarchyController {
     @GetMapping("/activities/{activityId}/tasks")
     public List<TaskResponses.TaskResponse> tasksOfActivity(@PathVariable Integer activityId) {
         return toResponses(queryHierarchy.tasksOf(activityId));
+    }
+
+    @PutMapping("/projects/{projectId}/stages/reorder")
+    public ResponseEntity<Void> reorderStages(@PathVariable Integer projectId, @org.springframework.web.bind.annotation.RequestBody java.util.List<Integer> stageIds) {
+        manageHierarchy.reorderStages(projectId, stageIds);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/stages/{stageId}/activities/reorder")
+    public ResponseEntity<Void> reorderActivities(@PathVariable Integer stageId, @org.springframework.web.bind.annotation.RequestBody java.util.List<Integer> activityIds) {
+        manageHierarchy.reorderActivities(stageId, activityIds);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/activities/{activityId}/tasks/reorder")
+    public ResponseEntity<Void> reorderTasks(@PathVariable Integer activityId, @org.springframework.web.bind.annotation.RequestBody java.util.List<Integer> taskIds) {
+        manageTasks.reorderTasks(activityId, taskIds);
+        return ResponseEntity.ok().build();
     }
 
     // ------------------------------------------------------------- asignaciones

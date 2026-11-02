@@ -84,6 +84,7 @@ describe('Épica 1 — Proyectos', () => {
 
   beforeEach(() => {
     sessionStorage.clear();
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });

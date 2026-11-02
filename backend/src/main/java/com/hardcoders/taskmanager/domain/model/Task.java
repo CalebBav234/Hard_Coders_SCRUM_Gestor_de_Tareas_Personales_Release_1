@@ -300,6 +300,24 @@ public final class Task {
         return lastRevisionNumber;
     }
 
+    public static Task of(Integer id, Activity activity, String title, String description, WorkStatus status,
+                          TaskPriority priority, BigDecimal allocatedBudgetBob, Integer estimatedDurationMinutes,
+                          Integer actualDurationMinutes, Instant completedAt, Integer completedByUserId,
+                          Instant createdAt, Instant updatedAt, List<StatusChange> history,
+                          int lastRevisionNumber) {
+        return new Task(id, activity, title, description, status, priority, allocatedBudgetBob,
+                estimatedDurationMinutes == null ? 0 : estimatedDurationMinutes, actualDurationMinutes,
+                completedAt, completedByUserId, createdAt, updatedAt, history, lastRevisionNumber,
+                java.util.Collections.<PlanRevision>emptyList());
+    }
+
+    public void markDuration(Integer minutes) {
+        if (minutes != null && minutes < 0) {
+            throw new DomainValidationException("La duración real no puede ser negativa");
+        }
+        this.actualDurationMinutes = minutes;
+    }
+
     private static String requiredReason(String reason) {
         if (reason == null || reason.isBlank()) {
             throw new DomainValidationException("El motivo del cambio es obligatorio");

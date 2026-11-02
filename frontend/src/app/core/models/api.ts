@@ -72,6 +72,8 @@ export interface StageDto {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Número de actividades hijas (visible también cuando la etapa está colapsada). */
+  activityCount?: number;
 }
 
 export interface ActivityDetailDto {
@@ -83,6 +85,8 @@ export interface ActivityDetailDto {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Número de tareas hijas. */
+  taskCount?: number;
 }
 
 export interface AssignmentDto {
