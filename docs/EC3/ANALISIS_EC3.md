@@ -838,51 +838,39 @@ Se evalúa el proceso de creación de una asignación (`POST /api/tasks/{taskId}
 
 ### 10.2 Condiciones identificadas (confirmadas en código)
 
-| Condición | Origen |
-|---|---|
-| C1: Actor autorizado (Jefe o Encargado del proyecto) | `AssignmentPolicy.requireCanAssign` → `WbsHierarchyPolicy.canManage` |
-| C2: Proyecto abierto (no cerrado) | `WbsHierarchyPolicy.requireOpen(project, "asignar Personal")` |
-| C3: Tarea existe | `tasks.findVisible` → 404 si no existe |
-| C4: Usuario trabajador existe | `users.findById` → `DomainValidationException` "no existe" |
-| C5: Usuario trabajador activo | `AssignmentPolicy.requireEligibleWorker` |
-| C6: Usuario trabajador ≠ actor (no autoasignación) | `AssignmentPolicy.requireNotSelf` |
-| C7: No existe asignación duplicada | `assignments.find(taskId, workerUserId).isPresent()` → 400; clave compuesta DB |
+Son condiciones de estado del negocio (no validaciones de formato, ni "no encontrado", ni privilegios). Se excluyen: tarea inexistente (404), trabajador inexistente (404), actor autorizado (C1, no aprobada como condición por el mgr), autoasignación (privilegio `requireNotSelf`).
+
+| Condición | Origen | Tipo |
+|---|---|---|
+| C1: Proyecto abierto (no cerrado) | `WbsHierarchyPolicy.requireOpen(project, "asignar Personal")` | Estado del proyecto |
+| C2: Trabajador activo | `AssignmentPolicy.requireEligibleWorker` | Estado del trabajador |
+| C3: No existe asignación duplicada | `assignments.find(taskId, workerUserId).isPresent()` → 400; clave compuesta DB | Estado de datos existentes |
 
 ### 10.3 Tabla de decisión
 
-| Condición / Regla | R1 | R2 | R3 | R4 | R5 | R6 | R7 |
-|---|---|---|---|---|---|---|---|
-| C1: Actor autorizado | V | V | V | F | V | V | V |
-| C2: Proyecto abierto | V | V | V | V | F | V | V |
-| C3: Tarea existe | V | V | F | V | V | V | V |
-| C4: Trabajador existe | V | F | V | V | V | F | V |
-| C5: Trabajador activo | V | V | V | F | V | V | F |
-| C6: No es el actor | V | V | V | V | V | F | V |
-| C7: No duplicada | V | V | V | V | V | V | F |
-| **Resultado esperado** | 200 OK asignada | 400 trabajador no existe | 404 tarea no encontrada | 400 trabajador inactivo | 409 proyecto cerrado | 403 autoasignación | 400 duplicada |
+| Condición / Regla | R1 | R2 | R3 | R4 |
+|---|---|---|---|---|
+| C1: Proyecto abierto | V | F | V | V |
+| C2: Trabajador activo | V | V | F | V |
+| C3: No duplicada | V | V | V | F |
+| **Resultado esperado** | 200 OK asignada | 409 proyecto cerrado | 400 trabajador inactivo | 400 asignación duplicada |
 
-> **Notas:** V = verdadero, F = falso. Las reglas R1–R7 cubren las combinaciones factibles identificadas. No se incluyen combinaciones imposibles (ej. tarea inexistente con trabajador inexistente simultáneo) porque el servicio falla en la primera validación en orden de ejecución (tarea → proyecto → trabajador).
+> **Notas:** V = verdadero, F = falso. Se cubren 4 reglas con 3 condiciones de negocio (C1, C2, C3). No se incluyen combinaciones imposibles ni condiciones indiferentes (tarea inexistente, trabajador inexistente, actor autorizado y autoasignación son validaciones/privilegios, no condiciones de estado del negocio).
 
 **Justificación de reglas:**
 - R1 (camino feliz): todas las condiciones verdaderas → asignación creada en `task_assignment`.
-- R2: trabajador no existe → 400 antes de verificar duplicidad.
-- R3: tarea inexistente → 404 (no se filtra su existencia, se trata como inexistente).
-- R4: trabajador inactivo → 400 `requireEligibleWorker`.
-- R5: proyecto cerrado → 409 `requireOpen`.
-- R6: autoasignación → 403 `requireNotSelf`.
-- R7: duplicidad → 400 `DomainValidationException` (y clave compuesta DB como última barrera).
+- R2: proyecto cerrado → 409 `requireOpen` (no se asigna Personal en proyecto FINALIZADO/CANCELADO).
+- R3: trabajador inactivo → 400 `requireEligibleWorker`.
+- R4: duplicidad → 400 `DomainValidationException` (y clave compuesta DB como última barrera).
 
 ### 10.4 Nivel de prueba recomendado
 
 | Regla | Nivel | Justificación |
 |---|---|---|
 | R1 | Integración + Playwright | Camino feliz completo: endpoint + persistencia + UI |
-| R2 | Integración | validación de dominio sin necesidad de UI |
-| R3 | Integración | 404 por tarea inexistente |
-| R4 | Integración | validación de elegibilidad del trabajador |
-| R5 | Integración | proyecto cerrado (estado de negocio) |
-| R6 | Integración + Playwright | regla de autorización de negocio visible en UI |
-| R7 | Integración | clave compuesta (doble barrera: servicio + BD) |
+| R2 | Integración | proyecto cerrado (estado de negocio) |
+| R3 | Integración | trabajador inactivo (estado de negocio del trabajador) |
+| R4 | Integración | clave compuesta (doble barrera: servicio + BD) |
 
 ---
 
@@ -1283,12 +1271,10 @@ Esto rompe la consistencia de duración: la duración ingresada por el usuario n
 | P-EST-03 | Transiciones | Proyecto | CANCELADO → cualquier (rechazado) | 400 | Integración | Vitest |
 | P-EST-04 | Transiciones | Tarea | PENDIENTE → EN_PROGRESO → COMPLETADA → EN_PROGRESO | 200 OK | Integración + E2E | Vitest + Playwright |
 | P-EST-05 | Transiciones | Tarea | Cancelar con subtareas abiertas | 400 OpenSubtasksException | Integración | Vitest |
-| P-DEC-01 | Tabla de decisión | Asignación | R1 (camino feliz) | 200 OK | Integración + E2E | Vitest + Playwright |
-| P-DEC-02 | Tabla de decisión | Asignación | R2 (trabajador no existe) | 400 | Integración | Vitest |
-| P-DEC-03 | Tabla de decisión | Asignación | R4 (trabajador inactivo) | 400 | Integración | Vitest |
-| P-DEC-04 | Tabla de decisión | Asignación | R5 (proyecto cerrado) | 409 | Integración | Vitest |
-| P-DEC-05 | Tabla de decisión | Asignación | R6 (autoasignación) | 403 | Integración + E2E | Vitest + Playwright |
-| P-DEC-06 | Tabla de decisión | Asignación | R7 (duplicidad) | 400 | Integración | Vitest |
+| P-DEC-01 | Tabla de decisión | Asignación | R1 (camino feliz, C1=V C2=V C3=V) | 200 OK | Integración + E2E | Vitest + Playwright |
+| P-DEC-02 | Tabla de decisión | Asignación | R2 (C1=F, proyecto cerrado) | 409 | Integración | Vitest |
+| P-DEC-03 | Tabla de decisión | Asignación | R3 (C2=F, trabajador inactivo) | 400 | Integración | Vitest |
+| P-DEC-04 | Tabla de decisión | Asignación | R4 (C3=F, duplicidad) | 400 | Integración | Vitest |
 | P-CREA-01 | CREATE | task_assignment | Asignar trabajador a tarea | 200 OK, fila en task_assignment | Integración + E2E | Vitest + Playwright |
 | P-CREA-02 | CREATE | app_user (tras desarrollar) | Crear usuario válido | 201 Creado, fila en app_user | Integración + E2E | Vitest + Playwright |
 | P-REG-01 | Regresión | R1 | Búsqueda global | Resultados filtrados sin recarga | E2E | Playwright |
@@ -1309,7 +1295,7 @@ Se considerará completa la implementación de la EC3 cuando se cumplan **todos*
 2. **Técnicas EP y BVA3:** aplicadas a los formularios correspondientes con al menos los casos de la matriz (secciones 7.1 a 7.6 y 8.1 a 8.10).
 3. **Proceso con 3+ estados:** el ciclo de vida del proyecto (PLANIFICADO, EN_EJECUCION, EN_PAUSA, FINALIZADO, CANCELADO) evaluado con cobertura de estados y de transiciones documentada.
 4. **Cobertura de estados y transiciones:** cada estado alcanzable y cada transición permitida/prohibida probada.
-5. **Tabla de decisión:** al menos tres combinaciones relevantes (R1, R2, R4, R5, R6, R7) del flujo de asignación diseñadas y probadas.
+5. **Tabla de decisión:** al menos tres combinaciones relevantes (R1 camino feliz, R2 proyecto cerrado, R3 trabajador inactivo, R4 duplicidad) del flujo de asignación diseñadas y probadas con las condiciones C1, C2, C3.
 6. **Dos tablas complementarias:** `task_assignment` y `app_user` seleccionadas; su operación CREATE probada (`task_assignment` ya funcional; `app_user` tras desarrollar CREATE).
 7. **Casos funcionales automatizados:** escenarios E2E automatizados con Playwright para formularios principales y CREATE complementarios.
 8. **Validaciones frontend y backend:** verificadas para los formularios del proceso principal (coherencia de límites, mensajes de error).
@@ -1368,7 +1354,7 @@ flowchart TD
 | C2 | Técnicas EP y BVA3 aplicadas | Casos P-EP-* y P-BVA-* definidos y ejecutados |
 | C3 | Proceso con 3+ estados evaluado | Ciclo de vida del proyecto probado (P-EST-*) |
 | C4 | Cobertura de estados y transiciones documentada | Cada estado y transición de la tabla 9.4 probada |
-| C5 | Tabla de decisión con ≥3 combinaciones | Reglas R1, R2, R4, R5, R6, R7 probadas |
+| C5 | Tabla de decisión con ≥3 combinaciones | Reglas R1, R2, R3, R4 probadas con condiciones C1, C2, C3 |
 | C6 | Dos tablas complementarias con CREATE probado | `task_assignment` y `app_user` (tras desarrollar) |
 | C7 | Casos funcionales automatizados | Playwright ejecutando escenarios E2E |
 | C8 | Validaciones frontend y backend verificadas | Pruebas de límites y mensajes de error |
