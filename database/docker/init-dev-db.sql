@@ -1,7 +1,7 @@
 -- bootstrap dev/test DB inside the official postgres:18 container.
 -- Runs AS superuser during docker-entrypoint-initdb.d (only on a fresh data dir).
 -- Replicates database/scripts/setup-local.ps1 + migrate.ps1: creates roles, the
--- gestor_tareas database, and applies V001..V004 as the owner role.
+-- gestor_tareas database, and applies V001..V006 as the owner role.
 -- DEV ONLY: passwords below are local/test defaults. Do not use in production.
 
 -- 1. Roles
@@ -61,3 +61,16 @@ INSERT INTO public.database_schema_migrations (version, description, checksum, a
 VALUES (4, 'project management model', 'dd55ed8ca35a66eb96221efa330941db84c17bfdac29b7e7826dff3b0498b5ac', CURRENT_USER)
 ON CONFLICT (version) DO NOTHING;
 COMMIT;
+
+-- V005: sort_order para reordenar por drag-and-drop (R6). Sin esta migración el backend
+-- no arranca (ddl-auto: validate exige stage/activity/task.sort_order).
+\i /migrations/V005__add_sort_order.sql
+INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
+VALUES (5, 'add sort order', '4bb94a97158a0f808f167079194fe2732f3468b1f42b844f3a5e3baa852dc3ab', CURRENT_USER)
+ON CONFLICT (version) DO NOTHING;
+
+-- V006: motivo persistido de la asignación de Personal (EC3-02).
+\i /migrations/V006__task_assignment_reason.sql
+INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
+VALUES (6, 'task assignment reason', 'e1bd108bc203360e4e7e5a363d8aa1ff4ca0be4b65161f21552ab92ab9ac1dec', CURRENT_USER)
+ON CONFLICT (version) DO NOTHING;

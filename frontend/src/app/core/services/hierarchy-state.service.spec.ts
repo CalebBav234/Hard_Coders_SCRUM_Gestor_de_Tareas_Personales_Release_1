@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { Observable } from 'rxjs';
 
-import { ActivityDetailDto, StageDto } from '../../../core/models/api';
-import { Project } from '../../../core/models/project';
-import { Task } from '../../../core/models/task';
+import { ActivityDetailDto, StageDto } from '../models/api';
+import { Project } from '../models/project';
+import { Task } from '../models/task';
 import { HierarchyStateService } from './hierarchy-state.service';
 
 describe('HierarchyStateService', () => {
@@ -13,7 +13,7 @@ describe('HierarchyStateService', () => {
     projectId: 1,
     name: 'Proyecto',
     description: null,
-    status: 'PENDIENTE',
+    status: 'PLANIFICADO',
     closed: false,
     budgetBob: 1000,
     allocatedBudgetBob: 0,
@@ -57,21 +57,18 @@ describe('HierarchyStateService', () => {
 
   const task: Task = {
     id: 7,
+    kind: 'TASK',
+    entityId: 7,
     title: 'Tarea',
     description: null,
-    status: 'PENDIENTE',
+    status: 'INACTIVA',
     priority: 'MEDIA',
-    projectId: 1,
-    activityId: 4,
-    assignedToUserId: null,
+    categoryId: 4,
     assignedWorkerIds: [],
-    estimatedMinutes: 60,
-    actualMinutes: null,
-    completed: false,
+    estimatedDurationMinutes: 60,
     createdAt: '2026-10-01T10:00:00Z',
     updatedAt: '2026-10-01T10:00:00Z',
     version: 1,
-    subtasks: [],
   };
 
   beforeEach(() => {

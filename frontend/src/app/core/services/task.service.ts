@@ -68,7 +68,10 @@ export class TaskService {
               estimatedDurationMinutes: 0,
               assignedWorkerIds: [],
             };
-            return taskToView(taskDto);
+            // US3.1: el Personal no recibe datos financieros ni de plan; los 0 de arriba son de relleno
+            // para reutilizar el mapper y no deben llegar a la vista.
+            const { allocatedBudgetBob: _budget, estimatedDurationMinutes: _duration, ...view } = taskToView(taskDto);
+            return view;
           }),
         ),
         catchError(this.handleError),

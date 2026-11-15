@@ -711,6 +711,15 @@ describe('TaskList sobre la API V4', () => {
     expect(assignButton?.textContent).toContain('2');
   });
 
+  it('R2: shows the estimated duration of the task in working hours and hides it when there is none', async () => {
+    expect(element.querySelector('[data-testid="task-duration"]')).toBeNull();
+
+    fixture.componentInstance.loadTasks();
+    await reload([{ ...original, estimatedDurationMinutes: 90 }]);
+
+    expect(element.querySelector('[data-testid="task-duration"]')?.textContent).toContain('1 h 30 min');
+  });
+
   it('swipes the card to the right to finish it and to the left to ask for the deletion', async () => {
     const component = fixture.componentInstance;
     fixture.componentInstance.loadTasks();
@@ -1048,7 +1057,7 @@ describe('TaskList sobre la API V4', () => {
 
   it('restoreRouteContext selects another project and loads its stages', () => {
     const component = fixture.componentInstance;
-    component.projectsLoaded = true;
+    component['projectsLoaded'] = true;
     (component as any).restoreRouteContext(99, null);
     http.expectOne('/api/projects/99/stages').flush([]);
     fixture.detectChanges();
@@ -1103,7 +1112,7 @@ describe('TaskList sobre la API V4', () => {
     const component = fixture.componentInstance;
     const completed = parentView({ status: 'TERMINADA', completedAt: '2026-10-02T10:00:00Z' });
     component.tasks = [completed];
-    component.changeDetector.markForCheck();
+    component['changeDetector'].markForCheck();
     fixture.detectChanges();
     expect(element.textContent).toContain('Completadas');
   });

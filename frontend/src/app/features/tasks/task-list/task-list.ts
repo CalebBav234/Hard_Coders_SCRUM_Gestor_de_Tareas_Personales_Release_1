@@ -18,7 +18,7 @@ import { ProjectService } from '../../../core/services/project.service';
 import { HierarchyStateService } from '../../../core/services/hierarchy-state.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { Task } from '../../../core/models/task';
-import { Project } from '../../../core/models/project';
+import { Project, formatMinutes } from '../../../core/models/project';
 import { ProjectProgressDto, StageDto } from '../../../core/models/api';
 
 import { TaskForm } from '../task-form/task-form';
@@ -373,6 +373,13 @@ import { combineLatest } from 'rxjs';
                 Prioridad:
                 {{ task.priority }}
               </span>
+
+              <!-- R2 / EC3-04: duración estimada guardada en minutos y mostrada en horas de jornada. -->
+              @if (task.estimatedDurationMinutes) {
+                <span class="meta-item duration" data-testid="task-duration">
+                  Duración: {{ formatMinutes(task.estimatedDurationMinutes) }}
+                </span>
+              }
 
             </div>
 
@@ -1484,6 +1491,7 @@ export class TaskList implements OnInit {
   private timerInterval: ReturnType<typeof setInterval> | null = null;
 
   currentTime = Date.now();
+  readonly formatMinutes = formatMinutes;
 
   private readonly taskService = inject(TaskService);
   private readonly wbsService = inject(WbsService);

@@ -45,6 +45,8 @@ export function taskToView(dto: TaskDto, now = Date.now()): Task {
     completedAt: dto.completedAt,
     totalActiveSeconds: dto.trackedSeconds,
     effectiveActiveSeconds: dto.trackedSeconds + running,
+    estimatedDurationMinutes: dto.estimatedDurationMinutes,
+    allocatedBudgetBob: dto.allocatedBudgetBob,
     createdAt: dto.createdAt,
     updatedAt: dto.updatedAt,
     version: dto.version,

@@ -292,6 +292,13 @@
                 {{ task.priority }}
               </span>
 
+              <!-- R2 / EC3-04: duración estimada guardada en minutos y mostrada en horas de jornada. -->
+              @if (task.estimatedDurationMinutes) {
+                <span class="meta-item duration" data-testid="task-duration">
+                  Duración: {{ formatMinutes(task.estimatedDurationMinutes) }}
+                </span>
+              }
+
             </div>
 
 

@@ -43,6 +43,9 @@ export interface Task {
   /** Solo las tareas registran tiempo; en subtareas queda indefinido y el cronómetro no se muestra. */
   totalActiveSeconds?: number;
   effectiveActiveSeconds?: number;
+  /** R2 / EC3-04: plan de la tarea (minutos y Bs); las subtareas no los tienen. */
+  estimatedDurationMinutes?: number;
+  allocatedBudgetBob?: number;
   createdAt?: string | null;
   updatedAt?: string | null;
   version: number;

@@ -2,11 +2,16 @@ import { ChangeDetectorRef, Component, EventEmitter, Input, Output, inject } fro
 import { FormsModule } from '@angular/forms';
 import { Task, TaskPriority } from '../../../core/models/task';
 import { TaskService } from '../../../core/services/task.service';
-import { DurationFormatPipe } from '../../../core/pipes/duration-format.pipe';
+import { formatMinutes } from '../../../core/models/project';
+
+/** Mismo patrón que project-form y que @Digits(integer = 13, fraction = 2) del backend. */
+const BUDGET_PATTERN = /^\d{1,13}(\.\d{1,2})?$/;
+/** task.estimated_duration_minutes es integer (@Max(Integer.MAX_VALUE) en el backend). */
+const MAX_DURATION_MINUTES = 2_147_483_647;
 
 @Component({
   selector: 'app-task-form',
-  imports: [FormsModule, DurationFormatPipe],
+  imports: [FormsModule],
   template: `<div class="task-form">
 
   <div class="form-header">
@@ -30,30 +35,42 @@ import { DurationFormatPipe } from '../../../core/pipes/duration-format.pipe';
     }
   </div>
 
-  <!-- ==========================================
-       NUEVO: CAMPO DE DURACIÓN ESTIMADA
-       ========================================== -->
+  <!-- Las subtareas (V4) no tienen prioridad, presupuesto, duración ni categoría propias. -->
+  @if (!parentTaskId) {
   <div class="form-group">
-    <label for="estimatedDays">Duración estimada (Días)</label>
+    <label for="estimatedHours">Duración estimada (horas)</label>
     <input
-      id="estimatedDays"
+      id="estimatedHours"
       type="number"
       min="0"
-      placeholder="Ej. 7 para una semana"
-      [(ngModel)]="estimatedDays"
+      step="0.25"
+      placeholder="Ej. 1.5 para una hora y media"
+      [(ngModel)]="estimatedHours"
       [disabled]="loading"
     >
-
-    <!-- Vista previa en tiempo real usando el nuevo pipe -->
-    @if (estimatedDays && estimatedDays > 0) {
-      <span style="font-size: 0.85rem; color: #888; margin-top: 4px; display: block;">
-        Equivale a: <strong>{{ estimatedDays | durationFormat }}</strong>
-      </span>
+    @if (durationError) {
+      <p class="error-message">{{ durationError }}</p>
+    } @else if (estimatedMinutes() > 0) {
+      <small class="gt-field-hint">≈ {{ formatMinutes(estimatedMinutes()) }} de jornada</small>
     }
   </div>
 
-  <!-- Las subtareas (V4) no tienen prioridad ni categoría propias. -->
-  @if (!parentTaskId) {
+  <div class="form-group">
+    <label for="allocatedBudgetBob">Presupuesto asignado (Bs)</label>
+    <input
+      id="allocatedBudgetBob"
+      type="number"
+      min="0"
+      step="0.01"
+      placeholder="Ej. 250.50"
+      [(ngModel)]="allocatedBudgetBob"
+      [disabled]="loading"
+    >
+    @if (budgetError) {
+      <p class="error-message">{{ budgetError }}</p>
+    }
+  </div>
+
   <div class="form-group">
     <label for="priority">Prioridad</label>
     <select id="priority" [(ngModel)]="selectedPriority" [disabled]="loading">
@@ -384,47 +401,66 @@ export class TaskForm {
   title = '';
   selectedPriority: TaskPriority = 'MEDIA';
 
-  // NUEVO: Variable para capturar los días estimados
-  estimatedDays: number | null = null;
+  /**
+   * EC3-04: las tareas de un trabajador se estiman en horas de jornada (paso de 15 min) y se envían
+   * al backend en minutos enteros, la unidad canónica de task.estimated_duration_minutes.
+   */
+  estimatedHours: number | null = null;
+  /** EC3-04: presupuesto asignado a la tarea; mismas reglas que task.allocated_budget_bob DECIMAL(15,2) ≥ 0. */
+  allocatedBudgetBob: number | null = null;
 
   submitted = false;
   loading = false;
   error: string | null = null;
+  durationError: string | null = null;
+  budgetError: string | null = null;
+
+  readonly formatMinutes = formatMinutes;
+
+  /** Minutos que se enviarán; 0 si el campo está vacío o es inválido. */
+  estimatedMinutes(): number {
+    const hours = Number(this.estimatedHours);
+    if (this.estimatedHours === null || !Number.isFinite(hours) || hours < 0) {
+      return 0;
+    }
+    return Math.round(hours * 60);
+  }
 
   crearTarea(): void {
     this.submitted = true;
     this.error = null;
+    this.durationError = null;
+    this.budgetError = null;
 
-    if (this.title.trim() === '') {
+    const isSubtask = this.parentTaskId !== null;
+    if (!isSubtask) {
+      this.durationError = this.validateHours();
+      this.budgetError = this.validateBudget();
+    }
+
+    if (this.title.trim() === '' || this.durationError !== null || this.budgetError !== null) {
+      this.changeDetector.markForCheck();
       return;
     }
 
-    this.loading = true;
-
-    if (this.parentTaskId === null && this.activityId === null) {
-      this.loading = false;
+    if (!isSubtask && this.activityId === null) {
       this.error = 'Elige una etapa y su actividad en la barra de trabajo antes de crear la tarea.';
       this.changeDetector.markForCheck();
       return;
     }
 
-    // Asegurarnos de mandar un número entero válido (o 0 si está vacío)
-    const duration = this.estimatedDays && this.estimatedDays > 0 ? Math.floor(this.estimatedDays) : 0;
+    this.loading = true;
+    const budget = isSubtask || this.allocatedBudgetBob === null ? 0 : Number(this.allocatedBudgetBob);
+    const minutes = isSubtask ? 0 : this.estimatedMinutes();
 
     this.taskService
-      .createTask(
-        this.activityId ?? 0,
-        this.title.trim(),
-        this.selectedPriority,
-        duration, // <-- CAMBIADO: Enviamos la duración ingresada en lugar del primer 0
-        0,        // (Asumo que este segundo 0 es para otra métrica, como presupuesto o horas gastadas)
-        this.parentTaskId
-      )
+      .createTask(this.activityId ?? 0, this.title.trim(), this.selectedPriority, budget, minutes, this.parentTaskId)
       .subscribe({
         next: (task) => {
           this.title = '';
           this.selectedPriority = 'MEDIA';
-          this.estimatedDays = null; // Limpiar el input
+          this.estimatedHours = null;
+          this.allocatedBudgetBob = null;
           this.submitted = false;
           this.loading = false;
 
@@ -442,5 +478,33 @@ export class TaskForm {
           this.changeDetector.markForCheck();
         },
       });
+  }
+
+  private validateHours(): string | null {
+    if (this.estimatedHours === null || (this.estimatedHours as unknown) === '') {
+      return null;
+    }
+    const hours = Number(this.estimatedHours);
+    if (!Number.isFinite(hours) || hours < 0) {
+      return 'La duración debe ser un número mayor o igual a 0.';
+    }
+    if (Math.round(hours * 60) > MAX_DURATION_MINUTES) {
+      return 'La duración estimada es demasiado grande.';
+    }
+    return null;
+  }
+
+  private validateBudget(): string | null {
+    if (this.allocatedBudgetBob === null || (this.allocatedBudgetBob as unknown) === '') {
+      return null;
+    }
+    const budget = Number(this.allocatedBudgetBob);
+    if (!Number.isFinite(budget) || budget < 0) {
+      return 'El presupuesto debe ser mayor o igual a 0.';
+    }
+    if (!BUDGET_PATTERN.test(String(this.allocatedBudgetBob))) {
+      return 'El presupuesto admite hasta 13 dígitos enteros y 2 decimales.';
+    }
+    return null;
   }
 }

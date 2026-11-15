@@ -49,6 +49,9 @@ describe('task-mapper', () => {
     expect(view.categoryName).toBe('Cimentación');
     expect(view.assignedWorkerIds).toEqual([2]);
     expect(view.effectiveActiveSeconds).toBe(100);
+    // R2 / EC3-04: el plan de la tarea llega a la vista en minutos y Bs.
+    expect(view.estimatedDurationMinutes).toBe(baseTaskDto.estimatedDurationMinutes);
+    expect(view.allocatedBudgetBob).toBe(baseTaskDto.allocatedBudgetBob);
   });
 
   it('taskToView handles missing segment start and missing activity name', () => {
@@ -65,7 +68,8 @@ describe('task-mapper', () => {
   });
 
   it('taskToView falls back to an empty worker list when none is assigned', () => {
-    const view = taskToView({ ...baseTaskDto, assignedWorkerIds: null });
+    // El backend puede omitir la lista; el contrato tipado no lo refleja.
+    const view = taskToView({ ...baseTaskDto, assignedWorkerIds: null as unknown as number[] });
     expect(view.assignedWorkerIds).toEqual([]);
   });
 
@@ -103,7 +107,7 @@ describe('task-mapper', () => {
     };
     const view = subtaskToView(dto, 'BAJA');
     expect(view.status).toBe('INACTIVA');
-    expect(view.deletedAt).toBeUndefined();
+    expect((view as { deletedAt?: unknown }).deletedAt).toBeUndefined();
   });
 
   it('flattenTasks produces task followed by subtasks', () => {
