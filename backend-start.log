@@ -1,0 +1,89 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ----------------< com.hardcoders:gestor-tareas-backend >----------------
+[INFO] Building gestor-tareas-backend 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:4.1.0:run (default-cli) > test-compile @ gestor-tareas-backend >>>
+[INFO] 
+[INFO] --- jacoco:0.8.15:prepare-agent (prepare-agent) @ gestor-tareas-backend ---
+[INFO] argLine set to -javaagent:C:\\Users\\caleb\\.m2\\repository\\org\\jacoco\\org.jacoco.agent\\0.8.15\\org.jacoco.agent-0.8.15-runtime.jar=destfile=C:\\Users\\caleb\\Downloads\\Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1\\backend\\target\\jacoco.exec
+[INFO] 
+[INFO] --- resources:3.5.0:resources (default-resources) @ gestor-tareas-backend ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.15.0:compile (default-compile) @ gestor-tareas-backend ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 149 source files with javac [debug parameters release 21] to target\classes
+[INFO] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/main/java/com/hardcoders/taskmanager/adapter/out/persistence/HierarchyPersistenceAdapter.java: Some input files use unchecked or unsafe operations.
+[INFO] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/main/java/com/hardcoders/taskmanager/adapter/out/persistence/HierarchyPersistenceAdapter.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] --- resources:3.5.0:testResources (default-testResources) @ gestor-tareas-backend ---
+[INFO] Copying 0 resource from src\test\resources to target\test-classes
+[INFO] 
+[INFO] --- compiler:3.15.0:testCompile (default-testCompile) @ gestor-tareas-backend ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 54 source files with javac [debug parameters release 21] to target\test-classes
+[WARNING] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/test/java/com/hardcoders/taskmanager/adapter/out/persistence/AssignmentPersistenceAdapterTest.java:[60,34] non-varargs call of varargs method with inexact argument type for last parameter;
+  cast to com.hardcoders.taskmanager.adapter.out.persistence.entity.TaskAssignmentEntity for a varargs call
+  cast to com.hardcoders.taskmanager.adapter.out.persistence.entity.TaskAssignmentEntity[] for a non-varargs call and to suppress this warning
+[WARNING] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/test/java/com/hardcoders/taskmanager/adapter/out/persistence/ProjectPersistenceAdapterTest.java:[78,37] non-varargs call of varargs method with inexact argument type for last parameter;
+  cast to com.hardcoders.taskmanager.adapter.out.persistence.entity.ProjectEntity for a varargs call
+  cast to com.hardcoders.taskmanager.adapter.out.persistence.entity.ProjectEntity[] for a non-varargs call and to suppress this warning
+[WARNING] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/test/java/com/hardcoders/taskmanager/adapter/out/persistence/SubtaskPersistenceAdapterCoverageTest.java:[109,78] non-varargs call of varargs method with inexact argument type for last parameter;
+  cast to com.hardcoders.taskmanager.adapter.out.persistence.entity.SubtaskEntity for a varargs call
+  cast to com.hardcoders.taskmanager.adapter.out.persistence.entity.SubtaskEntity[] for a non-varargs call and to suppress this warning
+[INFO] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/test/java/com/hardcoders/taskmanager/adapter/out/persistence/CatalogLookupTest.java: Some input files use unchecked or unsafe operations.
+[INFO] /C:/Users/caleb/Downloads/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1/backend/src/test/java/com/hardcoders/taskmanager/adapter/out/persistence/CatalogLookupTest.java: Recompile with -Xlint:unchecked for details.
+[INFO] 
+[INFO] <<< spring-boot:4.1.0:run (default-cli) < test-compile @ gestor-tareas-backend <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot:4.1.0:run (default-cli) @ gestor-tareas-backend ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v4.1.0)
+
+2026-11-15T21:12:57.306-04:00  INFO 50396 --- [           main] c.h.taskmanager.TaskManagerApplication   : Starting TaskManagerApplication using Java 21.0.12.1 with PID 50396 (C:\Users\caleb\Downloads\Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1\backend\target\classes started by caleb in C:\Users\caleb\Downloads\Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1-1\backend)
+2026-11-15T21:12:57.311-04:00  INFO 50396 --- [           main] c.h.taskmanager.TaskManagerApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-11-15T21:12:58.764-04:00  INFO 50396 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-11-15T21:12:58.986-04:00  INFO 50396 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 201 ms. Found 15 JPA repository interfaces.
+2026-11-15T21:12:59.818-04:00  INFO 50396 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8081 (http)
+2026-11-15T21:12:59.847-04:00  INFO 50396 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-11-15T21:12:59.848-04:00  INFO 50396 --- [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.22]
+2026-11-15T21:12:59.939-04:00  INFO 50396 --- [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 2566 ms
+2026-11-15T21:13:00.314-04:00  INFO 50396 --- [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-11-15T21:13:00.445-04:00  INFO 50396 --- [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.4.1.Final
+2026-11-15T21:13:01.288-04:00  INFO 50396 --- [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-11-15T21:13:01.374-04:00  INFO 50396 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-11-15T21:13:01.596-04:00  INFO 50396 --- [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@3e5ebdfe
+2026-11-15T21:13:01.598-04:00  INFO 50396 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-11-15T21:13:01.858-04:00  INFO 50396 --- [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [jdbc:postgresql://localhost:5432/gestor_tareas?currentSchema=task_manager]
+	Database driver: PostgreSQL JDBC Driver
+	Database dialect: PostgreSQLDialect
+	Database version: 18.6
+	Default catalog/schema: gestor_tareas/task_manager
+	Autocommit mode: undefined/unknown
+	Isolation level: READ_COMMITTED [default READ_COMMITTED]
+	JDBC fetch size: none
+	Pool: DataSourceConnectionProvider
+	Minimum pool size: undefined/unknown
+	Maximum pool size: undefined/unknown
+2026-11-15T21:13:04.702-04:00  INFO 50396 --- [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-11-15T21:13:04.849-04:00  INFO 50396 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-11-15T21:13:04.973-04:00  INFO 50396 --- [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-11-15T21:13:06.648-04:00  INFO 50396 --- [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8081 (http) with context path '/'
+2026-11-15T21:13:06.654-04:00  INFO 50396 --- [           main] c.h.taskmanager.TaskManagerApplication   : Started TaskManagerApplication in 10.028 seconds (process running for 10.71)
+2026-11-15T21:15:44.594-04:00  INFO 50396 --- [nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-11-15T21:15:44.594-04:00  INFO 50396 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-11-15T21:15:44.597-04:00  INFO 50396 --- [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms

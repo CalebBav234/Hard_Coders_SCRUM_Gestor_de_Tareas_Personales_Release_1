@@ -1,10 +1,12 @@
 import { Routes } from '@angular/router';
 
 import { authGuard, guestGuard } from './core/auth/auth.guard';
+import { chiefGuard } from './core/auth/chief.guard';
 import { Login } from './features/auth/login/login';
 import { ProjectList } from './features/projects/project-list/project-list';
 import { TaskHome } from './features/tasks/task-home/task-home';
 import { TaskHistory } from './features/tasks/task-history/task-history';
+import { UserForm } from './features/users/user-form/user-form';
 
 export const routes: Routes = [
   {
@@ -51,6 +53,11 @@ export const routes: Routes = [
     path: 'projects',
     component: ProjectList,
     canActivate: [authGuard],
+  },
+  {
+    path: 'users/new',
+    component: UserForm,
+    canActivate: [authGuard, chiefGuard],
   },
   {
     path: '**',

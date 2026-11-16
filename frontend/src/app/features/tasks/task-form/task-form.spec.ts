@@ -212,6 +212,17 @@ describe('TaskForm', () => {
     http.expectNone('/api/tasks');
   });
 
+  it.each([
+    ['0.1', 6],
+    ['0.3', 18],
+  ])('EC3-04: duration %s h (no multiple of 0.25 h) is rejected without calling the backend', (hours: string) => {
+    createTaskWith(hours, '0');
+
+    expect(fixture.componentInstance.durationError).toBe('La duración debe usar incrementos de 0.25 h (15 min).');
+    expect(element.textContent).toContain('La duración debe usar incrementos de 0.25 h (15 min).');
+    http.expectNone('/api/tasks');
+  });
+
   it('rejects an absurdly large duration that does not fit the integer column', () => {
     createTaskWith('99999999', '0');
 

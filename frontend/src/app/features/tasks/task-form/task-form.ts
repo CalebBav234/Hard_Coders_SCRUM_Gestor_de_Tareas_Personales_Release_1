@@ -488,6 +488,10 @@ export class TaskForm {
     if (!Number.isFinite(hours) || hours < 0) {
       return 'La duración debe ser un número mayor o igual a 0.';
     }
+    const quarterHours = hours / 0.25;
+    if (Math.abs(quarterHours - Math.round(quarterHours)) > 1e-9) {
+      return 'La duraci\u00f3n debe usar incrementos de 0.25 h (15 min).';
+    }
     if (Math.round(hours * 60) > MAX_DURATION_MINUTES) {
       return 'La duración estimada es demasiado grande.';
     }

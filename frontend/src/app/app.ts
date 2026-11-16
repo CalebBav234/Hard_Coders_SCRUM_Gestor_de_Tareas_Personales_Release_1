@@ -54,6 +54,16 @@ import { AuthService } from './core/auth/auth.service';
         Historial
       </a>
 
+      @if (auth.isChief()) {
+      <a
+        routerLink="/users/new"
+        routerLinkActive="active"
+        class="nav-link"
+      >
+        Usuarios
+      </a>
+      }
+
     </nav>
 
     <div class="session-box">

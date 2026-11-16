@@ -98,4 +98,21 @@ class ProjectAccessPolicyTest {
         assertThat(ProjectAccessPolicy.canManageHierarchy(null, p)).isFalse();
         assertThat(ProjectAccessPolicy.canManageHierarchy(new Actor(2, false, false), p)).isFalse();
     }
+
+    @Test
+    @DisplayName("requireCanManageHierarchy y helpers adicionales cubren ramas de autorización")
+    void requireManageAndDetailGuardsCoverBranches() {
+        Project p = projectManagedBy(2);
+        assertThatCode(() -> ProjectAccessPolicy.requireCanEditDetails(new Actor(1, true, true), p))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> ProjectAccessPolicy.requireCanEditDetails(new Actor(2, false, true), p))
+                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> ProjectAccessPolicy.requireCanEditDetails(new Actor(9, false, true), p))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> ProjectAccessPolicy.requireCanEditDetails(null, p))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThat(ProjectAccessPolicy.canManageHierarchy(new Actor(1, true, false), p)).isFalse();
+        assertThat(ProjectAccessPolicy.canView(new Actor(1, true, false), p)).isFalse();
+    }
 }

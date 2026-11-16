@@ -101,6 +101,55 @@ class ProjectTest {
                 .isInstanceOf(ProjectTransitionException.class);
     }
 
+    @Test
+    void r9_createUsesFactoryDefaultsAndPendingInitialRevision() {
+        Project created = Project.create("  Nuevo  ", "  desc  ", 5, new BigDecimal("99.9"), 30, null, CHIEF, NOW);
+
+        assertThat(created.isNew()).isTrue();
+        assertThat(created.name()).isEqualTo("Nuevo");
+        assertThat(created.description()).isEqualTo("desc");
+        assertThat(created.managerUserId()).isEqualTo(5);
+        assertThat(created.status()).isEqualTo(ProjectStatus.PLANIFICADO);
+        assertThat(created.budgetBob()).isEqualByComparingTo("99.90");
+        assertThat(created.estimatedDurationMinutes()).isEqualTo(30);
+        assertThat(created.createdByUserId()).isEqualTo(CHIEF);
+        assertThat(created.createdAt()).isEqualTo(NOW);
+        assertThat(created.updatedAt()).isEqualTo(NOW);
+        assertThat(created.lastRevisionNumber()).isZero();
+        assertThat(created.pendingRevisions()).singleElement().satisfies(r -> {
+            assertThat(r.revisionNumber()).isEqualTo(1);
+            assertThat(r.reason()).isEqualTo("Plan inicial");
+        });
+        assertThat(created.version()).isEqualTo(com.hardcoders.taskmanager.domain.model.VersionToken.of(NOW));
+    }
+
+    @Test
+    void r9_restoreAndOfRebuildPersistedStateWithoutPendingRevisions() {
+        Project restored = Project.restore(11, "Repo", "d", 3, ProjectStatus.EN_EJECUCION,
+                new BigDecimal("10.00"), 45, CHIEF, NOW.minusSeconds(5), NOW, 2);
+        Project viaOf = Project.of(12, "Of", null, 4, ProjectStatus.PLANIFICADO,
+                new BigDecimal("1.00"), null, CHIEF, NOW.minusSeconds(2), NOW.minusSeconds(1), 0);
+
+        assertThat(restored.isNew()).isFalse();
+        assertThat(restored.id()).isEqualTo(11);
+        assertThat(restored.pendingRevisions()).isEmpty();
+        assertThat(restored.lastRevisionNumber()).isEqualTo(2);
+        assertThat(viaOf.estimatedDurationMinutes()).isZero();
+        assertThat(viaOf.lastRevisionNumber()).isZero();
+    }
+
+    @Test
+    void r9_editDetailsNormalizesAndVersionChecksApply() {
+        Project project = persisted(ProjectStatus.PLANIFICADO, 1);
+        project.verifyVersion(null);
+        project.verifyVersion(project.version());
+        project.editDetails("  Renombrado  ", "  texto  ");
+        assertThat(project.name()).isEqualTo("Renombrado");
+        assertThat(project.description()).isEqualTo("texto");
+        assertThatThrownBy(() -> project.verifyVersion(project.version() - 1))
+                .isInstanceOf(com.hardcoders.taskmanager.domain.exception.VersionConflictException.class);
+    }
+
     private static Project persisted(ProjectStatus status, int revisions) {
         return Project.restore(10, "Proyecto", null, 2, status, new BigDecimal("1000.00"), 600, CHIEF,
                 NOW.minusSeconds(3600), NOW.minusSeconds(60), revisions);

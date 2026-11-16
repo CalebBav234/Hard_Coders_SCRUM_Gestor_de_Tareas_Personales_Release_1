@@ -5,6 +5,7 @@ import com.hardcoders.taskmanager.application.port.in.ManageHierarchyUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageProjectsUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageSubtasksUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageTasksUseCase;
+import com.hardcoders.taskmanager.application.port.in.ManageUsersUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryHierarchyUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryProgressUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryProjectsUseCase;
@@ -18,13 +19,16 @@ import com.hardcoders.taskmanager.application.usecase.ProjectQueryService;
 import com.hardcoders.taskmanager.application.usecase.SubtaskCommandService;
 import com.hardcoders.taskmanager.application.usecase.TaskCommandService;
 import com.hardcoders.taskmanager.application.usecase.TaskQueryService;
+import com.hardcoders.taskmanager.application.usecase.UserCommandService;
 import com.hardcoders.taskmanager.domain.port.out.AssignmentRepository;
 import com.hardcoders.taskmanager.domain.port.out.CurrentActor;
 import com.hardcoders.taskmanager.domain.port.out.HierarchyRepository;
 import com.hardcoders.taskmanager.domain.port.out.ProjectRepository;
 import com.hardcoders.taskmanager.domain.port.out.SubtaskRepository;
 import com.hardcoders.taskmanager.domain.port.out.TaskRepository;
+import com.hardcoders.taskmanager.domain.port.out.PasswordHasher;
 import com.hardcoders.taskmanager.domain.port.out.UserDirectory;
+import com.hardcoders.taskmanager.domain.port.out.UserWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -123,5 +127,12 @@ public class UseCaseConfiguration {
                                               PlatformTransactionManager transactionManager) {
         return TransactionalUseCases.wrap(QueryProgressUseCase.class,
                 new ProgressQueryService(tasks, subtasks, hierarchy, projects, actor), transactionManager, true);
+    }
+
+    @Bean
+    ManageUsersUseCase manageUsersUseCase(UserWriter users, PasswordHasher passwordHasher, CurrentActor actor,
+                                          PlatformTransactionManager transactionManager) {
+        return TransactionalUseCases.wrap(ManageUsersUseCase.class,
+                new UserCommandService(users, passwordHasher, actor), transactionManager, false);
     }
 }
