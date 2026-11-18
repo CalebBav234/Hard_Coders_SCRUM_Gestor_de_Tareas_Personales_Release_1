@@ -9,7 +9,8 @@
 - **Fecha de recopilación de la base documental:** 2026-11-16 03:22:05 -04:00
 - **Repositorio:** `CalebBav234/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1`
 - **Rama:** `Refactor-E2`
-- **HEAD (commit de referencia):** `10988a31d81f7596947c93d1e3abc3ddb42028db`
+- **HEAD (commit de referencia):** `10988a31d81f7596947c93d1e3abc3ddb42028db` (mediciones E1–E6)
+- **Revalidación final:** 2026-11-18, rama `Refactor-E2-testing`, commit `75b1db8c4c10f89d7c1c905789acb2d270c43183` (correcciones FIX-01..09). Las cifras finales vigentes son las de esta revalidación (§7.2).
 - **Estado del árbol de trabajo al recopilar:** no limpio (modificaciones y artefactos locales presentes; sin commit/push/merge realizados como parte de esta recopilación)
 
 > **Nota de integridad:** Este documento es la base documental fuente para que una herramienta externa genere el informe académico. Solo incluye información verificable en el repositorio (código HEAD, migraciones, guías y evidencias EC3 disponibles). Los datos no disponibles se marcan explícitamente como `[PENDIENTE DE COMPLETAR: ...]`, `NO DISPONIBLE`, `BLOCKED` o `FAIL` según corresponda. No se incluyen secretos (contraseñas, tokens, hashes, cookies ni `storageState`).
@@ -184,7 +185,7 @@ erDiagram
 
 | Formulario | Campos (UI real) | Reglas/tipos/longitudes | Origen (capas) |
 |---|---|---|---|
-| Proyecto (crear) | nombre, descripción, encargado, presupuesto Bs, duración min, motivo opc. | nombre 1–160; desc ≤2000; manager obligatorio/elegible; budget DECIMAL(15,2) ≥0 (13,2); duración entero ≥0 min; motivo opc. (UI 300, DTO/dominio 500) | `project-form.ts/html`, `ProjectRequests`, `Project/BudgetPolicy/PlanRevision`, V004 `project` |
+| Proyecto (crear) | nombre, descripción, encargado, presupuesto Bs, duración min, motivo opc. | nombre 1–160; desc ≤2000; manager obligatorio/elegible; budget DECIMAL(15,2) ≥0 (13,2); duración entero ≥0 min; motivo opc. (UI 300 = dominio 300; columna BD 500) | `project-form.ts/html`, `ProjectRequests`, `Project/BudgetPolicy/PlanRevision`, V004 `project` |
 | Proyecto (editar detalles) | nombre, descripción | nombre/desc con límites; versión para concurrencia; sin plan/encargado en este form | `project-form.ts`, `ProjectRequests.UpdateDetails`, `Project.editDetails` |
 | Etapa (inline WBS) | nombre, descripción opc. | nombre 1–160; desc ≤2000; proyecto abierto y autorizado; mismo proyecto | `wbs-panel.ts`, `HierarchyRequests`, `Stage/WbsHierarchyPolicy`, V004 `stage` |
 | Actividad (inline WBS) | nombre, descripción opc. | nombre 1–160; desc ≤2000; etapa/proyecto válidos y abiertos | `wbs-panel.ts`, `HierarchyRequests`, `Activity/WbsHierarchyPolicy`, V004 `activity` |
@@ -217,12 +218,12 @@ flowchart TD
 
 ## 4.2 Reglas de validación por formulario (resumen consolidado)
 
-- **Proyecto:** nombre obligatorio y trim no vacío (≤160); descripción opcional (≤2000); encargado obligatorio en creación; presupuesto BOB ≥0 con formato 13 enteros/2 decimales; duración minutos entero ≥0; motivo opcional con divergencia de límite UI 300 vs DTO/dominio 500 (DIV-01). Creación restringida a Jefe; concurrencia por versión en actualizaciones.
+- **Proyecto:** nombre obligatorio y trim no vacío (≤160); descripción opcional (≤2000); encargado obligatorio en creación; presupuesto BOB ≥0 con formato 13 enteros/2 decimales; duración minutos entero ≥0; motivo opcional ≤300 (UI y dominio; DIV-01 cerrado). Creación restringida a Jefe; concurrencia por versión en actualizaciones.
 - **Etapa/Actividad (inline):** nombre obligatorio no vacío (≤160), descripción opcional (≤2000), UI deshabilita submit con nombre vacío/espacios; padre/contexto válido y proyecto abierto; permisos de gestión.
 - **Tarea:** título obligatorio (≤160); prioridad enum (default MEDIA); actividad padre requerida; presupuesto vacío→0, ≥0, patrón 13,2; duración vacía→0, múltiplos de 0.25 h, conversión a minutos enteros, tope `MAX_DURATION_MINUTES` (2,147,483,647); subtarea oculta campos plan y envía 0.
 - **Subtarea:** título obligatorio (≤160), descripción opcional (≤2000), tarea padre válida; **no** aplica presupuesto/duración/prioridad propios.
 - **Asignación:** trabajador seleccionado, existente, activo y elegible; actor autenticado y autorizado; prohibida autoasignación (403) y duplicidad (400/409 por integridad/regla, PK compuesta); proyecto abierto (409 si cerrado); tarea existente; `reason` normalizado a default si null/vacío/espacios, trim y ≤500; lectura posterior coherente vía GET.
-- **Usuario:** solo Jefe (ruta/guard y backend 403/401 según caso); email válido/único/normalizado ≤254; nombres/apellidos obligatorios ≤100; contraseña 8–200 (validación) con límite efectivo BCrypt 72 bytes (73 ASCII → 500 observado, DIV-E4-01); respuesta sin secretos; crea `is_chief=false,is_active=true`; campos privilegiados ignorados/no aceptados.
+- **Usuario:** solo Jefe (ruta/guard y backend 403/401 según caso); email válido/único/normalizado ≤254; nombres/apellidos obligatorios ≤100; contraseña 8–200 (validación) con límite efectivo BCrypt 72 bytes (>72 bytes → 400 tras corrección DIV-E4-01); respuesta sin secretos; crea `is_chief=false,is_active=true`; campos privilegiados ignorados/no aceptados.
 
 ## 4.3 Roles y controles de acceso (verificados en diseño/ejecución)
 
@@ -339,11 +340,11 @@ ALTER TABLE task_manager.task_assignment ADD COLUMN IF NOT EXISTS reason varchar
 ## 6.1 Partición de equivalencia (EP)
 - **Cobertura diseñada:** Proyecto (crear/editar), Etapa inline, Actividad inline, Tarea, Subtarea, Asignación `task_assignment` (CREATE) y Usuario `app_user` (CREATE).
 - **Criterios:** particiones no vacías, no solapadas, comportamiento homogéneo; base *Each Choice* + combinaciones de riesgo; resultado esperado por capa (UI/API/BD) con origen de regla (UI/DTO/dominio/DB).
-- **Representativos (IDs):** `EP-TAR-DUR-01` (0/0.25/1.5 h válidos, conversión a minutos), `EP-TAR-DUR-02` (-0.25 o no múltiplo 0.25 como 0.1/0.3 inválidos), `EP-TAR-PRES-02/03` (negativo o formato/escala/dígitos inválidos), `EP-ASG-REA-01` (null/vacío/espacios → default `"Asignación de Personal"`), `EP-ASG-REA-03` (>500 inválido), `EP-ASG-SELF-02` (autoasignación 403), `EP-ASG-DUP-02` (duplicidad 400/409), `EP-USR-PWD-04` (73–200 chars ASCII >72 bytes: inválida en implementación, 500 observado E4, DIV-E4-01), `EP-SUB-NOPLAN-01` (subtarea sin campos plan/finanzas/prioridad).
+- **Representativos (IDs):** `EP-TAR-DUR-01` (0/0.25/1.5 h válidos, conversión a minutos), `EP-TAR-DUR-02` (-0.25 o no múltiplo 0.25 como 0.1/0.3 inválidos), `EP-TAR-PRES-02/03` (negativo o formato/escala/dígitos inválidos), `EP-ASG-REA-01` (null/vacío/espacios → default `"Asignación de Personal"`), `EP-ASG-REA-03` (>500 inválido), `EP-ASG-SELF-02` (autoasignación 403), `EP-ASG-DUP-02` (duplicidad 400/409), `EP-USR-PWD-04` (73–200 chars ASCII >72 bytes: inválida; 500 en E4, 400 tras corrección DIV-E4-01), `EP-SUB-NOPLAN-01` (subtarea sin campos plan/finanzas/prioridad).
 
 ## 6.2 Análisis de valores límite BVA3 (n-1, n, n+1)
 - **Cobertura diseñada:** longitudes (nombres/títulos/descripciones/email), presupuesto BOB (escala 0.01, 13 enteros/2 decimales), duración proyecto (min) y tarea (0.25 h/15 min y máximo minutos), motivo asignación (500), contraseña usuario (contrato 8–200 y frontera efectiva BCrypt 72 bytes).
-- **Destacados:** `BVA3-TAR-DUR-MIN` (-0.25/0/0.25 h), `BVA3-TAR-DUR-MAX` (2,147,483,646/2,147,483,647/2,147,483,648 min), `BVA3-TAR-PRES-MIN` (-0.01/0.00/0.01), `BVA3-TAR-PRES-SCALE` (2 dec válidos / 3 dec inválido), `BVA3-ASG-REA-MAX` (499/500/501), `BVA3-USR-PWD-MIN` (7/8/9), `BVA3-USR-PWD-BCRYPT` (71/72/73 bytes, divergencia DIV-E4-01). Subtarea sin BVA de presupuesto/duración.
+- **Destacados:** `BVA3-TAR-DUR-MIN` (-0.25/0/0.25 h), `BVA3-TAR-DUR-MAX` (2,147,483,646/2,147,483,647/2,147,483,648 min), `BVA3-TAR-PRES-MIN` (-0.01/0.00/0.01), `BVA3-TAR-PRES-SCALE` (2 dec válidos / 3 dec inválido), `BVA3-ASG-REA-MAX` (499/500/501), `BVA3-USR-PWD-MIN` (7/8/9), `BVA3-USR-PWD-BCRYPT` (71/72/73 bytes; 73 → 400 tras corrección DIV-E4-01). Subtarea sin BVA de presupuesto/duración.
 
 ## 6.3 Transición de estados
 
@@ -414,6 +415,7 @@ stateDiagram-v2
 | E4 | Integración PostgreSQL real aislado (`gestor_tareas_test`, V001–V006), DT-ASG/CA-ASG/CA-USR/MIG, consolidación | **PASS** | `docs/EC3/ETAPA_4_GUIA_PRUEBAS.md` |
 | E5 | Playwright E2E real (Chromium) backend/frontend/BD | **PASS (14/14)** | `docs/EC3/ETAPA_5_GUIA_PRUEBAS.md`, `docs/EC3/evidencias/etapa_5/EVIDENCIA_EJECUCION.md`, `frontend/test-results/.last-run.json` |
 | E6 | Cobertura ≥85% líneas/ramas (umbrales vigentes), consolidación y regresión R1–R9 | **PASS** | `docs/EC3/ETAPA_6_GUIA_PRUEBAS.md`, `docs/EC3/evidencias/etapa_6/EVIDENCIA_EJECUCION.md` |
+| Revalidación | Correcciones FIX-01..09 y nueva medición completa (2026-11-18, `75b1db8`) | **PASS** | `docs/EC3/REGISTRO_SESION_2026-11-18_REVISION_VALIDACION.md`, `docs/EC3/PLAN_PRUEBAS_VALIDACION_EC3.md` |
 
 ## 7.2 Resultados cuantitativos (histórico/intermedio vs final)
 
@@ -421,12 +423,18 @@ stateDiagram-v2
 |---|---|---|---|---|
 | Backend consolidado E4 | Suite Surefire E4 | `mvn -q test` | **337 tests, 0 fallos, 0 errores, 0 omitidos**; `PostgresIntegrationTest` 25/25 | Histórico/intermedio E4 |
 | Frontend Vitest E4 | Consolidación E4 | `npx vitest run` | **18 archivos, 297 tests PASS** | Histórico/intermedio E4 |
-| **Backend final E6** | **Medición fresca + gate JaCoCo** | `cd backend; mvn verify` | **BUILD SUCCESS (01:12)**. **376 tests, 0 fallos, 0 errores, 0 omitidos**. JaCoCo: **INSTRUCTION 92.53% (13245/14315), BRANCH 85.01% (618/727), LINE 94.93% (2714/2859)** — checks cumplidos | **Final E6** |
-| **Frontend Vitest final E6** | **Medición fresca + cobertura** | `cd frontend; npx --no-install ng test --watch=false --coverage` | **19 archivos, 303 tests PASS**. **Statements 92.67%, Branches 87.99%, Functions 86.45%, Lines 93.60%** | **Final E6** |
-| **Playwright E5/E6** | E2E real Chromium | `playwright test --project=chromium --reporter=line` | **14 passed (E6: 52.9s, E5: 54.1s), 0 failed, 0 skipped** | **Ejecutado/Final** |
+| **Backend final E6** | **Medición fresca + gate JaCoCo** | `cd backend; mvn verify` | **BUILD SUCCESS (01:12)**. **376 tests, 0 fallos, 0 errores, 0 omitidos**. JaCoCo: **INSTRUCTION 92.53% (13245/14315), BRANCH 85.01% (618/727), LINE 94.93% (2714/2859)** — checks cumplidos | Histórico E6 |
+| **Frontend Vitest final E6** | **Medición fresca + cobertura** | `cd frontend; npx --no-install ng test --watch=false --coverage` | **19 archivos, 303 tests PASS**. **Statements 92.67%, Branches 87.99%, Functions 86.45%, Lines 93.60%** | Histórico E6 |
+| Playwright E5/E6 | E2E real Chromium | `playwright test --project=chromium --reporter=line` | 14 passed (E6: 52.9s, E5: 54.1s), 0 failed, 0 skipped | Histórico E5/E6 |
+| **Backend IT revalidación** | **`gestor_tareas_test` (V001–V006)** | `mvn -Dtest=PostgresIntegrationTest test` | **25/25 PASS** | **Final (2026-11-18)** |
+| **Backend final revalidación** | **Medición fresca + gate JaCoCo, `75b1db8`** | `cd backend; mvn verify` | **BUILD SUCCESS. 381 tests, 0 fallos, 0 errores, 0 omitidos** (incluye las 25 IT). JaCoCo: **INSTRUCTION 92.58% (13279/14343), BRANCH 85.09% (622/731), LINE 94.97% (2721/2865)** — checks cumplidos | **Final (2026-11-18)** |
+| **Frontend Vitest final revalidación** | **Medición fresca + cobertura** | `cd frontend; npx ng test --watch=false --coverage` | **20 archivos, 307 tests PASS**. **Statements 92.47%, Branches 88.30%, Functions 86.62%, Lines 93.51%** | **Final (2026-11-18)** |
+| **Frontend build** | Compilación de producción | `cd frontend; npx ng build` | **OK** (solo advertencias de presupuesto de bundle) | **Final (2026-11-18)** |
+| **Playwright revalidación** | E2E real Chromium | `npx playwright test --project=chromium --reporter=line` | **14 passed, 0 failed** (1 fallo intermitente previo en login tras «Salir», 3/3 PASS al repetir) | **Final (2026-11-18)** |
 | Last-run PW | Artefacto frontend | `frontend/test-results/.last-run.json` | `{"status":"passed","failedTests":[]}` | Ejecutado |
 
 > Diferencias de conteo E4→E6 reflejan pruebas añadidas en E6 (backend +39, frontend +6/1 archivo) sin bajar umbrales ni cambiar contratos.
+> Diferencias E6→revalidación: backend +5 tests (`UserCommandServiceTest` +1, `TaskCommandServiceTest` +2, `TaskSearchRoutingTest` +2) y frontend +4 tests / +1 archivo (`user-form.spec.ts`), asociados a FIX-01..09. El gate JaCoCo de ramas depende de la IT: sin `gestor_tareas_test` baja a 84 %.
 
 ## 7.3 Ejecución E4 (integración PostgreSQL real)
 - **BD:** `gestor_tareas_test` aislada (Docker `gestor-tareas-db`, postgres:18), V001–V006, `ddl-auto=validate`, limpieza transaccional; sin borrado de volúmenes ni secretos.
@@ -455,12 +463,12 @@ stateDiagram-v2
 ## 7.6 Divergencias y observaciones registradas
 | ID | Divergencia | Estado |
 |---|---|---|
-| DIV-01 | Motivo proyecto UI 300 vs DTO/dominio 500 | Pendiente verificación específica por canal |
+| DIV-01 | Motivo proyecto UI 300 = dominio 300; solo la columna BD admite 500 | **Cerrado** — sin divergencia funcional |
 | DIV-02 | `GET /api/users` no contrato operativo confirmado | Confirmado (uso create/login/BD) |
 | DIV-03/04 | Duplicados usuario/asignación mapeados 400/409 | Confirmado E4/E5 |
 | DIV-05 | Asignación en proyecto cerrado → 409 | Confirmado E4 |
 | DIV-06 | Duración no múltiplo 0.25 depende de handler UI | Cubierto (E4/E5/E6) |
-| DIV-E4-01 | Contraseña 8–200 contractual vs BCrypt >72 bytes efectivo (73 ASCII → 500 observado) | Observado E4, riesgo conocido no corregido |
+| DIV-E4-01 | Contraseña 8–200 contractual vs BCrypt >72 bytes efectivo | **Corregido** (2026-11-18): >72 bytes → 400 |
 | DIV-E4-02 | DT-ASG-R9 resuelto 403/404/400 según visibilidad | Observado E4 |
 | DIV-E4-03 | Variante de comando `ng test --browsers` no aplicable en entorno previo; E6 ejecutó con cobertura vía Vitest/ng test | Resuelto por comando efectivo documentado |
 
@@ -516,7 +524,7 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 
 ## 9.1 Conclusiones
 - Las etapas EC3 1–6 se completaron con resultados **PASS** según sus gates: estabilización y contratos (E1), funcionalidades/formularios complementarios y control de acceso (E2), diseño sistemático ISTQB (E3), integración real con PostgreSQL aislado y trazabilidad crítica (E4), E2E Playwright real 14/14 (E5) y cumplimiento de umbrales de cobertura con regresión R1–R9 (E6).
-- **Métricas finales verificables (E6):** backend 376 tests (0 fallos/errores/omitidos), JaCoCo **BRANCH 85.01% (618/727)** y **LINE 94.93% (2714/2859)** (BUILD SUCCESS, umbral ≥85%); frontend 303 tests, **Statements 92.67% / Branches 87.99% / Functions 86.45% / Lines 93.60%**; Playwright **14/14 PASS**.
+- **Métricas finales verificables (revalidación 2026-11-18, commit `75b1db8`):** backend **381 tests** (0 fallos/errores/omitidos; incluye 25 IT PostgreSQL), JaCoCo **BRANCH 85.09% (622/731)** y **LINE 94.97% (2721/2865)** (BUILD SUCCESS, umbral ≥85%); frontend **307 tests** (20 archivos), **Statements 92.47% / Branches 88.30% / Functions 86.62% / Lines 93.51%**; Playwright **14/14 PASS**. Histórico E6: backend 376, BRANCH 85.01%, LINE 94.93%; frontend 303.
 - El diseño E3 es trazable y alineado con contratos reales; E4/E5/E6 cubrieron los escenarios críticos (asignación, usuarios, migraciones/compatibilidad, flujo principal y validaciones), aunque la matriz completa de transición de estados no quedó ejecutada 1:1 con evidencia por ID.
 
 ## 9.2 Lecciones aprendidas
@@ -529,8 +537,8 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 ## 9.3 Pendientes y riesgos residuales
 - Ejecución sistemática 1:1 de `ST-PROY-01..15` y `ST-TAR-01..09` con trazabilidad por ID: **NO DISPONIBLE/PARCIAL**.
 - Capturas específicas de corridas E5/E6: **DISPONIBLE (representativas)** en `docs/EC3/evidencias/etapa_5/browser/` (E5-01..E5-10) y `docs/EC3/evidencias/etapa_6/browser/` (E6-01..E6-10); cobertura visual parcial por escenario, respaldada por evidencia textual/reportes.
-- `DIV-E4-01`: contraseña válida por política 8–200 pero >72 bytes puede producir 500 (BCrypt actual) — **riesgo conocido, no corregido**.
-- `DIV-01`: límite efectivo de motivo de proyecto UI 300 vs DTO/dominio 500 — **pendiente de confirmación por canal**.
+- `DIV-E4-01`: contraseña >72 bytes — **corregido**, ahora responde 400 (backend) y la UI lo valida.
+- `DIV-01`: motivo de proyecto — **cerrado**; UI 300 = dominio 300, solo la columna BD admite 500.
 - Datos académicos de portada/entrega: **PENDIENTES**.
 
 ---
@@ -569,6 +577,8 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 - `[PENDIENTE DE COMPLETAR: Fecha de entrega]`
 - **DISPONIBLE (parcial/representativa):** capturas browser E5/E6 en `docs/EC3/evidencias/etapa_5/browser/` (E5-01..E5-10) y `docs/EC3/evidencias/etapa_6/browser/` (E6-01..E6-10). Quedan fuera capturas por cada uno de los 14 tests individuales automatizados de Playwright.
 - **NO DISPONIBLE/PARCIAL:** ejecución trazada 1:1 de toda la matriz de transición de estados `ST-PROY-01..15` y `ST-TAR-01..09`.
-- **PENDIENTE DE CONFIRMAR:** límite efectivo por canal del motivo de proyecto (DIV-01, UI 300 vs DTO/dominio 500).
-- **PENDIENTE (riesgo conocido):** alineación/manejo de frontera BCrypt 72 bytes para contraseña `app_user` (DIV-E4-01).
+- **CERRADO:** DIV-01 (motivo de proyecto: UI 300 = dominio 300; solo la columna BD admite 500).
+- **CORREGIDO:** DIV-E4-01 (contraseña >72 bytes → 400).
+- **Conteo:** las 25 IT PostgreSQL están incluidas en los tests del backend (376 en E6; **381** en la revalidación del 2026-11-18); no contarlas dos veces.
+- **Limitaciones conocidas no corregidas (LIM-01..08)** y correcciones FIX-01..09: ver `GUIA_MAESTRA_EJECUCION_Y_PRUEBAS_EC3.md` §16.1–16.2 y `PLAN_PRUEBAS_VALIDACION_EC3.md`.
 - **NO DISPONIBLE:** cualquier dato académico u otra métrica/evidencia no presente en las fuentes del repositorio.

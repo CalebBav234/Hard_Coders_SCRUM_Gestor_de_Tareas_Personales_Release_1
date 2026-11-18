@@ -66,7 +66,12 @@ test.describe('Gestión de usuarios (A6 - app_user CREATE)', () => {
     await page.getByLabel('Contraseña').fill('short');
     await page.getByLabel('Contraseña').blur();
     await expect(page.getByText(/entre 8 y 200/i)).toBeVisible();
-    await expect(page.getByTestId('user-create-submit')).toBeDisabled();
+    // El botón queda habilitado (FIX B8): al enviar, el formulario marca errores y no llama al backend.
+    let posted = false;
+    page.on('request', r => { if (r.url().includes('/api/users') && r.method() === 'POST') posted = true; });
+    await page.getByTestId('user-create-submit').click();
+    await expect(page.getByText(/entre 8 y 200/i)).toBeVisible();
+    expect(posted).toBe(false);
   });
 
   test('Personal no puede crear usuarios vía API (403) y no accede a /users/new', async ({ page, request }) => {

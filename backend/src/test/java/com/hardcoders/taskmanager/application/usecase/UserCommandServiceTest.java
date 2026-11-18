@@ -56,6 +56,19 @@ class UserCommandServiceTest {
     }
 
     @Test
+    void rejectsPasswordsOverBcryptByteLimitBeforeHashing() {
+        assertThat(service.create(new CreateUserCommand("p72@gestor.local", "Ana", "Paz", "x".repeat(72))).active())
+                .isTrue();
+        assertThatThrownBy(() -> service.create(new CreateUserCommand("p73@gestor.local", "Ana", "Paz", "x".repeat(73))))
+                .isInstanceOf(DomainValidationException.class)
+                .hasMessageContaining("72 bytes");
+        // 25 caracteres de 3 bytes (75 bytes) superan el límite aunque sean pocos caracteres
+        assertThatThrownBy(() -> service.create(new CreateUserCommand("pmb@gestor.local", "Ana", "Paz", "\u20AC".repeat(25))))
+                .isInstanceOf(DomainValidationException.class);
+        assertThat(hasher.calls).isEqualTo(1);
+    }
+
+    @Test
     void managerAndStaffCannotCreateUsers() {
         actor = MANAGER;
         assertThatThrownBy(() -> service.create(validCommand()))

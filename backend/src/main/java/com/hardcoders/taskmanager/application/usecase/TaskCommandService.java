@@ -38,6 +38,11 @@ import java.util.function.BiFunction;
 
 public class TaskCommandService implements ManageTasksUseCase {
 
+    /** Prefijo del historial cuando el Jefe ejecuta una tarea sin estar asignado (US1.3). */
+    static final String CHIEF_OVERRIDE_PREFIX = "Override del Jefe (US1.3): ";
+    /** Longitud de task_status_history.reason (V004). */
+    static final int STATUS_REASON_MAX = 500;
+
     private final TaskRepository tasks;
     private final SubtaskRepository subtasks;
     private final HierarchyRepository hierarchy;
@@ -166,6 +171,7 @@ public class TaskCommandService implements ManageTasksUseCase {
         if (!WbsHierarchyPolicy.canManage(actor, project)) {
             throw new ForbiddenException("No puedes gestionar este proyecto");
         }
+        task.verifyVersion(command.version());
         boolean hasOpenSubtasks = subtasks.findVisibleByTaskIds(List.of(task.id())).stream()
                 .anyMatch(s -> s.status() != WorkStatus.CANCELADA && s.status() != WorkStatus.COMPLETADA);
         task.cancel(hasOpenSubtasks, actor.userId(), Instant.now(clock));
@@ -203,7 +209,11 @@ public class TaskCommandService implements ManageTasksUseCase {
                 ? (actor.chief() && !assigned ? "sin motivo indicado" : defaultReason)
                 : command.reason().strip();
         if (actor.chief() && !assigned) {
-            reason = "Override del Jefe (US1.3): " + reason;
+            reason = CHIEF_OVERRIDE_PREFIX + reason;
+            if (reason.length() > STATUS_REASON_MAX) {
+                throw new DomainValidationException("El motivo del Jefe no puede superar "
+                        + (STATUS_REASON_MAX - CHIEF_OVERRIDE_PREFIX.length()) + " caracteres");
+            }
         }
         return action.apply(task, reason);
     }

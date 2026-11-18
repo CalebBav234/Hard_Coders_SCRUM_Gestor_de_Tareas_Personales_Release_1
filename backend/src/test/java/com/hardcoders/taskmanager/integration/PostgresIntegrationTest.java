@@ -384,15 +384,15 @@ class PostgresIntegrationTest {
             assertThat(createUser(chiefToken, Map.of("email", uniqueEmail("n4"), "givenNames", "A", "familyNames", bad101, "password", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
-        @Test @DisplayName("CA-USR-05/BVA3-USR-PWD: fronteras 7/8/72/73-bytes-ascii y 201 (BCrypt limita a 72 bytes)")
+        @Test @DisplayName("CA-USR-05/BVA3-USR-PWD: fronteras 7/8/72/73-bytes-ascii y 201 (73 bytes -> 400)")
         void passwordBoundaries() {
             assertThat(createUser(chiefToken, Map.of("email", uniqueEmail("p7"), "givenNames", "A", "familyNames", "B", "password", "1234567")).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(createUser(chiefToken, Map.of("email", uniqueEmail("p201"), "givenNames", "A", "familyNames", "B", "password", "x".repeat(201))).getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
             assertThat(createUser(chiefToken, Map.of("email", uniqueEmail("p8"), "givenNames", "A", "familyNames", "B", "password", "12345678")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            // BCryptPasswordEncoder rechaza >72 bytes: 72 aceptado, 73 produce 500 (divergencia vs spec 200)
+            // BCrypt solo admite 72 bytes: 72 aceptado; 73 se rechaza con 400 antes de hashear (DIV-E4-01 corregido)
             assertThat(createUser(chiefToken, Map.of("email", uniqueEmail("p72"), "givenNames", "A", "familyNames", "B", "password", "x".repeat(72))).getStatusCode()).isEqualTo(HttpStatus.CREATED);
             ResponseEntity<java.util.Map> overBcrypt = createUser(chiefToken, Map.of("email", uniqueEmail("p73"), "givenNames", "A", "familyNames", "B", "password", "x".repeat(73)));
-            assertThat(overBcrypt.getStatusCode().value()).as("73 ASCII chars exceed BCrypt 72-byte limit (spec allows up to 200)").isIn(400, 500);
+            assertThat(overBcrypt.getStatusCode()).as("73 ASCII chars exceed BCrypt 72-byte limit").isEqualTo(HttpStatus.BAD_REQUEST);
         }
 
         @Test @DisplayName("CA-USR-06: email inválido o >254 -> 400")

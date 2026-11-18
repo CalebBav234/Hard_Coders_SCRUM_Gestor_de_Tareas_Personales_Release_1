@@ -437,15 +437,11 @@ export class TaskHome {
   }
 
   openEditor(task: Task): void {
-    console.log('TASK HOME RECIBIÓ EDITAR', task);
-
     this.creatingSubtaskFor = null;
     this.editingTask = task;
   }
 
   openSubtaskForm(task: Task): void {
-    console.log('TASK HOME RECIBIÓ SUBTAREA', task);
-
     this.editingTask = null;
     this.creatingSubtaskFor = task;
   }

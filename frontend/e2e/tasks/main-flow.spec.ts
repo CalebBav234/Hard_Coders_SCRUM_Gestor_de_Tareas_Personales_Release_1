@@ -53,7 +53,7 @@ test.describe('Proceso principal: Proyecto -> WBS -> Tarea -> Subtarea -> Asigna
 
     // Seleccionar etapa y actividad
     await expect(page.locator('#workspace-stage option', { hasText: stageName })).toHaveCount(1, { timeout: 20000 });
-    const stageSelP = page.waitForResponse(r => r.url().includes(/stages//activities) && r.request().method() === 'GET', { timeout: 15000 }).catch(() => null);
+    const stageSelP = page.waitForResponse(r => /\/api\/(stages\/\d+\/activities|activities\?stageId=)/.test(r.url()) && r.request().method() === 'GET', { timeout: 15000 }).catch(() => null);
     await page.locator('#workspace-stage').selectOption({ label: stageName });
     await stageSelP;
     await expect(page.locator('#workspace-activity option', { hasText: activityName })).toHaveCount(1, { timeout: 20000 });

@@ -332,7 +332,7 @@ npx --no-install playwright test --project=chromium --reporter=list
 | `BVA3-USR-GIV-MAX` / `BVA3-USR-FAM-MAX` | Nombres/apellidos | 99 / 100 / 101 |
 | `BVA3-USR-PWD-MIN` | Contraseña mín | 7 / 8 / 9 |
 | `BVA3-USR-PWD-MAX` | Contraseña máx contractual | 199 / 200 (cond.) / 201 |
-| `BVA3-USR-PWD-BCRYPT` | Límite efectivo BCrypt | 71 bytes / 72 bytes / 73 bytes (500 observado, DIV-E4-01) |
+| `BVA3-USR-PWD-BCRYPT` | Límite efectivo BCrypt | 71 bytes / 72 bytes / 73 bytes (400 tras FIX-01; antes 500, DIV-E4-01) |
 | `BVA3-SUB-TIT-MAX` | Título subtarea | 159 / 160 / 161 |
 
 ### 9.3 Transición de estados
@@ -498,14 +498,41 @@ stateDiagram-v2
 
 | ID | Descripción | Impacto | Estado |
 |---|---|---|---|
-| DIV-01 | Motivo proyecto UI `maxlength=300` vs DTO/dominio 500 | Límite efectivo por canal a confirmar en ejecución dirigida | Pendiente de verificación específica |
-| DIV-E4-01 | Contraseña 8–200 contractual vs BCrypt efectivo ≤72 bytes (73 ASCII → 500 observado) | Riesgo 5xx en entradas >72 bytes | Observado, no corregido |
+| DIV-01 | Motivo proyecto UI `maxlength=300` vs columna BD 500 | Sin divergencia funcional: el dominio (`Project`) rechaza >300 con 400; solo la columna admite 500 | **Cerrado** |
+| DIV-E4-01 | Contraseña 8–200 contractual vs BCrypt efectivo ≤72 bytes | Ahora >72 bytes → 400 en backend y validación UI (FIX-01/FIX-08) | **Corregido** |
 | DIV-E4-02 | DT-ASG-R9 resuelto 403/404/400 según visibilidad/política | Tolerancia de resultado documentada | Observado/aceptado en diseño |
 | DIV-E4-03 | Variante de comando frontend (`--browsers`) no aplicable en cierto entorno | Usar comandos efectivos documentados | Resuelto por procedimiento |
 | HEAD histórico | Guías E1–E6 referencian `10988a31...`; HEAD actual puede diferir (p.ej. `91201f6...`) | Resultados históricos no imputables sin re-ejecución | Declarado |
 | Estados 1:1 | Matriz `ST-PROY-01..15`/`ST-TAR-01..09` sin ejecución trazada completa por ID | Cobertura de transición parcial | NO DISPONIBLE/PARCIAL |
 | Datos académicos | Portada/entrega informe final | Expediente académico incompleto | Pendiente |
 | Capturas por test PW | E5/E6 tienen set representativo, no 14 capturas individuales por caso automatizado | Evidencia visual parcial por escenario | Parcial disponible |
+
+### 16.1 Correcciones aplicadas en la revisión de validación (2026-11-18, rama `Refactor-E2-testing`)
+| ID | Corrección | Verificación |
+|---|---|---|
+| FIX-01 (DIV-E4-01) | Contraseña >72 bytes UTF-8 → **400** `VALIDATION_ERROR` antes de hashear (antes 500) | `UserCommandServiceTest`, IT `passwordBoundaries` (aserción 400), smoke curl 73 bytes → 400 |
+| FIX-02 | Motivo de override del Jefe que desborda `task_status_history.reason` (500) → **400** (antes error de BD) | `TaskCommandServiceTest.chiefOverrideReasonMustFitStatusHistoryColumn` |
+| FIX-03 | `GET /api/tasks?projectId=X&q=Y` respeta `projectId` (antes caía en búsqueda global) | `TaskSearchRoutingTest` |
+| FIX-04 | Cancelar tarea verifica versión → **412** con versión vieja | `TaskCommandServiceTest.cancelRejectsStaleVersion`, smoke curl → 412 |
+| FIX-05 | Botón «✎ Editar datos» duplicado eliminado en lista de proyectos | `projects.spec.ts` |
+| FIX-06 | Título de tarea ≤160 (crear/editar) y descripción ≤2000 en editor | inspección UI + specs |
+| FIX-07 | `console.log` de depuración eliminados en `task-home` | inspección |
+| FIX-08 | Formulario de usuario: botón habilitado, marca errores al enviar; validador 72 bytes | `user-form.spec.ts` (nuevo), Playwright `user-create.spec.ts` |
+| FIX-09 | E2E `main-flow.spec.ts`: predicado de espera de actividades corregido | Playwright 14/14 |
+
+### 16.2 Limitaciones conocidas no corregidas (comportamiento actual documentado)
+| ID | Limitación | Comportamiento esperado según auditoría de código (confirmar con casos LIM de `PLAN_PRUEBAS_VALIDACION_EC3.md`) |
+|---|---|---|
+| LIM-01 | Crear tarea no valida el tope de presupuesto del proyecto/actividad | Se acepta presupuesto de tarea que excede el disponible |
+| LIM-02 | Tareas/subtareas no verifican que el proyecto esté abierto | Se pueden crear/operar en proyecto FINALIZADO/CANCELADO |
+| LIM-03 | Motivo del Jefe (override US1.3) no es obligatorio | Se registra «sin motivo indicado» |
+| LIM-04 | Completar tarea no exige subtareas cerradas | Tarea pasa a COMPLETADA con subtareas abiertas |
+| LIM-05 | `editDetails` de proyecto funciona en proyectos cerrados | Nombre/descripción editables en FINALIZADO/CANCELADO |
+| LIM-06 | `task-list`: carga no automática al seleccionar, reorden envía IDs incorrectos, botón sin acción | Requiere acción manual; reorden puede no persistir |
+| LIM-07 | Correo duplicado devuelve 400 (no 409) | `VALIDATION_ERROR` 400 |
+| LIM-08 | Asignación exitosa devuelve 200 (no 201) | 200 con cuerpo de asignación |
+
+> **Conteo de tests:** las 25 IT de `PostgresIntegrationTest` están **incluidas** en el total del backend (376 en E6; 381 tras FIX-01..04, medido 2026-11-18: BUILD SUCCESS, BRANCH 85.09 %, LINE 94.97 %). No sumarlas por separado en el informe.
 
 ---
 

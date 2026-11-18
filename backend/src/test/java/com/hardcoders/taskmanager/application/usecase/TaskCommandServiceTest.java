@@ -114,6 +114,30 @@ class TaskCommandServiceTest {
     }
 
     @Test
+    void chiefOverrideReasonMustFitStatusHistoryColumn() {
+        TaskResult created = commands.create(new CreateTaskCommand(InMemoryPorts.ACTIVITY, "Override largo", null,
+                BigDecimal.TEN, 60));
+        ports.currentActor = new Actor(99, true, true);
+        int maxReason = TaskCommandService.STATUS_REASON_MAX - TaskCommandService.CHIEF_OVERRIDE_PREFIX.length();
+        assertThatThrownBy(() -> commands.start(new TransitionCommand(created.taskId(), "x".repeat(maxReason + 1),
+                created.version())))
+                .isInstanceOf(DomainValidationException.class)
+                .hasMessageContaining(String.valueOf(maxReason));
+        TaskResult started = commands.start(new TransitionCommand(created.taskId(), "x".repeat(maxReason),
+                created.version()));
+        assertThat(started.status()).isEqualTo("EN_PROGRESO");
+    }
+
+    @Test
+    void cancelRejectsStaleVersion() {
+        TaskResult created = commands.create(new CreateTaskCommand(InMemoryPorts.ACTIVITY, "Cancelar stale", null,
+                BigDecimal.TEN, 60));
+        assertThatThrownBy(() -> commands.cancel(new VersionedCommand(created.taskId(), created.version() + 5)))
+                .isInstanceOf(com.hardcoders.taskmanager.domain.exception.VersionConflictException.class);
+        commands.cancel(new VersionedCommand(created.taskId(), created.version()));
+    }
+
+    @Test
     void cancelRequiresPermissionAndHasOpenSubtasksCheck() {
         TaskResult created = commands.create(new CreateTaskCommand(InMemoryPorts.ACTIVITY, "Cancelar", null,
                 BigDecimal.TEN, 60));
