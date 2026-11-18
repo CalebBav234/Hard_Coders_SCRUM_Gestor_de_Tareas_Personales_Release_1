@@ -57,7 +57,7 @@ public class TaskController {
         return HierarchyController.toResponses(queryTasks.listTasks(projectId, q));
     }
 
-    @GetMapping(value = "/tasks", params = {"q"})
+    @GetMapping(value = "/tasks", params = {"q", "!projectId"})
     public List<TaskResponses.TaskResponse> searchTasks(@RequestParam("q") String q) {
         return HierarchyController.toResponses(queryTasks.search(q));
     }

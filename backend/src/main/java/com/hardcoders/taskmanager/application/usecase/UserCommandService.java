@@ -11,6 +11,7 @@ import com.hardcoders.taskmanager.domain.port.out.CurrentActor;
 import com.hardcoders.taskmanager.domain.port.out.PasswordHasher;
 import com.hardcoders.taskmanager.domain.port.out.UserWriter;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -20,8 +21,10 @@ public class UserCommandService implements ManageUsersUseCase {
     private static final Pattern SIMPLE_EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
     private static final int EMAIL_MAX = 254;
     private static final int NAME_MAX = 100;
-    /** Límite defensivo para entrada de contraseña en claro (BCrypt trunca a 72 bytes; no se almacena). */
+    /** Límite defensivo para entrada de contraseña en claro (no se almacena). */
     private static final int PASSWORD_MAX = 200;
+    /** BCrypt rechaza entradas de más de 72 bytes (UTF-8); se valida antes de hashear para responder 400. */
+    private static final int PASSWORD_MAX_BYTES = 72;
 
     private final UserWriter users;
     private final PasswordHasher passwordHasher;
@@ -97,6 +100,9 @@ public class UserCommandService implements ManageUsersUseCase {
         }
         if (value.length() < 8) {
             throw new DomainValidationException("La contraseña debe tener al menos 8 caracteres");
+        }
+        if (value.getBytes(StandardCharsets.UTF_8).length > PASSWORD_MAX_BYTES) {
+            throw new DomainValidationException("La contraseña no puede superar " + PASSWORD_MAX_BYTES + " bytes");
         }
         return value;
     }

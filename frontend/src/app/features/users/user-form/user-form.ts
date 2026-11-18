@@ -1,8 +1,19 @@
 ﻿import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Validators } from '@angular/forms';
 import { UserService } from '../../../core/services/user.service';
 import { apiErrorMessage } from '../../../core/services/project.service';
+
+/** BCrypt solo procesa 72 bytes; el backend rechaza contraseñas más largas (400). */
+export const PASSWORD_MAX_BYTES = 72;
+
+export function maxUtf8Bytes(max: number) {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const value = typeof control.value === 'string' ? control.value : '';
+    const bytes = new TextEncoder().encode(value).length;
+    return bytes > max ? { maxBytes: { max, actual: bytes } } : null;
+  };
+}
 
 @Component({
   selector: 'app-user-form',
@@ -53,13 +64,15 @@ import { apiErrorMessage } from '../../../core/services/project.service';
     <div class="gt-field">
       <label for="user-password">Contraseña</label>
       <input id="user-password" type="password" formControlName="password" autocomplete="new-password" maxlength="200" />
-      @if (form.controls.password.touched && form.controls.password.invalid) {
+      @if (form.controls.password.touched && form.controls.password.hasError('maxBytes')) {
+        <small class="gt-field-error">La contraseña no puede superar 72 bytes (los caracteres con tilde o símbolos cuentan más de 1).</small>
+      } @else if (form.controls.password.touched && form.controls.password.invalid) {
         <small class="gt-field-error">La contraseña debe tener entre 8 y 200 caracteres.</small>
       }
     </div>
 
     <div class="gt-modal-actions">
-      <button type="submit" class="gt-btn gt-btn-primary" [disabled]="saving || form.invalid" data-testid="user-create-submit">
+      <button type="submit" class="gt-btn gt-btn-primary" [disabled]="saving" data-testid="user-create-submit">
         {{ saving ? 'Creando…' : 'Crear usuario' }}
       </button>
     </div>
@@ -82,7 +95,7 @@ export class UserForm {
     email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
     givenNames: ['', [Validators.required, Validators.maxLength(100), Validators.pattern(/\S/)]],
     familyNames: ['', [Validators.required, Validators.maxLength(100), Validators.pattern(/\S/)]],
-    password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(200)]],
+    password: ['', [Validators.required, Validators.minLength(8), Validators.maxLength(200), maxUtf8Bytes(PASSWORD_MAX_BYTES)]],
   });
 
   saving = false;

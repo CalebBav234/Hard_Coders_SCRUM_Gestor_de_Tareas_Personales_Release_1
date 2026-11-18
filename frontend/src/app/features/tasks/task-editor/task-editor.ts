@@ -43,6 +43,7 @@ import { TaskService } from '../../../core/services/task.service';
       id="task-title"
       type="text"
       formControlName="title"
+      maxlength="160"
       placeholder="Escribe el título de la tarea"
       autocomplete="off"
     />
@@ -68,6 +69,7 @@ import { TaskService } from '../../../core/services/task.service';
     <textarea
       id="task-description"
       formControlName="description"
+      maxlength="2000"
       rows="5"
       placeholder="Describe la tarea..."
     ></textarea>
@@ -77,7 +79,7 @@ import { TaskService } from '../../../core/services/task.service';
       form.controls.description.touched
     ) {
       <small class="field-error">
-        La descripción no puede superar los 4000 caracteres.
+        La descripción no puede superar los 2000 caracteres.
       </small>
     }
   </div>
@@ -545,7 +547,7 @@ export class TaskEditor implements OnInit {
 
     description: [
       '',
-      Validators.maxLength(4000),
+      Validators.maxLength(2000),
     ],
 
     priority: [

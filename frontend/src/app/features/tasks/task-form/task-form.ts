@@ -25,12 +25,18 @@ const MAX_DURATION_MINUTES = 2_147_483_647;
       id="title"
       type="text"
       placeholder="Ej. Estudiar para el examen"
+      maxlength="160"
       [(ngModel)]="title"
       [disabled]="loading"
     >
     @if (submitted && title.trim() === '') {
       <p class="error-message">
         El título es obligatorio.
+      </p>
+    }
+    @if (submitted && title.trim().length > 160) {
+      <p class="error-message">
+        El título no puede superar 160 caracteres.
       </p>
     }
   </div>
@@ -438,7 +444,7 @@ export class TaskForm {
       this.budgetError = this.validateBudget();
     }
 
-    if (this.title.trim() === '' || this.durationError !== null || this.budgetError !== null) {
+    if (this.title.trim() === '' || this.title.trim().length > 160 || this.durationError !== null || this.budgetError !== null) {
       this.changeDetector.markForCheck();
       return;
     }

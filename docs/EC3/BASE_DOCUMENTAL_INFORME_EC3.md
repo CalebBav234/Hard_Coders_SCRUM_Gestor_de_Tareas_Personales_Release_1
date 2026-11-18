@@ -184,7 +184,7 @@ erDiagram
 
 | Formulario | Campos (UI real) | Reglas/tipos/longitudes | Origen (capas) |
 |---|---|---|---|
-| Proyecto (crear) | nombre, descripción, encargado, presupuesto Bs, duración min, motivo opc. | nombre 1–160; desc ≤2000; manager obligatorio/elegible; budget DECIMAL(15,2) ≥0 (13,2); duración entero ≥0 min; motivo opc. (UI 300, DTO/dominio 500) | `project-form.ts/html`, `ProjectRequests`, `Project/BudgetPolicy/PlanRevision`, V004 `project` |
+| Proyecto (crear) | nombre, descripción, encargado, presupuesto Bs, duración min, motivo opc. | nombre 1–160; desc ≤2000; manager obligatorio/elegible; budget DECIMAL(15,2) ≥0 (13,2); duración entero ≥0 min; motivo opc. (UI 300 = dominio 300; columna BD 500) | `project-form.ts/html`, `ProjectRequests`, `Project/BudgetPolicy/PlanRevision`, V004 `project` |
 | Proyecto (editar detalles) | nombre, descripción | nombre/desc con límites; versión para concurrencia; sin plan/encargado en este form | `project-form.ts`, `ProjectRequests.UpdateDetails`, `Project.editDetails` |
 | Etapa (inline WBS) | nombre, descripción opc. | nombre 1–160; desc ≤2000; proyecto abierto y autorizado; mismo proyecto | `wbs-panel.ts`, `HierarchyRequests`, `Stage/WbsHierarchyPolicy`, V004 `stage` |
 | Actividad (inline WBS) | nombre, descripción opc. | nombre 1–160; desc ≤2000; etapa/proyecto válidos y abiertos | `wbs-panel.ts`, `HierarchyRequests`, `Activity/WbsHierarchyPolicy`, V004 `activity` |
@@ -217,12 +217,12 @@ flowchart TD
 
 ## 4.2 Reglas de validación por formulario (resumen consolidado)
 
-- **Proyecto:** nombre obligatorio y trim no vacío (≤160); descripción opcional (≤2000); encargado obligatorio en creación; presupuesto BOB ≥0 con formato 13 enteros/2 decimales; duración minutos entero ≥0; motivo opcional con divergencia de límite UI 300 vs DTO/dominio 500 (DIV-01). Creación restringida a Jefe; concurrencia por versión en actualizaciones.
+- **Proyecto:** nombre obligatorio y trim no vacío (≤160); descripción opcional (≤2000); encargado obligatorio en creación; presupuesto BOB ≥0 con formato 13 enteros/2 decimales; duración minutos entero ≥0; motivo opcional ≤300 (UI y dominio; DIV-01 cerrado). Creación restringida a Jefe; concurrencia por versión en actualizaciones.
 - **Etapa/Actividad (inline):** nombre obligatorio no vacío (≤160), descripción opcional (≤2000), UI deshabilita submit con nombre vacío/espacios; padre/contexto válido y proyecto abierto; permisos de gestión.
 - **Tarea:** título obligatorio (≤160); prioridad enum (default MEDIA); actividad padre requerida; presupuesto vacío→0, ≥0, patrón 13,2; duración vacía→0, múltiplos de 0.25 h, conversión a minutos enteros, tope `MAX_DURATION_MINUTES` (2,147,483,647); subtarea oculta campos plan y envía 0.
 - **Subtarea:** título obligatorio (≤160), descripción opcional (≤2000), tarea padre válida; **no** aplica presupuesto/duración/prioridad propios.
 - **Asignación:** trabajador seleccionado, existente, activo y elegible; actor autenticado y autorizado; prohibida autoasignación (403) y duplicidad (400/409 por integridad/regla, PK compuesta); proyecto abierto (409 si cerrado); tarea existente; `reason` normalizado a default si null/vacío/espacios, trim y ≤500; lectura posterior coherente vía GET.
-- **Usuario:** solo Jefe (ruta/guard y backend 403/401 según caso); email válido/único/normalizado ≤254; nombres/apellidos obligatorios ≤100; contraseña 8–200 (validación) con límite efectivo BCrypt 72 bytes (73 ASCII → 500 observado, DIV-E4-01); respuesta sin secretos; crea `is_chief=false,is_active=true`; campos privilegiados ignorados/no aceptados.
+- **Usuario:** solo Jefe (ruta/guard y backend 403/401 según caso); email válido/único/normalizado ≤254; nombres/apellidos obligatorios ≤100; contraseña 8–200 (validación) con límite efectivo BCrypt 72 bytes (>72 bytes → 400 tras corrección DIV-E4-01); respuesta sin secretos; crea `is_chief=false,is_active=true`; campos privilegiados ignorados/no aceptados.
 
 ## 4.3 Roles y controles de acceso (verificados en diseño/ejecución)
 
@@ -339,11 +339,11 @@ ALTER TABLE task_manager.task_assignment ADD COLUMN IF NOT EXISTS reason varchar
 ## 6.1 Partición de equivalencia (EP)
 - **Cobertura diseñada:** Proyecto (crear/editar), Etapa inline, Actividad inline, Tarea, Subtarea, Asignación `task_assignment` (CREATE) y Usuario `app_user` (CREATE).
 - **Criterios:** particiones no vacías, no solapadas, comportamiento homogéneo; base *Each Choice* + combinaciones de riesgo; resultado esperado por capa (UI/API/BD) con origen de regla (UI/DTO/dominio/DB).
-- **Representativos (IDs):** `EP-TAR-DUR-01` (0/0.25/1.5 h válidos, conversión a minutos), `EP-TAR-DUR-02` (-0.25 o no múltiplo 0.25 como 0.1/0.3 inválidos), `EP-TAR-PRES-02/03` (negativo o formato/escala/dígitos inválidos), `EP-ASG-REA-01` (null/vacío/espacios → default `"Asignación de Personal"`), `EP-ASG-REA-03` (>500 inválido), `EP-ASG-SELF-02` (autoasignación 403), `EP-ASG-DUP-02` (duplicidad 400/409), `EP-USR-PWD-04` (73–200 chars ASCII >72 bytes: inválida en implementación, 500 observado E4, DIV-E4-01), `EP-SUB-NOPLAN-01` (subtarea sin campos plan/finanzas/prioridad).
+- **Representativos (IDs):** `EP-TAR-DUR-01` (0/0.25/1.5 h válidos, conversión a minutos), `EP-TAR-DUR-02` (-0.25 o no múltiplo 0.25 como 0.1/0.3 inválidos), `EP-TAR-PRES-02/03` (negativo o formato/escala/dígitos inválidos), `EP-ASG-REA-01` (null/vacío/espacios → default `"Asignación de Personal"`), `EP-ASG-REA-03` (>500 inválido), `EP-ASG-SELF-02` (autoasignación 403), `EP-ASG-DUP-02` (duplicidad 400/409), `EP-USR-PWD-04` (73–200 chars ASCII >72 bytes: inválida; 500 en E4, 400 tras corrección DIV-E4-01), `EP-SUB-NOPLAN-01` (subtarea sin campos plan/finanzas/prioridad).
 
 ## 6.2 Análisis de valores límite BVA3 (n-1, n, n+1)
 - **Cobertura diseñada:** longitudes (nombres/títulos/descripciones/email), presupuesto BOB (escala 0.01, 13 enteros/2 decimales), duración proyecto (min) y tarea (0.25 h/15 min y máximo minutos), motivo asignación (500), contraseña usuario (contrato 8–200 y frontera efectiva BCrypt 72 bytes).
-- **Destacados:** `BVA3-TAR-DUR-MIN` (-0.25/0/0.25 h), `BVA3-TAR-DUR-MAX` (2,147,483,646/2,147,483,647/2,147,483,648 min), `BVA3-TAR-PRES-MIN` (-0.01/0.00/0.01), `BVA3-TAR-PRES-SCALE` (2 dec válidos / 3 dec inválido), `BVA3-ASG-REA-MAX` (499/500/501), `BVA3-USR-PWD-MIN` (7/8/9), `BVA3-USR-PWD-BCRYPT` (71/72/73 bytes, divergencia DIV-E4-01). Subtarea sin BVA de presupuesto/duración.
+- **Destacados:** `BVA3-TAR-DUR-MIN` (-0.25/0/0.25 h), `BVA3-TAR-DUR-MAX` (2,147,483,646/2,147,483,647/2,147,483,648 min), `BVA3-TAR-PRES-MIN` (-0.01/0.00/0.01), `BVA3-TAR-PRES-SCALE` (2 dec válidos / 3 dec inválido), `BVA3-ASG-REA-MAX` (499/500/501), `BVA3-USR-PWD-MIN` (7/8/9), `BVA3-USR-PWD-BCRYPT` (71/72/73 bytes; 73 → 400 tras corrección DIV-E4-01). Subtarea sin BVA de presupuesto/duración.
 
 ## 6.3 Transición de estados
 
@@ -455,12 +455,12 @@ stateDiagram-v2
 ## 7.6 Divergencias y observaciones registradas
 | ID | Divergencia | Estado |
 |---|---|---|
-| DIV-01 | Motivo proyecto UI 300 vs DTO/dominio 500 | Pendiente verificación específica por canal |
+| DIV-01 | Motivo proyecto UI 300 = dominio 300; solo la columna BD admite 500 | **Cerrado** — sin divergencia funcional |
 | DIV-02 | `GET /api/users` no contrato operativo confirmado | Confirmado (uso create/login/BD) |
 | DIV-03/04 | Duplicados usuario/asignación mapeados 400/409 | Confirmado E4/E5 |
 | DIV-05 | Asignación en proyecto cerrado → 409 | Confirmado E4 |
 | DIV-06 | Duración no múltiplo 0.25 depende de handler UI | Cubierto (E4/E5/E6) |
-| DIV-E4-01 | Contraseña 8–200 contractual vs BCrypt >72 bytes efectivo (73 ASCII → 500 observado) | Observado E4, riesgo conocido no corregido |
+| DIV-E4-01 | Contraseña 8–200 contractual vs BCrypt >72 bytes efectivo | **Corregido** (2026-11-18): >72 bytes → 400 |
 | DIV-E4-02 | DT-ASG-R9 resuelto 403/404/400 según visibilidad | Observado E4 |
 | DIV-E4-03 | Variante de comando `ng test --browsers` no aplicable en entorno previo; E6 ejecutó con cobertura vía Vitest/ng test | Resuelto por comando efectivo documentado |
 
@@ -529,8 +529,8 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 ## 9.3 Pendientes y riesgos residuales
 - Ejecución sistemática 1:1 de `ST-PROY-01..15` y `ST-TAR-01..09` con trazabilidad por ID: **NO DISPONIBLE/PARCIAL**.
 - Capturas específicas de corridas E5/E6: **DISPONIBLE (representativas)** en `docs/EC3/evidencias/etapa_5/browser/` (E5-01..E5-10) y `docs/EC3/evidencias/etapa_6/browser/` (E6-01..E6-10); cobertura visual parcial por escenario, respaldada por evidencia textual/reportes.
-- `DIV-E4-01`: contraseña válida por política 8–200 pero >72 bytes puede producir 500 (BCrypt actual) — **riesgo conocido, no corregido**.
-- `DIV-01`: límite efectivo de motivo de proyecto UI 300 vs DTO/dominio 500 — **pendiente de confirmación por canal**.
+- `DIV-E4-01`: contraseña >72 bytes — **corregido**, ahora responde 400 (backend) y la UI lo valida.
+- `DIV-01`: motivo de proyecto — **cerrado**; UI 300 = dominio 300, solo la columna BD admite 500.
 - Datos académicos de portada/entrega: **PENDIENTES**.
 
 ---
@@ -569,6 +569,8 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 - `[PENDIENTE DE COMPLETAR: Fecha de entrega]`
 - **DISPONIBLE (parcial/representativa):** capturas browser E5/E6 en `docs/EC3/evidencias/etapa_5/browser/` (E5-01..E5-10) y `docs/EC3/evidencias/etapa_6/browser/` (E6-01..E6-10). Quedan fuera capturas por cada uno de los 14 tests individuales automatizados de Playwright.
 - **NO DISPONIBLE/PARCIAL:** ejecución trazada 1:1 de toda la matriz de transición de estados `ST-PROY-01..15` y `ST-TAR-01..09`.
-- **PENDIENTE DE CONFIRMAR:** límite efectivo por canal del motivo de proyecto (DIV-01, UI 300 vs DTO/dominio 500).
-- **PENDIENTE (riesgo conocido):** alineación/manejo de frontera BCrypt 72 bytes para contraseña `app_user` (DIV-E4-01).
+- **CERRADO:** DIV-01 (motivo de proyecto: UI 300 = dominio 300; solo la columna BD admite 500).
+- **CORREGIDO:** DIV-E4-01 (contraseña >72 bytes → 400).
+- **Conteo:** las 25 IT PostgreSQL están incluidas en los tests del backend (376 en E6); no contarlas dos veces.
+- **Limitaciones conocidas no corregidas (LIM-01..08)** y correcciones FIX-01..09: ver `GUIA_MAESTRA_EJECUCION_Y_PRUEBAS_EC3.md` §16.1–16.2 y `PLAN_PRUEBAS_VALIDACION_EC3.md`.
 - **NO DISPONIBLE:** cualquier dato académico u otra métrica/evidencia no presente en las fuentes del repositorio.

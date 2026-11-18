@@ -86,9 +86,6 @@ type Dialog =
           @if (project.canEditDetails) {
             <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'details', project })">✎ Editar datos</button>
           }
-          @if (project.canEditDetails) {
-            <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'details', project })">✎ Editar datos</button>
-          }
           @if (project.canEditPlan) {
             <button type="button" class="gt-btn gt-btn-small" (click)="open({ kind: 'plan', project })">Bs Editar plan</button>
           }
