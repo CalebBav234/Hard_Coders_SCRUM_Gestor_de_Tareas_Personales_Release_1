@@ -9,7 +9,8 @@
 - **Fecha de recopilación de la base documental:** 2026-11-16 03:22:05 -04:00
 - **Repositorio:** `CalebBav234/Hard_Coders_SCRUM_Gestor_de_Tareas_Personales_Release_1`
 - **Rama:** `Refactor-E2`
-- **HEAD (commit de referencia):** `10988a31d81f7596947c93d1e3abc3ddb42028db`
+- **HEAD (commit de referencia):** `10988a31d81f7596947c93d1e3abc3ddb42028db` (mediciones E1–E6)
+- **Revalidación final:** 2026-11-18, rama `Refactor-E2-testing`, commit `75b1db8c4c10f89d7c1c905789acb2d270c43183` (correcciones FIX-01..09). Las cifras finales vigentes son las de esta revalidación (§7.2).
 - **Estado del árbol de trabajo al recopilar:** no limpio (modificaciones y artefactos locales presentes; sin commit/push/merge realizados como parte de esta recopilación)
 
 > **Nota de integridad:** Este documento es la base documental fuente para que una herramienta externa genere el informe académico. Solo incluye información verificable en el repositorio (código HEAD, migraciones, guías y evidencias EC3 disponibles). Los datos no disponibles se marcan explícitamente como `[PENDIENTE DE COMPLETAR: ...]`, `NO DISPONIBLE`, `BLOCKED` o `FAIL` según corresponda. No se incluyen secretos (contraseñas, tokens, hashes, cookies ni `storageState`).
@@ -414,6 +415,7 @@ stateDiagram-v2
 | E4 | Integración PostgreSQL real aislado (`gestor_tareas_test`, V001–V006), DT-ASG/CA-ASG/CA-USR/MIG, consolidación | **PASS** | `docs/EC3/ETAPA_4_GUIA_PRUEBAS.md` |
 | E5 | Playwright E2E real (Chromium) backend/frontend/BD | **PASS (14/14)** | `docs/EC3/ETAPA_5_GUIA_PRUEBAS.md`, `docs/EC3/evidencias/etapa_5/EVIDENCIA_EJECUCION.md`, `frontend/test-results/.last-run.json` |
 | E6 | Cobertura ≥85% líneas/ramas (umbrales vigentes), consolidación y regresión R1–R9 | **PASS** | `docs/EC3/ETAPA_6_GUIA_PRUEBAS.md`, `docs/EC3/evidencias/etapa_6/EVIDENCIA_EJECUCION.md` |
+| Revalidación | Correcciones FIX-01..09 y nueva medición completa (2026-11-18, `75b1db8`) | **PASS** | `docs/EC3/REGISTRO_SESION_2026-11-18_REVISION_VALIDACION.md`, `docs/EC3/PLAN_PRUEBAS_VALIDACION_EC3.md` |
 
 ## 7.2 Resultados cuantitativos (histórico/intermedio vs final)
 
@@ -421,12 +423,18 @@ stateDiagram-v2
 |---|---|---|---|---|
 | Backend consolidado E4 | Suite Surefire E4 | `mvn -q test` | **337 tests, 0 fallos, 0 errores, 0 omitidos**; `PostgresIntegrationTest` 25/25 | Histórico/intermedio E4 |
 | Frontend Vitest E4 | Consolidación E4 | `npx vitest run` | **18 archivos, 297 tests PASS** | Histórico/intermedio E4 |
-| **Backend final E6** | **Medición fresca + gate JaCoCo** | `cd backend; mvn verify` | **BUILD SUCCESS (01:12)**. **376 tests, 0 fallos, 0 errores, 0 omitidos**. JaCoCo: **INSTRUCTION 92.53% (13245/14315), BRANCH 85.01% (618/727), LINE 94.93% (2714/2859)** — checks cumplidos | **Final E6** |
-| **Frontend Vitest final E6** | **Medición fresca + cobertura** | `cd frontend; npx --no-install ng test --watch=false --coverage` | **19 archivos, 303 tests PASS**. **Statements 92.67%, Branches 87.99%, Functions 86.45%, Lines 93.60%** | **Final E6** |
-| **Playwright E5/E6** | E2E real Chromium | `playwright test --project=chromium --reporter=line` | **14 passed (E6: 52.9s, E5: 54.1s), 0 failed, 0 skipped** | **Ejecutado/Final** |
+| **Backend final E6** | **Medición fresca + gate JaCoCo** | `cd backend; mvn verify` | **BUILD SUCCESS (01:12)**. **376 tests, 0 fallos, 0 errores, 0 omitidos**. JaCoCo: **INSTRUCTION 92.53% (13245/14315), BRANCH 85.01% (618/727), LINE 94.93% (2714/2859)** — checks cumplidos | Histórico E6 |
+| **Frontend Vitest final E6** | **Medición fresca + cobertura** | `cd frontend; npx --no-install ng test --watch=false --coverage` | **19 archivos, 303 tests PASS**. **Statements 92.67%, Branches 87.99%, Functions 86.45%, Lines 93.60%** | Histórico E6 |
+| Playwright E5/E6 | E2E real Chromium | `playwright test --project=chromium --reporter=line` | 14 passed (E6: 52.9s, E5: 54.1s), 0 failed, 0 skipped | Histórico E5/E6 |
+| **Backend IT revalidación** | **`gestor_tareas_test` (V001–V006)** | `mvn -Dtest=PostgresIntegrationTest test` | **25/25 PASS** | **Final (2026-11-18)** |
+| **Backend final revalidación** | **Medición fresca + gate JaCoCo, `75b1db8`** | `cd backend; mvn verify` | **BUILD SUCCESS. 381 tests, 0 fallos, 0 errores, 0 omitidos** (incluye las 25 IT). JaCoCo: **INSTRUCTION 92.58% (13279/14343), BRANCH 85.09% (622/731), LINE 94.97% (2721/2865)** — checks cumplidos | **Final (2026-11-18)** |
+| **Frontend Vitest final revalidación** | **Medición fresca + cobertura** | `cd frontend; npx ng test --watch=false --coverage` | **20 archivos, 307 tests PASS**. **Statements 92.47%, Branches 88.30%, Functions 86.62%, Lines 93.51%** | **Final (2026-11-18)** |
+| **Frontend build** | Compilación de producción | `cd frontend; npx ng build` | **OK** (solo advertencias de presupuesto de bundle) | **Final (2026-11-18)** |
+| **Playwright revalidación** | E2E real Chromium | `npx playwright test --project=chromium --reporter=line` | **14 passed, 0 failed** (1 fallo intermitente previo en login tras «Salir», 3/3 PASS al repetir) | **Final (2026-11-18)** |
 | Last-run PW | Artefacto frontend | `frontend/test-results/.last-run.json` | `{"status":"passed","failedTests":[]}` | Ejecutado |
 
 > Diferencias de conteo E4→E6 reflejan pruebas añadidas en E6 (backend +39, frontend +6/1 archivo) sin bajar umbrales ni cambiar contratos.
+> Diferencias E6→revalidación: backend +5 tests (`UserCommandServiceTest` +1, `TaskCommandServiceTest` +2, `TaskSearchRoutingTest` +2) y frontend +4 tests / +1 archivo (`user-form.spec.ts`), asociados a FIX-01..09. El gate JaCoCo de ramas depende de la IT: sin `gestor_tareas_test` baja a 84 %.
 
 ## 7.3 Ejecución E4 (integración PostgreSQL real)
 - **BD:** `gestor_tareas_test` aislada (Docker `gestor-tareas-db`, postgres:18), V001–V006, `ddl-auto=validate`, limpieza transaccional; sin borrado de volúmenes ni secretos.
@@ -516,7 +524,7 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 
 ## 9.1 Conclusiones
 - Las etapas EC3 1–6 se completaron con resultados **PASS** según sus gates: estabilización y contratos (E1), funcionalidades/formularios complementarios y control de acceso (E2), diseño sistemático ISTQB (E3), integración real con PostgreSQL aislado y trazabilidad crítica (E4), E2E Playwright real 14/14 (E5) y cumplimiento de umbrales de cobertura con regresión R1–R9 (E6).
-- **Métricas finales verificables (E6):** backend 376 tests (0 fallos/errores/omitidos), JaCoCo **BRANCH 85.01% (618/727)** y **LINE 94.93% (2714/2859)** (BUILD SUCCESS, umbral ≥85%); frontend 303 tests, **Statements 92.67% / Branches 87.99% / Functions 86.45% / Lines 93.60%**; Playwright **14/14 PASS**.
+- **Métricas finales verificables (revalidación 2026-11-18, commit `75b1db8`):** backend **381 tests** (0 fallos/errores/omitidos; incluye 25 IT PostgreSQL), JaCoCo **BRANCH 85.09% (622/731)** y **LINE 94.97% (2721/2865)** (BUILD SUCCESS, umbral ≥85%); frontend **307 tests** (20 archivos), **Statements 92.47% / Branches 88.30% / Functions 86.62% / Lines 93.51%**; Playwright **14/14 PASS**. Histórico E6: backend 376, BRANCH 85.01%, LINE 94.93%; frontend 303.
 - El diseño E3 es trazable y alineado con contratos reales; E4/E5/E6 cubrieron los escenarios críticos (asignación, usuarios, migraciones/compatibilidad, flujo principal y validaciones), aunque la matriz completa de transición de estados no quedó ejecutada 1:1 con evidencia por ID.
 
 ## 9.2 Lecciones aprendidas
@@ -571,6 +579,6 @@ Existen en `docs/EC3/evidencias/etapa_2/browser/` (Etapa 2, verificadas):
 - **NO DISPONIBLE/PARCIAL:** ejecución trazada 1:1 de toda la matriz de transición de estados `ST-PROY-01..15` y `ST-TAR-01..09`.
 - **CERRADO:** DIV-01 (motivo de proyecto: UI 300 = dominio 300; solo la columna BD admite 500).
 - **CORREGIDO:** DIV-E4-01 (contraseña >72 bytes → 400).
-- **Conteo:** las 25 IT PostgreSQL están incluidas en los tests del backend (376 en E6); no contarlas dos veces.
+- **Conteo:** las 25 IT PostgreSQL están incluidas en los tests del backend (376 en E6; **381** en la revalidación del 2026-11-18); no contarlas dos veces.
 - **Limitaciones conocidas no corregidas (LIM-01..08)** y correcciones FIX-01..09: ver `GUIA_MAESTRA_EJECUCION_Y_PRUEBAS_EC3.md` §16.1–16.2 y `PLAN_PRUEBAS_VALIDACION_EC3.md`.
 - **NO DISPONIBLE:** cualquier dato académico u otra métrica/evidencia no presente en las fuentes del repositorio.
