@@ -90,7 +90,7 @@ test.describe('Proceso principal: Proyecto -> WBS -> Tarea -> Subtarea -> Asigna
     const subDialog = page.locator('dialog[aria-labelledby="subtask-modal-title"]');
     await expect(subDialog).toBeVisible({ timeout: 15000 });
     await subDialog.locator('#title').fill(subtaskTitle);
-    const subRespP = page.waitForResponse(r => r.url().match(/\/api\/tasks\/\d+\/subtasks$/) && r.request().method() === 'POST');
+    const subRespP = page.waitForResponse(r => Boolean(r.url().match(/\/api\/tasks\/\d+\/subtasks$/)) && r.request().method() === 'POST');
     await subDialog.getByRole('button', { name: 'Crear subtarea' }).click();
     const subResp = await subRespP;
     expect(subResp.status(), await subResp.text()).toBe(201);
@@ -129,6 +129,7 @@ test.describe('Proceso principal: Proyecto -> WBS -> Tarea -> Subtarea -> Asigna
     await expect(personalCard).not.toContainText(/\bBs\b/);
   });
 });
+
 
 
 
