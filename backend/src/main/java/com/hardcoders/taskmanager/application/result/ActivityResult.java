@@ -2,7 +2,7 @@ package com.hardcoders.taskmanager.application.result;
 
 import java.time.Instant;
 
-/** Actividad (nivel 3 de la jerarquía). En la interfaz se presenta como "categoría". */
+/** Actividad (nivel 3 de la jerarquía). En la interfaz se presenta como "categoría". {@code taskCount} es el número de tareas hijas. */
 public record ActivityResult(
         Integer activityId,
         Integer stageId,
@@ -11,7 +11,8 @@ public record ActivityResult(
         String status,
         Instant createdAt,
         Instant updatedAt,
-        long version
+        long version,
+        int taskCount
 ) {
     /** Nombre visible como categoría: nulo para "Sin categoría". */
     public String categoryName() {

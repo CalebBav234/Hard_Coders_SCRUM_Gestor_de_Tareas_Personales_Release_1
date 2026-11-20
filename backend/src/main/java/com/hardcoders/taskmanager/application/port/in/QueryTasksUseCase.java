@@ -19,6 +19,8 @@ public interface QueryTasksUseCase {
      */
     List<TaskResult> listTasks(Integer projectId, String query);
 
+    List<TaskResult> search(String query);
+
     TaskResult getTask(Integer taskId);
 
     /** Tareas completadas o canceladas del proyecto, con su historial de estados. */

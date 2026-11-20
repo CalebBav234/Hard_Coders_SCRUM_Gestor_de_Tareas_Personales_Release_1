@@ -17,4 +17,8 @@ public interface QueryHierarchyUseCase {
 
     /** Tareas no canceladas de la actividad (solo si pertenece a un proyecto visible). */
     List<TaskResult> tasksOf(Integer activityId);
+
+    List<StageResult> searchStages(String query);
+
+    List<ActivityResult> searchActivities(String query);
 }

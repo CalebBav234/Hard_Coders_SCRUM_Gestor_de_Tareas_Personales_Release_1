@@ -67,6 +67,37 @@ class ProjectPersistenceAdapter implements ProjectRepository {
     }
 
     @Override
+    public List<Project> search(String likePattern) {
+        if (likePattern == null) {
+            return findAll();
+        }
+        String normalize = "translate(lower(coalesce(%s, '')), 'áéíóúüñ', 'aeiouun')";
+        return entityManager.createQuery(
+                        "select p from ProjectEntity p join fetch p.status where " + normalize.formatted("p.name") + " LIKE :pattern ESCAPE '" + "\\" + "' or " + normalize.formatted("p.description") + " LIKE :pattern ESCAPE '" + "\\" + "' order by p.createdAt desc, p.projectId desc",
+                        ProjectEntity.class)
+                .setParameter("pattern", likePattern)
+                .getResultList().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Project> searchManagedBy(Integer managerUserId, String likePattern) {
+        if (likePattern == null) {
+            return findManagedBy(managerUserId);
+        }
+        String normalize = "translate(lower(coalesce(%s, '')), 'áéíóúüñ', 'aeiouun')";
+        return entityManager.createQuery(
+                        "select p from ProjectEntity p join fetch p.status where p.manager.userId = :managerId and (" + normalize.formatted("p.name") + " LIKE :pattern ESCAPE '" + "\\" + "' or " + normalize.formatted("p.description") + " LIKE :pattern ESCAPE '" + "\\" + "') order by p.createdAt desc, p.projectId desc",
+                        ProjectEntity.class)
+                .setParameter("managerId", managerUserId)
+                .setParameter("pattern", likePattern)
+                .getResultList().stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public BigDecimal allocatedBudget(Integer projectId) {
         Object sum = entityManager.createNativeQuery("""
                         SELECT COALESCE(SUM(t.allocated_budget_bob), 0)

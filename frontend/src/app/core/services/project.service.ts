@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
@@ -18,8 +18,16 @@ export class ProjectService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/projects';
 
+  search(query: string): Observable<Project[]> {
+    let params = new HttpParams();
+    if (query.trim()) {
+      params = params.set('q', query);
+    }
+    return this.http.get<Project[]>(this.baseUrl, { params });
+  }
+
   list(): Observable<Project[]> {
-    return this.http.get<Project[]>(this.baseUrl);
+    return this.search('');
   }
 
   get(projectId: number): Observable<Project> {

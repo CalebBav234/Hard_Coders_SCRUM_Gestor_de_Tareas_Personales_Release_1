@@ -1,4 +1,4 @@
-import { provideHttpClient } from '@angular/common/http';
+﻿import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { SubtaskDto, TaskDto, TaskHistoryDto } from '../models/api';
@@ -267,7 +267,7 @@ describe('TaskService (fachada sobre la API V4)', () => {
 
   it('merges task and subtask history, showing cancellations as deletions', () => {
     let history: TaskHistory[] = [];
-    service.listHistory(42, 'reunión').subscribe((items) => (history = items));
+    service.listHistory(42, 'reuniÃ³n').subscribe((items) => (history = items));
 
     const cancelled: TaskHistoryDto = {
       task: taskDto({ taskId: 1, title: 'Cancelada', status: 'CANCELADA', trackedSeconds: 90 }),
@@ -279,10 +279,10 @@ describe('TaskService (fachada sobre la API V4)', () => {
       ],
     };
     http
-      .expectOne((r) => r.url === '/api/tasks/history' && r.params.get('q') === 'reunión')
+      .expectOne((r) => r.url === '/api/tasks/history' && r.params.get('q') === 'reuniÃ³n')
       .flush([cancelled]);
     http
-      .expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('q') === 'reunión')
+      .expectOne((r) => r.url === '/api/subtasks/history' && r.params.get('q') === 'reuniÃ³n')
       .flush([subtaskDto({ subtaskId: 5, status: 'COMPLETADA', completedAt: '2026-10-04T10:00:00Z' })]);
 
     expect(history.map((item) => item.id)).toEqual([-5, 1]);
@@ -294,4 +294,54 @@ describe('TaskService (fachada sobre la API V4)', () => {
     expect(history[1].events.map((event) => event.toStatus)).toEqual(['TERMINADA', 'INACTIVA']);
     expect(history[0]).toMatchObject({ status: 'TERMINADA', deletedAt: null, events: [] });
   });
+
+  it('reorders tasks of an activity', () => {
+    service.reorderTasks(4, [7, 2, 9]).subscribe();
+
+    const request = http.expectOne('/api/activities/4/tasks/reorder');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual([7, 2, 9]);
+    request.flush(null);
+  });
+
+  it('gets a task, updates plan and supports global searches', () => {
+    let loaded: Task | undefined;
+    service.getTask(7).subscribe((t) => (loaded = t));
+    http.expectOne('/api/tasks/7').flush(taskDto({ taskId: 7, title: 'Detalle' }));
+    expect(loaded).toMatchObject({ id: 7, title: 'Detalle' });
+
+    let planned: Task | undefined;
+    service.updatePlan(7, 15.5, 90, 'ajuste', 3).subscribe((t) => (planned = t));
+    const planReq = http.expectOne('/api/tasks/7/plan');
+    expect(planReq.request.method).toBe('PUT');
+    expect(planReq.request.body).toEqual({ allocatedBudgetBob: 15.5, estimatedDurationMinutes: 90, reason: 'ajuste', version: 3 });
+    planReq.flush(taskDto({ taskId: 7, allocatedBudgetBob: 15.5, estimatedDurationMinutes: 90 }));
+    expect(planned?.allocatedBudgetBob).toBe(15.5);
+
+    service.searchTasks('abc').subscribe((items) => expect(items[0].id).toBe(7));
+    http.expectOne((r) => r.url === '/api/tasks' && r.params.get('q') === 'abc').flush([taskDto()]);
+
+    service.searchProjectsGlobal('p').subscribe();
+    http.expectOne((r) => r.url === '/api/projects' && r.params.get('q') === 'p').flush([]);
+
+    service.searchStagesGlobal('s').subscribe();
+    http.expectOne((r) => r.url === '/api/stages' && r.params.get('q') === 's').flush([]);
+
+    service.searchActivitiesGlobal('a').subscribe();
+    http.expectOne((r) => r.url === '/api/activities' && r.params.get('q') === 'a').flush([]);
+  });
+
+  it('omits empty search params and maps categories safely', () => {
+    service.listTasks(1, '   ').subscribe();
+    const req = http.expectOne((r) => r.url === '/api/tasks' && r.params.get('projectId') === '1');
+    expect(req.request.params.has('q')).toBe(false);
+    req.flush([]);
+
+    service.listCategories(2).subscribe((cats) => expect(cats).toEqual([{ id: 5, name: 'Real' }]));
+    http.expectOne((r) => r.url === '/api/activities' && r.params.get('stageId') === '2').flush([
+      { activityId: 5, stageId: 2, name: 'Real', description: null, status: 'PENDIENTE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 },
+      { activityId: 6, stageId: 2, name: 'Sin categoría', description: null, status: 'PENDIENTE', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', version: 1 },
+    ]);
+  });
 });
+

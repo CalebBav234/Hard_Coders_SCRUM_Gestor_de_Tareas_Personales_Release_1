@@ -190,7 +190,6 @@ class TaskPersistenceAdapterTest {
         assertThat(saved.id()).isEqualTo(31);
         assertThat(saved.title()).isEqualTo("Informe");
         assertThat(saved.status()).isEqualTo(WorkStatus.EN_PROGRESO);
-        // Entidad + revisión de plan + cambio de creación + cambio de inicio, todos persistidos.
         verify(entityManager, times(4)).persist(org.mockito.ArgumentMatchers.<Object>any());
         verify(entityManager).refresh(org.mockito.ArgumentMatchers.<Object>any());
     }
@@ -214,6 +213,39 @@ class TaskPersistenceAdapterTest {
         assertThat(updated.completedByUserId()).isEqualTo(1);
         verify(entityManager, never()).persist(org.mockito.ArgumentMatchers.<Object>any());
         verify(entityManager).refresh(existing);
+    }
+
+    @Test
+    @DisplayName("searchAll y searchVisibleFor devuelven vacío para patrón nulo")
+    void searchReturnsEmptyForNullPattern() {
+        Query nativeQuery = mock(Query.class);
+        when(entityManager.createNativeQuery(anyString())).thenReturn(nativeQuery);
+        when(nativeQuery.setParameter(anyString(), any())).thenReturn(nativeQuery);
+        when(nativeQuery.getResultList()).thenReturn(List.of());
+        assertThat(adapter.searchAll(null)).isEmpty();
+        assertThat(adapter.searchVisibleFor(2, null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("reorderTasks ignora nulo y lista vacía")
+    void reorderTasksIgnoresNullAndEmpty() {
+        adapter.reorderTasks(21, null);
+        adapter.reorderTasks(21, java.util.List.of());
+        verify(entityManager, never()).createQuery(anyString());
+    }
+
+    @Test
+    @DisplayName("reorderTasks llama executeUpdate por cada id")
+    void reorderTasksCallsExecuteUpdateForEachId() {
+        @SuppressWarnings("unchecked")
+        jakarta.persistence.Query query = mock(jakarta.persistence.Query.class);
+        when(entityManager.createQuery(anyString())).thenReturn(query);
+        when(query.setParameter(anyString(), any())).thenReturn(query);
+        when(query.executeUpdate()).thenReturn(1);
+
+        adapter.reorderTasks(21, java.util.List.of(31, 32));
+
+        verify(query, org.mockito.Mockito.times(2)).executeUpdate();
     }
 
     private void stubEntityQuery(List<TaskEntity> entities) {

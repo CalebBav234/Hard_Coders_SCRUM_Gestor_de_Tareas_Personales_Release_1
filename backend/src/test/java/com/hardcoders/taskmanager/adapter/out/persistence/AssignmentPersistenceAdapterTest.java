@@ -10,6 +10,7 @@ import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
@@ -58,8 +59,19 @@ class AssignmentPersistenceAdapterTest {
         when(entityManager.find(eq(TaskAssignmentEntity.class), any(TaskAssignmentId.class)))
                 .thenReturn(row, null);
 
+        row.setReason("Refuerzo");
         assertThat(adapter.find(31, 4)).get().extracting(TaskAssignment::workerUserId).isEqualTo(4);
         assertThat(adapter.find(31, 9)).isEmpty();
+    }
+
+    @Test
+    void readsPersistedReasonAndKeepsLegacyRowsWithoutReason() {
+        row.setReason("Refuerzo de cuadrilla");
+        when(entityManager.find(eq(TaskAssignmentEntity.class), any(TaskAssignmentId.class))).thenReturn(row);
+        assertThat(adapter.find(31, 4)).get().extracting(TaskAssignment::reason).isEqualTo("Refuerzo de cuadrilla");
+
+        row.setReason(null);
+        assertThat(adapter.find(31, 4)).get().extracting(TaskAssignment::reason).isNull();
     }
 
     @Test
@@ -84,10 +96,14 @@ class AssignmentPersistenceAdapterTest {
         when(entityManager.getReference(AppUserEntity.class, 4)).thenReturn(worker);
         when(entityManager.getReference(AppUserEntity.class, 1)).thenReturn(manager);
 
-        TaskAssignment saved = adapter.save(new TaskAssignment(31, 4, NOW, 1));
+        TaskAssignment saved = adapter.save(new TaskAssignment(31, 4, NOW, 1, "Refuerzo"));
         assertThat(saved.taskId()).isEqualTo(31);
         assertThat(saved.workerUserId()).isEqualTo(4);
-        verify(entityManager).persist(any(TaskAssignmentEntity.class));
+        // EC3-02: el motivo llega a la fila JPA y vuelve al dominio.
+        assertThat(saved.reason()).isEqualTo("Refuerzo");
+        ArgumentCaptor<TaskAssignmentEntity> persisted = ArgumentCaptor.forClass(TaskAssignmentEntity.class);
+        verify(entityManager).persist(persisted.capture());
+        assertThat(persisted.getValue().getReason()).isEqualTo("Refuerzo");
         verify(entityManager).flush();
 
         Query delete = mock(Query.class);

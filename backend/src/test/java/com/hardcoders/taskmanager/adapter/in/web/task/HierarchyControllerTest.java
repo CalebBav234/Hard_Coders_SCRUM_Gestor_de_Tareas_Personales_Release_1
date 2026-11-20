@@ -13,6 +13,7 @@ import com.hardcoders.taskmanager.application.result.TaskAssignmentResult;
 import com.hardcoders.taskmanager.application.result.UserSummaryResult;
 import com.hardcoders.taskmanager.application.port.in.ManageAssignmentsUseCase;
 import com.hardcoders.taskmanager.application.port.in.ManageHierarchyUseCase;
+import com.hardcoders.taskmanager.application.port.in.ManageTasksUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryHierarchyUseCase;
 import com.hardcoders.taskmanager.application.port.in.QueryProjectsUseCase;
 import com.hardcoders.taskmanager.domain.model.Actor;
@@ -36,6 +37,7 @@ class HierarchyControllerTest {
     private ManageHierarchyUseCase manageHierarchy;
     private QueryHierarchyUseCase queryHierarchy;
     private ManageAssignmentsUseCase manageAssignments;
+    private ManageTasksUseCase manageTasks;
     private QueryProjectsUseCase queryProjects;
     private HierarchyController controller;
 
@@ -44,8 +46,9 @@ class HierarchyControllerTest {
         manageHierarchy = mock(ManageHierarchyUseCase.class);
         queryHierarchy = mock(QueryHierarchyUseCase.class);
         manageAssignments = mock(ManageAssignmentsUseCase.class);
+        manageTasks = mock(ManageTasksUseCase.class);
         queryProjects = mock(QueryProjectsUseCase.class);
-        controller = new HierarchyController(manageHierarchy, queryHierarchy, manageAssignments, queryProjects);
+        controller = new HierarchyController(manageHierarchy, queryHierarchy, manageAssignments, manageTasks, queryProjects);
         when(manageHierarchy.createStage(any())).thenReturn(stage(11));
         when(manageHierarchy.updateStage(any())).thenReturn(stage(11));
         when(manageHierarchy.changeStageStatus(any())).thenReturn(stage(11));
@@ -104,11 +107,11 @@ class HierarchyControllerTest {
     }
 
     private static StageResult stage(Integer id) {
-        return new StageResult(id, 7, "Etapa", null, "PENDIENTE", NOW, NOW, 100L);
+        return new StageResult(id, 7, "Etapa", null, "PENDIENTE", NOW, NOW, 100L, 0);
     }
 
     private static ActivityResult activity(Integer id) {
-        return new ActivityResult(id, 11, "Actividad", null, "PENDIENTE", NOW, NOW, 100L);
+        return new ActivityResult(id, 11, "Actividad", null, "PENDIENTE", NOW, NOW, 100L, 0);
     }
 
     private static TaskAssignmentResult assignment() {

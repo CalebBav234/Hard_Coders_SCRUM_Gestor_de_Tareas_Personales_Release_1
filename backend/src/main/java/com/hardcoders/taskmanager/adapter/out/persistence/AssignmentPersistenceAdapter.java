@@ -84,6 +84,7 @@ class AssignmentPersistenceAdapter implements AssignmentRepository {
         entity.setWorker(entityManager.getReference(AppUserEntity.class, assignment.workerUserId()));
         entity.setAssignedAt(assignment.assignedAt());
         entity.setAssignedBy(entityManager.getReference(AppUserEntity.class, assignment.assignedByUserId()));
+        entity.setReason(assignment.reason());
         try {
             entityManager.persist(entity);
             entityManager.flush();
@@ -107,6 +108,6 @@ class AssignmentPersistenceAdapter implements AssignmentRepository {
 
     private static TaskAssignment toDomain(TaskAssignmentEntity entity) {
         return new TaskAssignment(entity.getTask().getTaskId(), entity.getWorker().getUserId(),
-                entity.getAssignedAt(), entity.getAssignedBy().getUserId());
+                entity.getAssignedAt(), entity.getAssignedBy().getUserId(), entity.getReason());
     }
 }

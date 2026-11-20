@@ -8,6 +8,7 @@ import com.hardcoders.taskmanager.domain.exception.ForbiddenException;
 import com.hardcoders.taskmanager.domain.exception.NotFoundException;
 import com.hardcoders.taskmanager.domain.model.Actor;
 import com.hardcoders.taskmanager.domain.model.Task;
+import com.hardcoders.taskmanager.domain.model.TaskAssignment;
 import com.hardcoders.taskmanager.domain.model.UserAccount;
 import com.hardcoders.taskmanager.domain.port.out.UserDirectory;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,10 +79,33 @@ class AssignmentCommandServiceCoverageTest {
         TaskAssignmentResult assigned = service.assign(
                 new AssignWorkerCommand(task.id(), WORKER.userId(), "  Refuerzo  "));
         assertThat(assigned.reason()).isEqualTo("Refuerzo");
+        // EC3-02: el motivo se guarda con la asignación y el listado lo devuelve.
+        assertThat(ports.assignmentRepository.find(task.id(), WORKER.userId()))
+                .get().extracting(TaskAssignment::reason).isEqualTo("Refuerzo");
+        assertThat(service.assignmentsForTask(task.id()))
+                .extracting(TaskAssignmentResult::reason).containsExactly("Refuerzo");
 
         assertThatThrownBy(() -> service.assign(
                 new AssignWorkerCommand(task.id(), WORKER.userId(), "Duplicada")))
                 .isInstanceOf(DomainValidationException.class);
+    }
+
+    @Test
+    void persistsTheDefaultReasonAndRejectsReasonsLongerThan500CharactersWithoutSaving() {
+        service.assign(new AssignWorkerCommand(task.id(), WORKER.userId(), null));
+        assertThat(service.assignmentsForTask(task.id()))
+                .extracting(TaskAssignmentResult::reason).containsExactly("Asignación de Personal");
+        service.unassign(new UnassignWorkerCommand(task.id(), WORKER.userId(), null));
+
+        // EC3-03: mismo límite que el input HTML y AssignWorkerRequest, ahora también en el dominio.
+        assertThatThrownBy(() -> service.assign(
+                new AssignWorkerCommand(task.id(), WORKER.userId(), "x".repeat(501))))
+                .isInstanceOf(DomainValidationException.class)
+                .hasMessage("El motivo no puede superar 500 caracteres");
+        assertThat(ports.assignmentRepository.find(task.id(), WORKER.userId())).isEmpty();
+
+        assertThat(service.assign(new AssignWorkerCommand(task.id(), WORKER.userId(), "x".repeat(500))).reason())
+                .hasSize(500);
     }
 
     @Test

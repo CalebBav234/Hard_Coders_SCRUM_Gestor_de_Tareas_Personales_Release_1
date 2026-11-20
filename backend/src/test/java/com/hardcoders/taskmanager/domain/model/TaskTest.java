@@ -116,6 +116,52 @@ class TaskTest {
         assertThat(migrated.timeTracking().trackedSeconds()).isEqualTo(180);
     }
 
+    @Test
+    void r9_createAndRestoreFactoriesRespectDomainRules() {
+        Task created = Task.create("  Plan  ", TaskPriority.ALTA, WORK, ACTOR, T0, new BigDecimal("10.5"), 45);
+        assertThat(created.isNew()).isTrue();
+        assertThat(created.title()).isEqualTo("Plan");
+        assertThat(created.status()).isEqualTo(WorkStatus.PENDIENTE);
+        assertThat(created.priority()).isEqualTo(TaskPriority.ALTA);
+        assertThat(created.allocatedBudgetBob()).isEqualByComparingTo("10.50");
+        assertThat(created.estimatedDurationMinutes()).isEqualTo(45);
+        assertThat(created.pendingChanges()).singleElement().satisfies(c -> assertThat(c.reason()).isEqualTo("Tarea creada"));
+        assertThat(created.pendingRevisions()).singleElement().satisfies(r -> assertThat(r.reason()).isEqualTo("Plan inicial"));
+
+        Task restored = Task.restore(9, WORK, "R", "d", WorkStatus.EN_PROGRESO, TaskPriority.MEDIA,
+                new BigDecimal("1.00"), 15, 2, null, null, T0, T0.plusSeconds(5), List.of(), 3);
+        assertThat(restored.isNew()).isFalse();
+        assertThat(restored.id()).isEqualTo(9);
+        assertThat(restored.lastRevisionNumber()).isEqualTo(3);
+        assertThat(restored.pendingRevisions()).isEmpty();
+        assertThat(restored.version()).isEqualTo(VersionToken.of(T0.plusSeconds(5)));
+    }
+
+    @Test
+    void r9_editMovePlanAndVersionValidationFollowRules() {
+        Task task = persisted(WorkStatus.PENDIENTE, List.of());
+        task.verifyVersion(null);
+        task.verifyVersion(task.version());
+        task.edit("  Nuevo titulo  ", "  detalle  ", null);
+        assertThat(task.title()).isEqualTo("Nuevo titulo");
+        assertThat(task.description()).isEqualTo("detalle");
+        assertThat(task.priority()).isEqualTo(TaskPriority.ALTA);
+
+        Activity other = Activity.restore(4, 20, "Otra", null, WorkStatus.PENDIENTE, T0, T0);
+        task.moveTo(other);
+        assertThat(task.activity()).isSameAs(other);
+
+        task.replan(new BigDecimal("20.00"), 30, " ajuste ", ACTOR, T0.plusSeconds(10));
+        assertThat(task.allocatedBudgetBob()).isEqualByComparingTo("20.00");
+        assertThat(task.estimatedDurationMinutes()).isEqualTo(30);
+        assertThat(task.pendingRevisions()).singleElement().satisfies(r -> assertThat(r.reason()).isEqualTo("ajuste"));
+
+        assertThatThrownBy(() -> task.replan(new BigDecimal("20.00"), 30, "igual", ACTOR, T0.plusSeconds(20)))
+                .isInstanceOf(DomainValidationException.class);
+        assertThatThrownBy(() -> task.verifyVersion(task.version() - 1))
+                .isInstanceOf(VersionConflictException.class);
+    }
+
     private static Task persisted(WorkStatus status, List<StatusChange> history) {
         List<StatusChange> all = new ArrayList<>();
         all.add(new StatusChange(1, null, WorkStatus.PENDIENTE, T0.minusSeconds(60), ACTOR, "Tarea creada"));

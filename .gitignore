@@ -32,3 +32,10 @@ database/backups/
 database/.tmp/
 *.dump
 *.backup
+
+# Logs y scripts locales de ejecución (no versionar)
+/*.log
+/*.err
+/run-*.cmd
+/sq-downloads.html
+/node_modules/

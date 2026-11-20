@@ -7,6 +7,7 @@ import com.hardcoders.taskmanager.application.result.UserSummaryResult;
 import com.hardcoders.taskmanager.domain.exception.NotFoundException;
 import com.hardcoders.taskmanager.domain.model.Actor;
 import com.hardcoders.taskmanager.domain.model.Project;
+import com.hardcoders.taskmanager.domain.model.SearchText;
 import com.hardcoders.taskmanager.domain.policy.ProjectAccessPolicy;
 import com.hardcoders.taskmanager.domain.port.out.CurrentActor;
 import com.hardcoders.taskmanager.domain.port.out.ProjectRepository;
@@ -36,10 +37,21 @@ public class ProjectQueryService implements QueryProjectsUseCase {
     @Override
     public List<ProjectResult> listProjects() {
         Actor actor = currentActor.current();
-        if (!actor.active()) {
+        if (actor == null || !actor.active()) {
             return List.of();
         }
         List<Project> visible = actor.chief() ? projects.findAll() : projects.findManagedBy(actor.userId());
+        return assembler.toResults(actor, visible);
+    }
+
+    @Override
+    public List<ProjectResult> search(String query) {
+        Actor actor = currentActor.current();
+        if (actor == null || !actor.active()) {
+            return List.of();
+        }
+        String like = SearchText.likePattern(query).orElse(null);
+        List<Project> visible = actor.chief() ? projects.search(like) : projects.searchManagedBy(actor.userId(), like);
         return assembler.toResults(actor, visible);
     }
 
