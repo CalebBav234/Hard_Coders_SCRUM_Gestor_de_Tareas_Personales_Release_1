@@ -1,12 +1,16 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { Project, UserSummary } from '../../../core/models/project';
 import { Task } from '../../../core/models/task';
 import { TaskEditor } from '../task-editor/task-editor';
 import { TaskForm } from '../task-form/task-form';
 import { TaskList } from '../task-list/task-list';
 import { TaskHome } from './task-home';
+import { TaskService } from '../../../core/services/task.service';
+import { WbsService } from '../../../core/services/wbs.service';
+import { ProjectService } from '../../../core/services/project.service';
 
 describe('TaskHome — armado de la pantalla de tareas', () => {
   let fixture: ComponentFixture<TaskHome>;
@@ -149,7 +153,7 @@ describe('TaskHome — armado de la pantalla de tareas', () => {
     await TestBed.resetTestingModule();
     await TestBed.configureTestingModule({
       imports: [TaskHome],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), TaskService, WbsService, ProjectService],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(TaskHome);

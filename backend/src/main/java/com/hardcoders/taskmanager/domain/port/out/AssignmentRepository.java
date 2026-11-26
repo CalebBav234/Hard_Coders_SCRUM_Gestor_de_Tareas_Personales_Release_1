@@ -22,6 +22,9 @@ public interface AssignmentRepository {
     /** Inserta una asignación; la duplicidad la rechaza la clave compuesta de V004. */
     TaskAssignment save(TaskAssignment assignment);
 
+    /** Actualiza únicamente el motivo de una asignación existente; devuelve vacía si no existe. */
+    Optional<TaskAssignment> updateReason(Integer taskId, Integer workerUserId, String reason);
+
     /** Elimina una asignación (revocación). */
     void delete(Integer taskId, Integer workerUserId);
 }

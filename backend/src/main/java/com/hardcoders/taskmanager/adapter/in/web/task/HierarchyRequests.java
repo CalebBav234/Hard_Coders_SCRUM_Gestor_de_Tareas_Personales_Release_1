@@ -72,4 +72,10 @@ public final class HierarchyRequests {
             String reason
     ) {
     }
+
+    public record UpdateAssignmentReasonRequest(
+            @Size(max = 500, message = "El motivo no puede superar 500 caracteres")
+            String reason
+    ) {
+    }
 }

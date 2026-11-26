@@ -8,6 +8,8 @@ import com.hardcoders.taskmanager.application.command.UpdateTaskCommand;
 import com.hardcoders.taskmanager.application.command.VersionedCommand;
 import com.hardcoders.taskmanager.application.result.TaskResult;
 
+import java.util.List;
+
 /** Puerto de entrada: comandos sobre tareas. Cada operación es atómica. */
 public interface ManageTasksUseCase {
 
@@ -30,4 +32,6 @@ public interface ManageTasksUseCase {
     TaskResult reopen(TransitionCommand command);
 
     void cancel(VersionedCommand command);
+
+    void reorderTasks(Integer activityId, List<Integer> taskIds);
 }

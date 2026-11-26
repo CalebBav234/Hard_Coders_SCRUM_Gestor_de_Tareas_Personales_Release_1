@@ -50,6 +50,17 @@ class UserDirectoryAdapter implements UserDirectory {
                 .toList();
     }
 
+    @Override
+    public List<UserAccount> findAll() {
+        return entityManager.createQuery("""
+                        select u from AppUserEntity u
+                        order by lower(u.email), u.userId
+                        """, AppUserEntity.class)
+                .getResultList().stream()
+                .map(UserDirectoryAdapter::toDomain)
+                .toList();
+    }
+
     static UserAccount toDomain(AppUserEntity entity) {
         return new UserAccount(entity.getUserId(), entity.getEmail(), entity.getGivenNames(), entity.getFamilyNames(),
                 Boolean.TRUE.equals(entity.getIsChief()), Boolean.TRUE.equals(entity.getIsActive()));

@@ -424,6 +424,9 @@ class JpaEntityCoverageTest {
         assertThat(entity.getTask()).isEqualTo(task);
         assertThat(entity.getWorker()).isEqualTo(worker);
         assertThat(entity.getAssignedBy()).isEqualTo(chief);
+        assertThat(entity.getReason()).isNull();
+        entity.setReason("Refuerzo");
+        assertThat(entity.getReason()).isEqualTo("Refuerzo");
     }
 
     @Test

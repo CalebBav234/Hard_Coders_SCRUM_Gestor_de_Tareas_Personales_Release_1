@@ -156,6 +156,126 @@ describe('TaskForm', () => {
     expect(element.querySelector('button[type="button"]')?.textContent).toContain('Crear tarea');
   });
 
+  // ---------------------------------------------------------------- EC3-04 / R2
+  function createTaskWith(hours: string, budget: string): void {
+    fixture.componentRef.setInput('activityId', 3);
+    fixture.detectChanges();
+    setValue('#title', 'Vaciado de losa');
+    setValue('#estimatedHours', hours);
+    setValue('#allocatedBudgetBob', budget);
+    click('Crear tarea');
+  }
+
+  it('EC3-04: sends the duration in minutes and the budget in their own fields', () => {
+    createTaskWith('1.5', '250.5');
+
+    const request = http.expectOne('/api/tasks');
+    expect(request.request.body).toEqual({
+      activityId: 3,
+      title: 'Vaciado de losa',
+      priority: 'MEDIA',
+      allocatedBudgetBob: 250.5,
+      estimatedDurationMinutes: 90,
+    });
+    request.flush({ ...taskDto, estimatedDurationMinutes: 90, allocatedBudgetBob: 250.5 });
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.estimatedHours).toBeNull();
+    expect(fixture.componentInstance.allocatedBudgetBob).toBeNull();
+  });
+
+  it('EC3-04: shows the equivalent working time while typing the hours', () => {
+    fixture.componentRef.setInput('activityId', 3);
+    fixture.detectChanges();
+    setValue('#estimatedHours', '2.25');
+
+    expect(element.querySelector('.gt-field-hint')?.textContent).toContain('2 h 15 min');
+  });
+
+  it.each([
+    ['0', 0],
+    ['0.25', 15],
+    ['8', 480],
+  ])('BVA3 duration: %s h is accepted and sent as %i min', (hours: string, minutes: number) => {
+    createTaskWith(hours, '0');
+
+    const request = http.expectOne('/api/tasks');
+    expect(request.request.body.estimatedDurationMinutes).toBe(minutes);
+    request.flush(taskDto);
+  });
+
+  it('BVA3 duration: -0.25 h is rejected without calling the backend', () => {
+    createTaskWith('-0.25', '0');
+
+    expect(fixture.componentInstance.durationError).toBe('La duración debe ser un número mayor o igual a 0.');
+    expect(element.textContent).toContain('La duración debe ser un número mayor o igual a 0.');
+    http.expectNone('/api/tasks');
+  });
+
+  it.each([
+    ['0.1', 6],
+    ['0.3', 18],
+  ])('EC3-04: duration %s h (no multiple of 0.25 h) is rejected without calling the backend', (hours: string) => {
+    createTaskWith(hours, '0');
+
+    expect(fixture.componentInstance.durationError).toBe('La duración debe usar incrementos de 0.25 h (15 min).');
+    expect(element.textContent).toContain('La duración debe usar incrementos de 0.25 h (15 min).');
+    http.expectNone('/api/tasks');
+  });
+
+  it('rejects an absurdly large duration that does not fit the integer column', () => {
+    createTaskWith('99999999', '0');
+
+    expect(fixture.componentInstance.durationError).toBe('La duración estimada es demasiado grande.');
+    http.expectNone('/api/tasks');
+  });
+
+  it.each([
+    ['0', 0],
+    ['0.01', 0.01],
+    ['9999999999999.99', 9999999999999.99],
+  ])('BVA3 budget: %s Bs is accepted', (budget: string, expected: number) => {
+    createTaskWith('1', budget);
+
+    const request = http.expectOne('/api/tasks');
+    expect(request.request.body.allocatedBudgetBob).toBe(expected);
+    request.flush(taskDto);
+  });
+
+  it.each([
+    ['-0.01', 'El presupuesto debe ser mayor o igual a 0.'],
+    ['10.001', 'El presupuesto admite hasta 13 dígitos enteros y 2 decimales.'],
+    ['10000000000000', 'El presupuesto admite hasta 13 dígitos enteros y 2 decimales.'],
+  ])('BVA3/EP budget: %s Bs is rejected without calling the backend', (budget: string, message: string) => {
+    createTaskWith('1', budget);
+
+    expect(fixture.componentInstance.budgetError).toBe(message);
+    expect(element.textContent).toContain(message);
+    http.expectNone('/api/tasks');
+  });
+
+  it('sends 0 for empty duration and budget fields', () => {
+    fixture.componentRef.setInput('activityId', 3);
+    fixture.detectChanges();
+    setValue('#title', 'Sin plan');
+    setValue('#estimatedHours', '');
+    setValue('#allocatedBudgetBob', '');
+    click('Crear tarea');
+
+    const request = http.expectOne('/api/tasks');
+    expect(request.request.body.estimatedDurationMinutes).toBe(0);
+    expect(request.request.body.allocatedBudgetBob).toBe(0);
+    request.flush(taskDto);
+  });
+
+  it('subtasks do not show nor send duration and budget fields', () => {
+    fixture.componentRef.setInput('parentTaskId', 11);
+    fixture.detectChanges();
+
+    expect(element.querySelector('#estimatedHours')).toBeNull();
+    expect(element.querySelector('#allocatedBudgetBob')).toBeNull();
+  });
+
   it('creates a subtask under the given parent task', () => {
     const emitted: Task[] = [];
     fixture.componentInstance.taskCreated.subscribe((task) => emitted.push(task));

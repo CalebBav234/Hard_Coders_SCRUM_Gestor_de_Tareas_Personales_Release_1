@@ -12,6 +12,8 @@ public interface QueryProjectsUseCase {
     /** Jefe: todos; Encargado: los que dirige; otros: ninguno. */
     List<ProjectResult> listProjects();
 
+    List<ProjectResult> search(String query);
+
     ProjectResult getProject(Integer projectId);
 
     List<PlanRevisionResult> planHistory(Integer projectId);

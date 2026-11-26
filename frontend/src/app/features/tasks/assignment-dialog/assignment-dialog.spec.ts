@@ -344,4 +344,198 @@ describe('AssignmentDialog — US2.3 (asignación de Personal)', () => {
     component.close();
     expect(closed).toHaveBeenCalled();
   });
+
+  it('abre el detalle de una asignación concreta', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+
+    expect(element.textContent).toContain('Ana Perez');
+    expect(element.textContent).toContain('Julia Mendoza');
+    expect(element.textContent).toContain('Carga de trabajo');
+    expect(element.textContent).toContain('Editar motivo');
+    expect(element.textContent).toContain('Retirar asignación');
+    expect(element.textContent).toContain('Volver al listado');
+  });
+
+  it('edita el motivo de una asignación y lo persiste', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Editar motivo');
+
+    setValue('#assignment-edit-reason', 'Nuevo motivo editado');
+    click('Guardar motivo');
+
+    const putRequest = http.expectOne('/api/tasks/8/assignments/5');
+    expect(putRequest.request.method).toBe('PUT');
+    expect(putRequest.request.body).toEqual({ reason: 'Nuevo motivo editado' });
+    putRequest.flush({ ...assignmentOf(), reason: 'Nuevo motivo editado' });
+
+    http.expectOne('/api/tasks/8/assignments').flush([{ ...assignmentOf(), reason: 'Nuevo motivo editado' }]);
+
+    expect(fixture.componentInstance.success).toBe('Motivo actualizado.');
+  });
+
+  it('cancela la edición de motivo y vuelve al detalle', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Editar motivo');
+    click('Cancelar');
+
+    expect(fixture.componentInstance.editingAssignment).toBeNull();
+  });
+
+  it('confirma la revocación antes de retirar la asignación', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Retirar asignación');
+
+    // Debe mostrar el diálogo de confirmación
+    expect(element.textContent).toContain('¿Retirar esta asignación?');
+    expect(element.textContent).toContain('Ana Perez');
+
+    click('Confirmar retiro');
+
+    const deleteRequest = http.expectOne('/api/tasks/8/assignments/5');
+    expect(deleteRequest.request.method).toBe('DELETE');
+    deleteRequest.flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/tasks/8/assignments').flush([]);
+
+    expect(fixture.componentInstance.success).toContain('Ana Perez');
+  });
+
+  it('cancela la confirmación de revocación y no elimina', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Retirar asignación');
+    click('Cancelar');
+
+    expect(fixture.componentInstance.confirmingAssignment).toBeNull();
+    http.expectNone('/api/tasks/8/assignments/5');
+  });
+
+  it('cierra el detalle y vuelve al listado', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Volver al listado');
+
+    expect(fixture.componentInstance.viewingAssignment).toBeNull();
+    expect(element.textContent).toContain('Personal asignado');
+  });
+
+  it('muestra error al guardar el motivo si el backend falla', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Editar motivo');
+
+    setValue('#assignment-edit-reason', 'Motivo que falla');
+    click('Guardar motivo');
+
+    const putRequest = http.expectOne('/api/tasks/8/assignments/5');
+    putRequest.flush({ error: 'VALIDATION_ERROR', message: 'Error de validación' }, { status: 400, statusText: 'Bad Request' });
+
+    expect(fixture.componentInstance.error).toBe('Error de validación');
+    expect(fixture.componentInstance.saving).toBe(false);
+  });
+
+  it('muestra error al revocar si el backend falla', () => {
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+    click('Retirar asignación');
+
+    const confirmDelete = element.querySelector('.assignment-confirm-modal')!;
+    const confirmButton = confirmDelete.querySelector('button.btn-unassign')! as HTMLButtonElement;
+    confirmButton.click();
+    fixture.detectChanges();
+
+    const deleteRequest = http.expectOne('/api/tasks/8/assignments/5');
+    deleteRequest.flush({ error: 'INTERNAL' }, { status: 500, statusText: 'Server Error' });
+
+    expect(fixture.componentInstance.error).toBe('No se pudo retirar la asignación.');
+    expect(fixture.componentInstance.deleting).toBe(false);
+  });
+
+  it('no envía nada al guardar si el motivo está vacío y no hay edición previa', () => {
+    const component = fixture.componentInstance;
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([]);
+    fixture.detectChanges();
+
+    component.editReason = '';
+    component.saveReason();
+
+    http.expectNone('/api/tasks/8/assignments/8');
+  });
+
+  it('no revoca si no hay asignación de confirmación', () => {
+    const component = fixture.componentInstance;
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([]);
+    fixture.detectChanges();
+
+    component.revoke();
+
+    http.expectNone('/api/tasks/8/assignments/8');
+  });
+
+  it('muestra motivo por defecto cuando la razón es nula en el detalle', () => {
+    const assignmentNullReason: AssignmentDto = {
+      ...assignmentOf(),
+      reason: null,
+    };
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentNullReason]);
+    fixture.detectChanges();
+
+    click('Ver detalle');
+
+    expect(element.textContent).toContain('Asignación de Personal');
+  });
+
+  it('no intenta retirar mientras ya se está guardando una asignación', () => {
+    const component = fixture.componentInstance;
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    component.saving = true;
+    component.unassign(assignmentOf());
+
+    http.expectNone('/api/tasks/8/assignments/5');
+  });
+
+  it('no confirma revocación mientras se está guardando o eliminando', () => {
+    const component = fixture.componentInstance;
+    http.expectOne('/api/projects/42/workers').flush([]);
+    http.expectOne('/api/tasks/8/assignments').flush([assignmentOf()]);
+    fixture.detectChanges();
+
+    component.saving = true;
+    component.confirmRevoke(assignmentOf());
+
+    expect(component.confirmingAssignment).toBeNull();
+  });
 });

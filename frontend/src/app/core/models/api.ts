@@ -72,6 +72,8 @@ export interface StageDto {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Número de actividades hijas (visible también cuando la etapa está colapsada). */
+  activityCount?: number;
 }
 
 export interface ActivityDetailDto {
@@ -83,6 +85,8 @@ export interface ActivityDetailDto {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Número de tareas hijas. */
+  taskCount?: number;
 }
 
 export interface AssignmentDto {
@@ -208,6 +212,11 @@ export interface HierarchyStatusBody {
 
 export interface AssignWorkerBody {
   workerUserId: number;
+  reason: string | null;
+}
+
+/** Cuerpo de la actualización de motivo de una asignación: solo se admite el campo reason. */
+export interface UpdateAssignmentReasonBody {
   reason: string | null;
 }
 

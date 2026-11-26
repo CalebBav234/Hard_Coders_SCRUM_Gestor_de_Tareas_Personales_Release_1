@@ -13,12 +13,11 @@ public interface TaskRepository {
 
     Optional<Task> findVisible(Integer projectId, Integer taskId);
 
-    /**
-     * Tareas no canceladas del proyecto, de la más reciente a la más antigua.
-     *
-     * @param likePattern patrón normalizado de {@code SearchText}; nulo para no filtrar
-     */
     List<Task> findVisible(Integer projectId, String likePattern);
+
+    List<Task> searchAll(String likePattern);
+
+    List<Task> searchVisibleFor(Integer workerUserId, String likePattern);
 
     /** Tareas COMPLETADAS o CANCELADAS del proyecto (el "historial" de la interfaz). */
     List<Task> findArchived(Integer projectId, String likePattern);
@@ -31,6 +30,8 @@ public interface TaskRepository {
 
     /** Proyecto al que pertenece la tarea ({@code task → activity → stage → project}). */
     Optional<Integer> projectIdOf(Integer taskId);
+
+    void reorderTasks(Integer activityId, List<Integer> taskIds);
 
     /** Inserta o actualiza la tarea y agrega sus cambios de estado pendientes; devuelve el estado persistido. */
     Task save(Task task);

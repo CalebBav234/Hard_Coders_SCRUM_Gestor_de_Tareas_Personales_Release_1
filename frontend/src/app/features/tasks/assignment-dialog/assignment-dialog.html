@@ -96,6 +96,19 @@
 
           <div class="assignment-form">
 
+            <!-- NUEVO BUSCADOR -->
+            <div class="form-group">
+              <label for="assignment-search">Buscar personal</label>
+              <input
+                id="assignment-search"
+                type="text"
+                placeholder="Buscar por nombre o rol..."
+                [(ngModel)]="searchTermWorker"
+                [disabled]="saving"
+                style="margin-bottom: 8px;"
+              />
+            </div>
+
             <div class="form-group">
               <label for="assignment-worker">Trabajador</label>
               <select
@@ -104,12 +117,20 @@
                 [disabled]="saving"
               >
                 <option [ngValue]="null">— Selecciona —</option>
-                @for (worker of availableWorkers; track worker.userId) {
+                <!-- CAMBIO AQUÍ: Usamos filteredAvailableWorkers -->
+                @for (worker of filteredAvailableWorkers; track worker.userId) {
                   <option [value]="worker.userId">
                     {{ worker.fullName }}{{ worker.chief ? ' (Jefe)' : '' }}
                   </option>
                 }
               </select>
+
+              <!-- Mensaje por si la búsqueda no encuentra a nadie -->
+              @if (searchTermWorker && filteredAvailableWorkers.length === 0) {
+                <span style="color: #ff6b6b; font-size: 0.85rem; margin-top: 4px; display: block;">
+                  No se encontraron coincidencias.
+                </span>
+              }
             </div>
 
             <div class="form-group">

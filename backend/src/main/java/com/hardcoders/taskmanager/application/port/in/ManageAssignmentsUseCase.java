@@ -17,6 +17,12 @@ public interface ManageAssignmentsUseCase {
     /** Asignaciones vigentes de la tarea (Jefe o Encargado del proyecto). */
     List<TaskAssignmentResult> assignmentsForTask(Integer taskId);
 
+    /** Consulta individual de una asignación por clave compuesta (taskId, workerUserId). */
+    TaskAssignmentResult getAssignment(Integer taskId, Integer workerUserId);
+
+    /** Actualiza únicamente el motivo de una asignación existente; conserva identidad y auditoría. */
+    TaskAssignmentResult updateReason(Integer taskId, Integer workerUserId, String reason);
+
     /** Usuarios activos asignables en el proyecto (Jefe o Encargado del proyecto). */
     List<UserSummaryResult> assignableWorkers(Integer projectId);
 }

@@ -36,6 +36,10 @@ public class TaskAssignmentEntity {
     @JoinColumn(name = "assigned_by_user_id", nullable = false)
     private AppUserEntity assignedBy;
 
+    /** EC3-02 (V006): motivo de la asignación; nulo en asignaciones anteriores a V006. */
+    @Column(name = "reason", length = 500)
+    private String reason;
+
     @PrePersist
     protected void onCreate() {
         if (assignedAt == null) {
@@ -81,5 +85,13 @@ public class TaskAssignmentEntity {
 
     public void setAssignedBy(AppUserEntity assignedBy) {
         this.assignedBy = assignedBy;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
     }
 }

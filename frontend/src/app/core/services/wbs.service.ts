@@ -8,6 +8,7 @@ import {
   ProjectProgressDto,
   StageDto,
   UpdateActivityBody,
+  UpdateAssignmentReasonBody,
   UpdateStageBody,
 } from '../models/api';
 import { UserSummary } from '../models/project';
@@ -73,6 +74,16 @@ export class WbsService {
     return this.http.put<ActivityDetailDto>(`${this.activitiesUrl}/${activityId}/status`, { status, version });
   }
 
+  /** US2.2: persiste el nuevo orden de las etapas de un proyecto. */
+  reorderStages(projectId: number, stageIds: number[]): Observable<void> {
+    return this.http.put<void>(`${this.projectsUrl}/${projectId}/stages/reorder`, stageIds);
+  }
+
+  /** US2.2: persiste el nuevo orden de las actividades de una etapa. */
+  reorderActivities(stageId: number, activityIds: number[]): Observable<void> {
+    return this.http.put<void>(`${this.stagesUrl}/${stageId}/activities/reorder`, activityIds);
+  }
+
   /** Trabajadores activos que el Encargado puede asignar en el proyecto. */
   listWorkers(projectId: number): Observable<UserSummary[]> {
     return this.http.get<UserSummary[]>(`${this.projectsUrl}/${projectId}/workers`);
@@ -84,6 +95,17 @@ export class WbsService {
 
   assign(taskId: number, workerUserId: number, reason: string | null): Observable<AssignmentDto> {
     return this.http.post<AssignmentDto>(`${this.tasksUrl}/${taskId}/assignments`, { workerUserId, reason });
+  }
+
+  /** US2.3: consulta individual de una asignación por clave compuesta. */
+  getAssignment(taskId: number, workerUserId: number): Observable<AssignmentDto> {
+    return this.http.get<AssignmentDto>(`${this.tasksUrl}/${taskId}/assignments/${workerUserId}`);
+  }
+
+  /** US2.3: actualiza únicamente el motivo de una asignación existente. */
+  updateAssignment(taskId: number, workerUserId: number, reason: string | null): Observable<AssignmentDto> {
+    const body: UpdateAssignmentReasonBody = { reason };
+    return this.http.put<AssignmentDto>(`${this.tasksUrl}/${taskId}/assignments/${workerUserId}`, body);
   }
 
   unassign(taskId: number, workerUserId: number): Observable<void> {

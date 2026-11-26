@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, forkJoin, map, throwError } from 'rxjs';
 import {
@@ -68,7 +68,10 @@ export class TaskService {
               estimatedDurationMinutes: 0,
               assignedWorkerIds: [],
             };
-            return taskToView(taskDto);
+            // US3.1: el Personal no recibe datos financieros ni de plan; los 0 de arriba son de relleno
+            // para reutilizar el mapper y no deben llegar a la vista.
+            const { allocatedBudgetBob: _budget, estimatedDurationMinutes: _duration, ...view } = taskToView(taskDto);
+            return view;
           }),
         ),
         catchError(this.handleError),
@@ -95,6 +98,29 @@ export class TaskService {
       ),
       catchError(this.handleError),
     );
+  }
+
+  searchTasks(query: string): Observable<Task[]> {
+    const params = new HttpParams().set('q', query);
+    return this.http.get<TaskDto[]>(this.tasksUrl, { params }).pipe(
+      map((tasks) => tasks.map((task) => taskToView(task))),
+      catchError(this.handleError),
+    );
+  }
+
+  searchProjectsGlobal(query: string): Observable<any[]> {
+    const params = new HttpParams().set('q', query);
+    return this.http.get<any[]>('/api/projects', { params });
+  }
+
+  searchStagesGlobal(query: string): Observable<any[]> {
+    const params = new HttpParams().set('q', query);
+    return this.http.get<any[]>('/api/stages', { params });
+  }
+
+  searchActivitiesGlobal(query: string): Observable<any[]> {
+    const params = new HttpParams().set('q', query);
+    return this.http.get<any[]>(this.activitiesUrl, { params });
   }
 
   /** Con {@code parentTaskId} crea una subtarea de esa tarea; si no, una tarea en la actividad. */
@@ -176,6 +202,11 @@ export class TaskService {
         version: task.version,
       })
       .pipe(map((updated) => taskToView(updated)), catchError(this.handleError));
+  }
+
+  /** US2.2: persiste el nuevo orden de las tareas de una actividad. */
+  reorderTasks(activityId: number, taskIds: number[]): Observable<void> {
+    return this.http.put<void>(`${this.activitiesUrl}/${activityId}/tasks/reorder`, taskIds);
   }
 
   /** Las actividades ("categorías") de la etapa seleccionada; oculta "Sin categoría". */

@@ -1,0 +1,277 @@
+name: EC4 Quality Gate
+
+on:
+  push:
+    branches: [Refactor-E2]
+  pull_request:
+    branches: [Refactor-E2]
+  workflow_dispatch:
+
+concurrency:
+  group: ec4-quality-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ###############################################################################
+  # BACKEND: unit tests, Postgres integration, Cucumber BDD (EC4), JaCoCo gate
+  ###############################################################################
+  backend:
+    name: Backend (Java 21 + Maven + PostgreSQL 18)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Java 21 (Temurin) + Maven cache
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Install postgresql-client
+        run: sudo apt-get update -y && sudo apt-get install -y postgresql-client
+
+      - name: Create test database and role (gestor_tareas_test, never gestor_tareas/prod)
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'gestor_tareas_owner') THEN CREATE ROLE gestor_tareas_owner LOGIN PASSWORD 'ownerpass'; ALTER ROLE gestor_tareas_owner SET search_path TO task_manager, public; END IF; END \$\$;" || true
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE gestor_tareas_test OWNER gestor_tareas_owner;" || true
+
+      - name: Apply migrations V001-V006 to gestor_tareas_test (schema task_manager)
+        run: |
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS public.database_schema_migrations (version integer PRIMARY KEY, description varchar(200) NOT NULL, checksum char(64) NOT NULL, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, applied_by name NOT NULL DEFAULT CURRENT_USER);" || true
+          for f in \
+            database/migrations/V001__initial_schema.sql \
+            database/migrations/V002__views_and_permissions.sql \
+            database/migrations/V003__task_archive.sql \
+            database/migrations/V004__project_management_model.sql \
+            database/migrations/V005__add_sort_order.sql \
+            database/migrations/V006__task_assignment_reason.sql; do
+            echo "Applying migration $f"
+            psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -f "$f"
+          done
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -c "INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by) VALUES (1, 'initial schema', 'c4d290198c22ecd90108c7afafd6002f52ee8f2cf2f8939a2bbeaf6daed0086d', CURRENT_USER), (2, 'views and permissions', '985ff1238dfcd2f71ceec5bc848a90a2500d91c60617bbaa5e057e5b6d66f97b', CURRENT_USER), (3, 'task archive', 'a5b8d1568195c6ea03e58babd4f41ee4ed0b38207ab6c89c287e98a1c4b31772', CURRENT_USER), (4, 'project management model', 'dd55ed8ca35a66eb96221efa330941db84c17bfdac29b7e7826dff3b0498b5ac', CURRENT_USER), (5, 'add sort order', '4bb94a97158a0f808f167079194fe2732f3468b1f42b844f3a5e3baa852dc3ab', CURRENT_USER), (6, 'task assignment reason', 'e1bd108bc203360e4e7e5a363d8aa1ff4ca0be4b65161f21552ab92ab9ac1dec', CURRENT_USER) ON CONFLICT (version) DO NOTHING;"
+
+      - name: Backend verify (unit + integration + Cucumber EC4 + JaCoCo check)
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/gestor_tareas_test?currentSchema=task_manager
+          SPRING_DATASOURCE_USERNAME: gestor_tareas_owner
+          SPRING_DATASOURCE_PASSWORD: ownerpass
+          SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+          APP_JWT_SECRET: test-secret-for-etapa4-integration-0123456789
+        run: cd backend && mvn -B verify
+
+      - name: Publish backend test reports (Surefire)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: backend-surefire-reports
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+      - name: Publish JaCoCo report (HTML/XML/CSV)
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: backend-jacoco-report
+          path: backend/target/site/jacoco/
+          retention-days: 7
+
+  ###############################################################################
+  # FRONTEND: npm ci, Vitest + coverage (gate >=85%), Angular production build
+  ###############################################################################
+  frontend:
+    name: Frontend (Node 24 + Vitest + Angular build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Node 24 + npm cache
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (npm ci, lockfile enforced)
+        run: cd frontend && npm ci
+
+      - name: Vitest with coverage (thresholds >= 85% Statements/Branches/Functions/Lines)
+        run: cd frontend && npx ng test --watch=false --coverage
+
+      - name: Angular production build
+        run: cd frontend && npm run build
+
+      - name: Publish frontend coverage
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 7
+
+      - name: Publish frontend build logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: frontend-build-logs
+          path: frontend/dist/
+          retention-days: 7
+
+  ###############################################################################
+  # PLAYWRIGHT E2E: real stack (Postgres + Backend + Frontend) against gestor_tareas_test
+  ###############################################################################
+  e2e:
+    name: E2E (Playwright Chromium, real HTTP stack)
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Set up Java 21 (Temurin) + Maven cache
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: 'maven'
+
+      - name: Set up Node 24 + npm cache
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies (backend + frontend)
+        run: cd frontend && npm ci
+
+      - name: Install postgresql-client
+        run: sudo apt-get update -y && sudo apt-get install -y postgresql-client curl
+
+      - name: Create test database and role (gestor_tareas_test, never gestor_tareas/prod)
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'gestor_tareas_owner') THEN CREATE ROLE gestor_tareas_owner LOGIN PASSWORD 'ownerpass'; ALTER ROLE gestor_tareas_owner SET search_path TO task_manager, public; END IF; END \$\$;" || true
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE gestor_tareas_test OWNER gestor_tareas_owner;" || true
+
+      - name: Apply migrations V001-V006 to gestor_tareas_test (schema task_manager)
+        run: |
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -c "CREATE TABLE IF NOT EXISTS public.database_schema_migrations (version integer PRIMARY KEY, description varchar(200) NOT NULL, checksum char(64) NOT NULL, applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, applied_by name NOT NULL DEFAULT CURRENT_USER);" || true
+          for f in \
+            database/migrations/V001__initial_schema.sql \
+            database/migrations/V002__views_and_permissions.sql \
+            database/migrations/V003__task_archive.sql \
+            database/migrations/V004__project_management_model.sql \
+            database/migrations/V005__add_sort_order.sql \
+            database/migrations/V006__task_assignment_reason.sql; do
+            echo "Applying migration $f"
+            psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -f "$f"
+          done
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -c "INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by) VALUES (1, 'initial schema', 'c4d290198c22ecd90108c7afafd6002f52ee8f2cf2f8939a2bbeaf6daed0086d', CURRENT_USER), (2, 'views and permissions', '985ff1238dfcd2f71ceec5bc848a90a2500d91c60617bbaa5e057e5b6d66f97b', CURRENT_USER), (3, 'task archive', 'a5b8d1568195c6ea03e58babd4f41ee4ed0b38207ab6c89c287e98a1c4b31772', CURRENT_USER), (4, 'project management model', 'dd55ed8ca35a66eb96221efa330941db84c17bfdac29b7e7826dff3b0498b5ac', CURRENT_USER), (5, 'add sort order', '4bb94a97158a0f808f167079194fe2732f3468b1f42b844f3a5e3baa852dc3ab', CURRENT_USER), (6, 'task assignment reason', 'e1bd108bc203360e4e7e5a363d8aa1ff4ca0be4b65161f21552ab92ab9ac1dec', CURRENT_USER) ON CONFLICT (version) DO NOTHING;"
+
+      - name: Seed E2E test users in gestor_tareas_test (jefe, encargado1, personal, inactivo, user-3)
+        run: |
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -c "INSERT INTO task_manager.app_user (user_id, email, password_hash, given_names, family_names, is_chief, is_active, created_at, updated_at) VALUES (1, 'jefe@gestor.local', '\$2a\$10\$8ZuR4anF/bgLtSLQ28BsYuuvRO2tGnQONdL.2bSk3hZnz2vFgbJQC', 'Julia', 'Mendoza', true,  true, now(), now()), (2, 'encargado1@gestor.local', '\$2a\$10\$8ZuR4anF/bgLtSLQ28BsYuuvRO2tGnQONdL.2bSk3hZnz2vFgbJQC', 'Ana',   'Paz',     false, true, now(), now()), (3, 'encargado3@gestor.local', '\$2a\$10\$8ZuR4anF/bgLtSLQ28BsYuuvRO2tGnQONdL.2bSk3hZnz2vFgbJQC', 'Luis',  'Vaca',    false, true, now(), now()), (4, 'personal@gestor.local',   '\$2a\$10\$8ZuR4anF/bgLtSLQ28BsYuuvRO2tGnQONdL.2bSk3hZnz2vFgbJQC', 'Pedro', 'Rojas',   false, true, now(), now()), (5, 'inactivo@gestor.local',   '\$2a\$10\$8ZuR4anF/bgLtSLQ28BsYuuvRO2tGnQONdL.2bSk3hZnz2vFgbJQC', 'Iván',  'Soto',    false, false, now(), now()) ON CONFLICT (email) DO NOTHING;" || true
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -c "SELECT setval('task_manager.app_user_user_id_seq', (SELECT MAX(user_id) FROM task_manager.app_user));"
+
+      - name: Package backend (skip tests, tests already run in backend job)
+        env:
+          SPRING_DATASOURCE_PASSWORD: ownerpass
+          APP_JWT_SECRET: test-secret-for-etapa4-integration-0123456789
+        run: cd backend && mvn -B -q -DskipTests package
+
+      - name: Install Playwright browser (Chromium) + system deps
+        run: cd frontend && npx playwright install chromium --with-deps
+
+      - name: Start Backend (port 8081) against gestor_tareas_test
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/gestor_tareas_test?currentSchema=task_manager
+          SPRING_DATASOURCE_USERNAME: gestor_tareas_owner
+          SPRING_DATASOURCE_PASSWORD: ownerpass
+          APP_JWT_SECRET: test-secret-for-etapa4-integration-0123456789
+        run: cd backend && nohup java -jar target/gestor-tareas-backend-0.0.1-SNAPSHOT.jar --server.port=8081 > backend-e2e.log 2>&1 &
+
+      - name: Start Frontend (port 4200) proxied to Backend
+        run: cd frontend && nohup npx ng serve --port 4200 --proxy-config proxy.conf.json > frontend-e2e.log 2>&1 &
+
+      - name: Wait for Backend readiness (real HTTP, no fixed sleep)
+        run: |
+          curl --retry-connrefused --retry 40 --retry-delay 2 -s -o /dev/null http://localhost:8081/api/users
+
+      - name: Wait for Frontend readiness (real HTTP, no fixed sleep)
+        run: |
+          curl --retry-connrefused --retry 40 --retry-delay 2 -s -o /dev/null http://localhost:4200/
+
+      - name: Run Playwright E2E (users, assignments, main process)
+        env:
+          E2E_BASE_URL: http://localhost:4200
+          E2E_API_URL: http://localhost:8081/api
+          E2E_CHIEF_EMAIL: jefe@gestor.local
+          E2E_CHIEF_PASSWORD: Gestor2026!
+        run: cd frontend && npx playwright test
+
+      - name: Publish Playwright report, traces and screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: playwright-e2e-report
+          path: |
+            frontend/playwright-report/
+            frontend/playwright-traces/
+            frontend/test-results/
+          retention-days: 7
+
+  ###############################################################################
+  # QUALITY GATE: fails when any required job fails or is cancelled
+  ###############################################################################
+  quality-gate:
+    name: Consolidated quality gate
+    needs: [backend, frontend, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail workflow if any required job failed or was cancelled
+        if: >
+          needs.backend.result == 'failure' || needs.backend.result == 'cancelled' ||
+          needs.frontend.result == 'failure' || needs.frontend.result == 'cancelled' ||
+          needs.e2e.result == 'failure' || needs.e2e.result == 'cancelled'
+        run: |
+          echo "One or more required EC4 jobs did not succeed."
+          echo "backend = ${{ needs.backend.result }}"
+          echo "frontend = ${{ needs.frontend.result }}"
+          echo "e2e = ${{ needs.e2e.result }}"
+          exit 1
+      - name: All EC4 quality gates passed
+        run: 'echo "EC4 quality gate: BACKEND, FRONTEND and E2E all succeeded."'

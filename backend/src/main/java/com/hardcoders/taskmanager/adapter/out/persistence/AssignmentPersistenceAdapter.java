@@ -84,6 +84,7 @@ class AssignmentPersistenceAdapter implements AssignmentRepository {
         entity.setWorker(entityManager.getReference(AppUserEntity.class, assignment.workerUserId()));
         entity.setAssignedAt(assignment.assignedAt());
         entity.setAssignedBy(entityManager.getReference(AppUserEntity.class, assignment.assignedByUserId()));
+        entity.setReason(assignment.reason());
         try {
             entityManager.persist(entity);
             entityManager.flush();
@@ -92,6 +93,18 @@ class AssignmentPersistenceAdapter implements AssignmentRepository {
             throw ex;
         }
         return toDomain(entity);
+    }
+
+    @Override
+    public Optional<TaskAssignment> updateReason(Integer taskId, Integer workerUserId, String reason) {
+        TaskAssignmentEntity entity = entityManager.find(TaskAssignmentEntity.class,
+                new TaskAssignmentId(taskId, workerUserId));
+        if (entity == null) {
+            return Optional.empty();
+        }
+        entity.setReason(reason);
+        entityManager.flush();
+        return Optional.of(toDomain(entity));
     }
 
     @Override
@@ -107,6 +120,6 @@ class AssignmentPersistenceAdapter implements AssignmentRepository {
 
     private static TaskAssignment toDomain(TaskAssignmentEntity entity) {
         return new TaskAssignment(entity.getTask().getTaskId(), entity.getWorker().getUserId(),
-                entity.getAssignedAt(), entity.getAssignedBy().getUserId());
+                entity.getAssignedAt(), entity.getAssignedBy().getUserId(), entity.getReason());
     }
 }

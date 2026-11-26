@@ -208,6 +208,11 @@ class ProjectUseCasesTest {
         public List<UserAccount> findActive() {
             return accounts.values().stream().filter(UserAccount::active).toList();
         }
+
+        @Override
+        public List<UserAccount> findAll() {
+            return new ArrayList<>(accounts.values());
+        }
     };
 
     private final ProjectRepository projectRepository = new ProjectRepository() {
@@ -229,6 +234,26 @@ class ProjectUseCasesTest {
         @Override
         public List<Project> findManagedBy(Integer managerUserId) {
             return findAll().stream().filter(p -> p.managerUserId().equals(managerUserId)).toList();
+        }
+
+        @Override
+        public List<Project> search(String likePattern) {
+            if (likePattern == null) return findAll();
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return findAll().stream()
+                    .filter(p -> p.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (p.description() != null && p.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
+        }
+
+        @Override
+        public List<Project> searchManagedBy(Integer managerUserId, String likePattern) {
+            if (likePattern == null) return findManagedBy(managerUserId);
+            String pattern = likePattern.toLowerCase(java.util.Locale.ROOT);
+            return findManagedBy(managerUserId).stream()
+                    .filter(p -> p.name().toLowerCase(java.util.Locale.ROOT).contains(pattern)
+                            || (p.description() != null && p.description().toLowerCase(java.util.Locale.ROOT).contains(pattern)))
+                    .toList();
         }
 
         @Override

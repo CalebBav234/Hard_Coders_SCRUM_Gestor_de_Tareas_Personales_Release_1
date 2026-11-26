@@ -30,9 +30,20 @@ public class StageEntity extends AuditedEntity {
     @Column(name = "description", length = 2000)
     private String description;
 
+    @Column(name = "sort_order")
+    private Integer sortOrder = 0;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "work_status_id", nullable = false)
     private WorkStatusEntity status;
+
+    public Integer getSortOrder() {
+        return sortOrder == null ? 0 : sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder;
+    }
 
     public Integer getStageId() {
         return stageId;

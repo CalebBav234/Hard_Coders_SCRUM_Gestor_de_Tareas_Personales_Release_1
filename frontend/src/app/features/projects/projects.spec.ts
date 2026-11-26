@@ -84,6 +84,7 @@ describe('Épica 1 — Proyectos', () => {
 
   beforeEach(() => {
     sessionStorage.clear();
+    TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
@@ -117,6 +118,7 @@ describe('Épica 1 — Proyectos', () => {
       expect(labels).toContain('＋ Nuevo proyecto');
       expect(labels).toContain('Bs Editar plan');
       expect(labels).toContain('⇄ Delegar');
+      expect(labels.filter((label) => label === '✎ Editar datos')).toHaveLength(1);
     });
 
     it('hides budget, delegation and status controls from a manager', async () => {
