@@ -6,6 +6,8 @@ import com.hardcoders.taskmanager.domain.model.UserAccount;
 import com.hardcoders.taskmanager.domain.port.out.UserWriter;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 /** Adaptador de escritura para creación de usuarios (EC3-01). */
 @Component
 class UserWriterAdapter implements UserWriter {
@@ -31,7 +33,29 @@ class UserWriterAdapter implements UserWriter {
         entity.setIsChief(Boolean.FALSE);
         entity.setIsActive(Boolean.TRUE);
         AppUserEntity saved = repository.save(entity);
-        return new UserAccount(saved.getUserId(), saved.getEmail(), saved.getGivenNames(), saved.getFamilyNames(),
-                Boolean.TRUE.equals(saved.getIsChief()), Boolean.TRUE.equals(saved.getIsActive()));
+        return toDomain(saved);
+    }
+
+    @Override
+    public Optional<UserAccount> update(Integer userId, String email, String givenNames, String familyNames) {
+        return repository.findById(userId).map(entity -> {
+            entity.setEmail(email);
+            entity.setGivenNames(givenNames);
+            entity.setFamilyNames(familyNames);
+            return toDomain(repository.save(entity));
+        });
+    }
+
+    @Override
+    public Optional<UserAccount> deactivate(Integer userId) {
+        return repository.findById(userId).map(entity -> {
+            entity.setIsActive(Boolean.FALSE);
+            return toDomain(repository.save(entity));
+        });
+    }
+
+    static UserAccount toDomain(AppUserEntity entity) {
+        return new UserAccount(entity.getUserId(), entity.getEmail(), entity.getGivenNames(), entity.getFamilyNames(),
+                Boolean.TRUE.equals(entity.getIsChief()), Boolean.TRUE.equals(entity.getIsActive()));
     }
 }

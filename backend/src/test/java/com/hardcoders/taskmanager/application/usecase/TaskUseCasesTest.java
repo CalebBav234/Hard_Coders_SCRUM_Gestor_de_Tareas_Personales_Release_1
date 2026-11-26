@@ -439,6 +439,12 @@ class TaskUseCasesTest {
             return List.of(findByIdRequiring(InMemoryPorts.WORKER), findByIdRequiring(InMemoryPorts.ACTOR));
         }
 
+        @Override
+        public List<com.hardcoders.taskmanager.domain.model.UserAccount> findAll() {
+            return List.of(findByIdRequiring(InMemoryPorts.WORKER), findByIdRequiring(INACTIVE),
+                    findByIdRequiring(InMemoryPorts.ACTOR));
+        }
+
         private com.hardcoders.taskmanager.domain.model.UserAccount findByIdRequiring(Integer userId) {
             return findById(userId).orElseThrow();
         }

@@ -16,4 +16,7 @@ public interface UserDirectory {
 
     /** Usuarios activos que pueden dirigir un proyecto, ordenados por nombre. */
     List<UserAccount> findActive();
+
+    /** Todos los usuarios (activos e inactivos) para listado de administración, sin secretos. */
+    List<UserAccount> findAll();
 }

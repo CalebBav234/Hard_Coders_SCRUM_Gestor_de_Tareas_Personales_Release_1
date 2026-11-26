@@ -49,6 +49,11 @@ class ProjectQueryServiceTest {
         public List<UserAccount> findActive() {
             return accounts.values().stream().filter(UserAccount::active).toList();
         }
+
+        @Override
+        public List<UserAccount> findAll() {
+            return new ArrayList<>(accounts.values());
+        }
     };
     private int nextId = 1;
     private final ProjectRepository projectRepository = new ProjectRepository() {

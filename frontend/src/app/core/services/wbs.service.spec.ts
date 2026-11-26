@@ -131,6 +131,62 @@ describe('WbsService (jerarquía, asignaciones y progreso)', () => {
     removed.flush(null, { status: 204, statusText: 'No Content' });
   });
 
+  it('consulta una asignación individual por clave compuesta', () => {
+    const assignment: AssignmentDto = {
+      taskId: 8,
+      taskTitle: 'Levantar requisitos',
+      workerUserId: 5,
+      workerName: 'Ana Perez',
+      assignedAt: '2026-10-02T10:00:00Z',
+      assignedByUserId: 3,
+      assignedByName: 'Julia Mendoza',
+      reason: 'Carga de trabajo',
+    };
+
+    service.getAssignment(8, 5).subscribe((result) => expect(result).toEqual(assignment));
+    const request = http.expectOne('/api/tasks/8/assignments/5');
+    expect(request.request.method).toBe('GET');
+    request.flush(assignment);
+  });
+
+  it('actualiza solo el motivo de una asignación existente', () => {
+    const assignment: AssignmentDto = {
+      taskId: 8,
+      taskTitle: 'Levantar requisitos',
+      workerUserId: 5,
+      workerName: 'Ana Perez',
+      assignedAt: '2026-10-02T10:00:00Z',
+      assignedByUserId: 3,
+      assignedByName: 'Julia Mendoza',
+      reason: 'Motivo actualizado',
+    };
+
+    service.updateAssignment(8, 5, 'Motivo actualizado').subscribe((result) => expect(result).toEqual(assignment));
+    const request = http.expectOne('/api/tasks/8/assignments/5');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ reason: 'Motivo actualizado' });
+    request.flush(assignment);
+  });
+
+  it('envía reason nulo al actualizar el motivo', () => {
+    const assignment: AssignmentDto = {
+      taskId: 8,
+      taskTitle: 'Levantar requisitos',
+      workerUserId: 5,
+      workerName: 'Ana Perez',
+      assignedAt: '2026-10-02T10:00:00Z',
+      assignedByUserId: 3,
+      assignedByName: 'Julia Mendoza',
+      reason: null,
+    };
+
+    service.updateAssignment(8, 5, null).subscribe((result) => expect(result).toEqual(assignment));
+    const request = http.expectOne('/api/tasks/8/assignments/5');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ reason: null });
+    request.flush(assignment);
+  });
+
   it('asks for the assignable workers of the project', () => {
     service.listWorkers(42).subscribe((workers) =>
       expect(workers.map((worker) => worker.userId)).toEqual([5, 6]),

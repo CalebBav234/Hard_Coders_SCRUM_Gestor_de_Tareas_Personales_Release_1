@@ -1,21 +1,25 @@
 package com.hardcoders.taskmanager.application.usecase;
 
 import com.hardcoders.taskmanager.application.command.CreateUserCommand;
+import com.hardcoders.taskmanager.application.command.UpdateUserCommand;
 import com.hardcoders.taskmanager.application.port.in.ManageUsersUseCase;
 import com.hardcoders.taskmanager.application.result.UserSummaryResult;
 import com.hardcoders.taskmanager.domain.exception.DomainValidationException;
+import com.hardcoders.taskmanager.domain.exception.NotFoundException;
 import com.hardcoders.taskmanager.domain.model.Actor;
 import com.hardcoders.taskmanager.domain.model.UserAccount;
 import com.hardcoders.taskmanager.domain.policy.ProjectAccessPolicy;
 import com.hardcoders.taskmanager.domain.port.out.CurrentActor;
 import com.hardcoders.taskmanager.domain.port.out.PasswordHasher;
+import com.hardcoders.taskmanager.domain.port.out.UserDirectory;
 import com.hardcoders.taskmanager.domain.port.out.UserWriter;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-/** Caso de uso: creación de usuarios (A6/EC3-01). Solo Jefe activo. */
+/** Caso de uso: creación, actualización y desactivación de usuarios (A6/EC3-01, EC4). Solo Jefe activo. */
 public class UserCommandService implements ManageUsersUseCase {
 
     private static final Pattern SIMPLE_EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
@@ -27,11 +31,14 @@ public class UserCommandService implements ManageUsersUseCase {
     private static final int PASSWORD_MAX_BYTES = 72;
 
     private final UserWriter users;
+    private final UserDirectory directory;
     private final PasswordHasher passwordHasher;
     private final CurrentActor currentActor;
 
-    public UserCommandService(UserWriter users, PasswordHasher passwordHasher, CurrentActor currentActor) {
+    public UserCommandService(UserWriter users, UserDirectory directory, PasswordHasher passwordHasher,
+                              CurrentActor currentActor) {
         this.users = users;
+        this.directory = directory;
         this.passwordHasher = passwordHasher;
         this.currentActor = currentActor;
     }
@@ -63,6 +70,66 @@ public class UserCommandService implements ManageUsersUseCase {
         }
     }
 
+    @Override
+    public UserSummaryResult update(UpdateUserCommand command) {
+        Actor actor = currentActor.current();
+        ProjectAccessPolicy.requireChief(actor, "actualizar usuarios");
+
+        Integer userId = command.userId();
+        UserAccount current = directory.findById(userId)
+                .orElseThrow(() -> new NotFoundException("app_user", userId));
+
+        String email = optionalEmail(command.email());
+        String givenNames = optionalName(command.givenNames(), "nombres");
+        String familyNames = optionalName(command.familyNames(), "apellidos");
+
+        if (email == null && givenNames == null && familyNames == null) {
+            throw new DomainValidationException("No hay campos para actualizar");
+        }
+
+        // Cambio de email: validar formato y unicidad excluyendo al propio usuario.
+        String finalEmail = current.email();
+        if (email != null) {
+            finalEmail = email;
+            if (!finalEmail.equals(current.email()) && users.existsByEmail(finalEmail)) {
+                throw new DomainValidationException("El correo ya está registrado");
+            }
+        }
+
+        String finalGiven = givenNames == null ? current.givenNames() : givenNames;
+        String finalFamily = familyNames == null ? current.familyNames() : familyNames;
+
+        UserAccount updated = users.update(userId, finalEmail, finalGiven, finalFamily)
+                .orElseThrow(() -> new NotFoundException("app_user", userId));
+        return new UserSummaryResult(updated.userId(), updated.fullName(), updated.email(), updated.chief(), updated.active());
+    }
+
+    @Override
+    public UserSummaryResult deactivate(Integer userId) {
+        Actor actor = currentActor.current();
+        ProjectAccessPolicy.requireChief(actor, "desactivar usuarios");
+
+        UserAccount deactivated = users.deactivate(userId)
+                .orElseThrow(() -> new NotFoundException("app_user", userId));
+        return new UserSummaryResult(deactivated.userId(), deactivated.fullName(), deactivated.email(),
+                deactivated.chief(), deactivated.active());
+    }
+
+    @Override
+    public List<UserAccount> listUsers() {
+        Actor actor = currentActor.current();
+        ProjectAccessPolicy.requireChief(actor, "listar usuarios");
+        return directory.findAll();
+    }
+
+    @Override
+    public UserAccount getUserById(Integer userId) {
+        Actor actor = currentActor.current();
+        ProjectAccessPolicy.requireChief(actor, "consultar usuarios");
+        return directory.findById(userId)
+                .orElseThrow(() -> new NotFoundException("app_user", userId));
+    }
+
     private static String normalizeEmail(String value) {
         if (value == null) {
             throw new DomainValidationException("El correo es obligatorio");
@@ -80,6 +147,14 @@ public class UserCommandService implements ManageUsersUseCase {
         return normalized;
     }
 
+    /** Email opcional en actualización: nulo/blanco → sin cambio; de lo contrario se valida formato. */
+    private static String optionalEmail(String value) {
+        if (value == null || value.strip().isEmpty()) {
+            return null;
+        }
+        return normalizeEmail(value);
+    }
+
     private static String requireName(String value, String field) {
         if (value == null || value.strip().isEmpty()) {
             throw new DomainValidationException("Los " + field + " son obligatorios");
@@ -89,6 +164,14 @@ public class UserCommandService implements ManageUsersUseCase {
             throw new DomainValidationException("Los " + field + " no pueden superar " + NAME_MAX + " caracteres");
         }
         return stripped;
+    }
+
+    /** Nombre opcional en actualización: nulo/blanco → sin cambio; de lo contrario se valida longitud. */
+    private static String optionalName(String value, String field) {
+        if (value == null || value.strip().isEmpty()) {
+            return null;
+        }
+        return requireName(value, field);
     }
 
     private static String requirePassword(String value) {

@@ -215,6 +215,11 @@ export interface AssignWorkerBody {
   reason: string | null;
 }
 
+/** Cuerpo de la actualización de motivo de una asignación: solo se admite el campo reason. */
+export interface UpdateAssignmentReasonBody {
+  reason: string | null;
+}
+
 export interface UpdateSubtaskBody {
   title: string;
   description: string | null;

@@ -208,6 +208,11 @@ class ProjectUseCasesTest {
         public List<UserAccount> findActive() {
             return accounts.values().stream().filter(UserAccount::active).toList();
         }
+
+        @Override
+        public List<UserAccount> findAll() {
+            return new ArrayList<>(accounts.values());
+        }
     };
 
     private final ProjectRepository projectRepository = new ProjectRepository() {

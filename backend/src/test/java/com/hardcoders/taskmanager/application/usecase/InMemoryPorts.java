@@ -488,6 +488,18 @@ final class InMemoryPorts {
         public void delete(Integer taskId, Integer workerUserId) {
             assignments.remove(key(taskId, workerUserId));
         }
+
+        @Override
+        public Optional<TaskAssignment> updateReason(Integer taskId, Integer workerUserId, String reason) {
+            TaskAssignment existing = assignments.get(key(taskId, workerUserId));
+            if (existing == null) {
+                return Optional.empty();
+            }
+            TaskAssignment updated = new TaskAssignment(existing.taskId(), existing.workerUserId(),
+                    existing.assignedAt(), existing.assignedByUserId(), reason);
+            assignments.put(key(taskId, workerUserId), updated);
+            return Optional.of(updated);
+        }
     };
 
     private static String key(Integer taskId, Integer workerUserId) {

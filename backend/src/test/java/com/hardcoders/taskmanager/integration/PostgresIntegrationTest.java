@@ -319,6 +319,139 @@ class PostgresIntegrationTest {
             @SuppressWarnings("unchecked") List<Map<String,Object>> body = list.getBody();
             assertThat(body).extracting(m -> (String)m.get("reason")).containsExactlyInAnyOrder("Motivo", TaskAssignment.DEFAULT_REASON);
         }
+
+        @SuppressWarnings("unchecked")
+        private ResponseEntity<Map> getAssignment(String token, int taskId, int workerId) {
+            return rest.exchange(url("/api/tasks/" + taskId + "/assignments/" + workerId), HttpMethod.GET,
+                    new HttpEntity<>(authJson(token)), Map.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        private ResponseEntity<Map> updateAssignmentReason(String token, int taskId, int workerId, String reason) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("reason", reason);
+            HttpEntity<?> req = new HttpEntity<>(body, authJson(token));
+            return rest.exchange(url("/api/tasks/" + taskId + "/assignments/" + workerId), HttpMethod.PUT, req, Map.class);
+        }
+
+        @Test @DisplayName("CA-ASG-13: GET individual asignación por clave compuesta (200)")
+        void getIndividualAssignment() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            assertThat(assign(chiefToken, 100, worker.getUserId(), "Motivo de consulta").getStatusCode()).isEqualTo(HttpStatus.OK);
+            ResponseEntity<Map> r = getAssignment(chiefToken, 100, worker.getUserId());
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("taskId")).isEqualTo(100);
+            assertThat(r.getBody().get("workerUserId")).isEqualTo(worker.getUserId());
+            assertThat(r.getBody().get("reason")).isEqualTo("Motivo de consulta");
+        }
+
+        @Test @DisplayName("CA-ASG-14: GET individual asignación inexistente (404)")
+        void getIndividualAssignmentNotFound() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            ResponseEntity<Map> r = getAssignment(chiefToken, 100, 999999);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test @DisplayName("CA-ASG-15: PUT actualiza solo reason, conserva identidad y auditoría")
+        void putUpdatesOnlyReason() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            assertThat(assign(chiefToken, 100, worker.getUserId(), "Motivo original").getStatusCode()).isEqualTo(HttpStatus.OK);
+
+            // Capturar valores de auditoría antes del PUT
+            Map<String, Object> before = (Map<String, Object>) jdbc.queryForObject(
+                    "SELECT task_id, worker_user_id, assigned_at, assigned_by_user_id, reason FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    (rs, rowNum) -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("taskId", rs.getInt("task_id"));
+                        m.put("workerUserId", rs.getInt("worker_user_id"));
+                        m.put("assignedAt", rs.getTimestamp("assigned_at").toInstant());
+                        m.put("assignedByUserId", rs.getInt("assigned_by_user_id"));
+                        m.put("reason", rs.getString("reason"));
+                        return m;
+                    },
+                    worker.getUserId());
+
+            ResponseEntity<Map> r = updateAssignmentReason(chiefToken, 100, worker.getUserId(), "Motivo actualizado");
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("reason")).isEqualTo("Motivo actualizado");
+            assertThat(r.getBody().get("taskId")).isEqualTo(100);
+            assertThat(r.getBody().get("workerUserId")).isEqualTo(worker.getUserId());
+            assertThat(r.getBody().get("assignedByUserId")).isEqualTo(before.get("assignedByUserId"));
+
+            // Verificar que assigned_at no cambió
+            Map<String, Object> after = (Map<String, Object>) jdbc.queryForObject(
+                    "SELECT task_id, worker_user_id, assigned_at, assigned_by_user_id, reason FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    (rs, rowNum) -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("taskId", rs.getInt("task_id"));
+                        m.put("workerUserId", rs.getInt("worker_user_id"));
+                        m.put("assignedAt", rs.getTimestamp("assigned_at").toInstant());
+                        m.put("assignedByUserId", rs.getInt("assigned_by_user_id"));
+                        m.put("reason", rs.getString("reason"));
+                        return m;
+                    },
+                    worker.getUserId());
+            assertThat(after.get("assignedAt")).isEqualTo(before.get("assignedAt"));
+            assertThat(after.get("assignedByUserId")).isEqualTo(before.get("assignedByUserId"));
+            assertThat(after.get("taskId")).isEqualTo(before.get("taskId"));
+            assertThat(after.get("workerUserId")).isEqualTo(before.get("workerUserId"));
+            assertThat(after.get("reason")).isEqualTo("Motivo actualizado");
+        }
+
+        @Test @DisplayName("CA-ASG-16: PUT reason vacío -> DEFAULT_REASON, campos de auditoría intactos")
+        void putEmptyReasonDefaults() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            assertThat(assign(chiefToken, 100, worker.getUserId(), "Motivo previo").getStatusCode()).isEqualTo(HttpStatus.OK);
+            Instant beforeAssignedAt = (Instant) jdbc.queryForObject(
+                    "SELECT assigned_at FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    (rs, rowNum) -> rs.getTimestamp("assigned_at").toInstant(), worker.getUserId());
+
+            ResponseEntity<Map> r = updateAssignmentReason(chiefToken, 100, worker.getUserId(), "");
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("reason")).isEqualTo(TaskAssignment.DEFAULT_REASON);
+            assertThat(jdbc.queryForObject("SELECT reason FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    String.class, worker.getUserId())).isEqualTo(TaskAssignment.DEFAULT_REASON);
+            Instant afterAssignedAt = (Instant) jdbc.queryForObject(
+                    "SELECT assigned_at FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    (rs, rowNum) -> rs.getTimestamp("assigned_at").toInstant(), worker.getUserId());
+            assertThat(afterAssignedAt).isEqualTo(beforeAssignedAt);
+        }
+
+        @Test @DisplayName("CA-ASG-17: PUT reason > 500 -> 400, reason y auditoría intactos")
+        void putReasonTooLong() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            assertThat(assign(chiefToken, 100, worker.getUserId(), "Motivo vigente").getStatusCode()).isEqualTo(HttpStatus.OK);
+            String longReason = "x".repeat(501);
+            Instant beforeAssignedAt = (Instant) jdbc.queryForObject(
+                    "SELECT assigned_at FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    (rs, rowNum) -> rs.getTimestamp("assigned_at").toInstant(), worker.getUserId());
+
+            ResponseEntity<Map> r = updateAssignmentReason(chiefToken, 100, worker.getUserId(), longReason);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(jdbc.queryForObject("SELECT reason FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    String.class, worker.getUserId())).isEqualTo("Motivo vigente");
+            Instant afterAssignedAt = (Instant) jdbc.queryForObject(
+                    "SELECT assigned_at FROM task_manager.task_assignment WHERE task_id = 100 AND worker_user_id = ?",
+                    (rs, rowNum) -> rs.getTimestamp("assigned_at").toInstant(), worker.getUserId());
+            assertThat(afterAssignedAt).isEqualTo(beforeAssignedAt);
+        }
+
+        @Test @DisplayName("CA-ASG-18: PUT reason exactamente 500 caracteres -> 200")
+        void putReasonExactly500() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            assertThat(assign(chiefToken, 100, worker.getUserId(), "Motivo original").getStatusCode()).isEqualTo(HttpStatus.OK);
+            String reason500 = "a".repeat(500);
+            ResponseEntity<Map> r = updateAssignmentReason(chiefToken, 100, worker.getUserId(), reason500);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("reason")).isEqualTo(reason500);
+        }
+
+        @Test @DisplayName("CA-ASG-19: PUT individual asignación inexistente (404)")
+        void putIndividualAssignmentNotFound() {
+            seedHierarchy(100, "PLANIFICADO", chief.getUserId(), manager.getUserId(), 100);
+            ResponseEntity<Map> r = updateAssignmentReason(chiefToken, 100, 999999, "Nuevo motivo");
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
     }
 
     @Nested class UserApi {
@@ -335,6 +468,35 @@ class PostgresIntegrationTest {
         private ResponseEntity<Map> createUser(String token, Map<String, Object> body) {
             HttpEntity<?> req = token == null ? new HttpEntity<>(body, json()) : new HttpEntity<>(body, authJson(token));
             return rest.exchange(url("/api/users"), HttpMethod.POST, req, Map.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        private ResponseEntity<List> listUsers(String token) {
+            return rest.exchange(url("/api/users"), HttpMethod.GET, new HttpEntity<>(authJson(token)), List.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        private ResponseEntity<Map> getUser(String token, Integer userId) {
+            return rest.exchange(url("/api/users/" + userId), HttpMethod.GET, new HttpEntity<>(authJson(token)), Map.class);
+        }
+
+        @SuppressWarnings("unchecked")
+        private ResponseEntity<Map> updateUser(String token, Integer userId, Map<String, Object> body) {
+            HttpEntity<?> req = new HttpEntity<>(body, authJson(token));
+            return rest.exchange(url("/api/users/" + userId), HttpMethod.PUT, req, Map.class);
+        }
+
+        private ResponseEntity<Void> deactivateUser(String token, Integer userId) {
+            return rest.exchange(url("/api/users/" + userId), HttpMethod.DELETE, new HttpEntity<>(authJson(token)), Void.class);
+        }
+
+        private Map<String, Object> userBody(String email, String givenNames, String familyNames, String password) {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("email", email);
+            body.put("givenNames", givenNames);
+            body.put("familyNames", familyNames);
+            body.put("password", password);
+            return body;
         }
 
         @Test @DisplayName("CA-USR-01,02,10: creación válida, normalización, hash BCrypt, login, sin secretos")
@@ -438,6 +600,158 @@ class PostgresIntegrationTest {
                 assertThat(chiefDb).isFalse();
                 assertThat(activeDb).isTrue();
             }
+        }
+
+        @Test @DisplayName("CA-USR-11: listado devuelve usuarios creados sin secretos")
+        void listUsersReturnsCreatedUsersWithoutSecrets() {
+            String e1 = uniqueEmail("u1");
+            String e2 = uniqueEmail("u2");
+            assertThat(createUser(chiefToken, userBody(e1, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            assertThat(createUser(chiefToken, userBody(e2, "Luis", "Gómez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            ResponseEntity<List> list = listUsers(chiefToken);
+            assertThat(list.getStatusCode()).isEqualTo(HttpStatus.OK);
+            @SuppressWarnings("unchecked") List<Map<String, Object>> body = list.getBody();
+            // El jefe del escenario más los dos usuarios creados
+            assertThat(body).hasSize(3);
+            assertThat(body).extracting(m -> m.get("email")).containsExactlyInAnyOrder(e1, e2, chief.getEmail());
+            for (Map<String, Object> row : body) {
+                assertThat(row).doesNotContainKeys("password", "passwordHash", "password_hash", "token");
+            }
+            // Persistencia real en BD
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM task_manager.app_user WHERE email=?", Integer.class, e1)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM task_manager.app_user WHERE email=?", Integer.class, e2)).isEqualTo(1);
+        }
+
+        @Test @DisplayName("CA-USR-12: consulta individual devuelve datos sin secretos")
+        void getUserReturnsSafeDetails() {
+            String email = uniqueEmail("uget");
+            assertThat(createUser(chiefToken, userBody(email, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            Integer id = jdbc.queryForObject("SELECT user_id FROM task_manager.app_user WHERE email=?", Integer.class, email);
+            ResponseEntity<Map> r = getUser(chiefToken, id);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("userId")).isEqualTo(id);
+            assertThat(r.getBody().get("email")).isEqualTo(email);
+            assertThat(r.getBody().get("givenNames")).isEqualTo("Ana");
+            assertThat(r.getBody().get("familyNames")).isEqualTo("Pérez");
+            assertThat(r.getBody().get("chief")).isEqualTo(false);
+            assertThat(r.getBody().get("active")).isEqualTo(true);
+            assertThat(r.getBody()).doesNotContainKeys("password", "passwordHash", "password_hash", "token");
+        }
+
+        @Test @DisplayName("CA-USR-13: usuario inexistente -> 404")
+        void getUserNotFound() {
+            assertThat(getUser(chiefToken, 999999).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test @DisplayName("CA-USR-14: actualizar nombres y apellidos persiste")
+        void updateNamesHappy() {
+            String email = uniqueEmail("uupd");
+            assertThat(createUser(chiefToken, userBody(email, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            Integer id = jdbc.queryForObject("SELECT user_id FROM task_manager.app_user WHERE email=?", Integer.class, email);
+            ResponseEntity<Map> r = updateUser(chiefToken, id, Map.of("givenNames", "María", "familyNames", "López"));
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("givenNames")).isEqualTo("María");
+            assertThat(r.getBody().get("familyNames")).isEqualTo("López");
+            assertThat(jdbc.queryForObject("SELECT given_names FROM task_manager.app_user WHERE user_id=?", String.class, id)).isEqualTo("María");
+            assertThat(jdbc.queryForObject("SELECT family_names FROM task_manager.app_user WHERE user_id=?", String.class, id)).isEqualTo("López");
+            // email intacto
+            assertThat(jdbc.queryForObject("SELECT email FROM task_manager.app_user WHERE user_id=?", String.class, id)).isEqualTo(email);
+        }
+
+        @Test @DisplayName("CA-USR-15: actualizar email válido único persiste normalizado")
+        void updateEmailHappy() {
+            String email = uniqueEmail("uem");
+            String nuevo = "NUEVO.MAIL@GESTOR.LOCAL";
+            assertThat(createUser(chiefToken, userBody(email, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            Integer id = jdbc.queryForObject("SELECT user_id FROM task_manager.app_user WHERE email=?", Integer.class, email);
+            ResponseEntity<Map> r = updateUser(chiefToken, id, Map.of("email", nuevo));
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            String normalizado = nuevo.toLowerCase(Locale.ROOT);
+            assertThat(r.getBody().get("email")).isEqualTo(normalizado);
+            assertThat(jdbc.queryForObject("SELECT email FROM task_manager.app_user WHERE user_id=?", String.class, id)).isEqualTo(normalizado);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM task_manager.app_user WHERE email=?", Integer.class, normalizado)).isEqualTo(1);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM task_manager.app_user WHERE email=?", Integer.class, email)).isZero();
+        }
+
+        @Test @DisplayName("CA-USR-16: email inválido en actualización -> 400 y datos previos conservados")
+        void updateInvalidEmailNoChange() {
+            String email = uniqueEmail("uinv");
+            assertThat(createUser(chiefToken, userBody(email, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            Integer id = jdbc.queryForObject("SELECT user_id FROM task_manager.app_user WHERE email=?", Integer.class, email);
+            ResponseEntity<Map> r = updateUser(chiefToken, id, Map.of("email", "invalido"));
+            assertThat(r.getStatusCode().value()).isIn(400);
+            // Datos previos conservados (sin cambio parcial)
+            assertThat(jdbc.queryForObject("SELECT email FROM task_manager.app_user WHERE user_id=?", String.class, id)).isEqualTo(email);
+            assertThat(jdbc.queryForObject("SELECT given_names FROM task_manager.app_user WHERE user_id=?", String.class, id)).isEqualTo("Ana");
+        }
+
+        @Test @DisplayName("CA-USR-17: mass assignment de is_chief/is_active/password_hash ignorado en PUT")
+        void updateMassAssignmentIgnored() {
+            String email = uniqueEmail("umass");
+            assertThat(createUser(chiefToken, userBody(email, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            Integer id = jdbc.queryForObject("SELECT user_id FROM task_manager.app_user WHERE email=?", Integer.class, email);
+            ResponseEntity<Map> r = updateUser(chiefToken, id, Map.of(
+                    "givenNames", "María",
+                    "isChief", true,
+                    "chief", true,
+                    "isActive", false,
+                    "active", false,
+                    "password_hash", "$2a$10$injected",
+                    "password", "injected"
+            ));
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(r.getBody().get("chief")).isEqualTo(false);
+            assertThat(r.getBody().get("active")).isEqualTo(true);
+            assertThat(jdbc.queryForObject("SELECT is_chief FROM task_manager.app_user WHERE user_id=?", Boolean.class, id)).isFalse();
+            assertThat(jdbc.queryForObject("SELECT is_active FROM task_manager.app_user WHERE user_id=?", Boolean.class, id)).isTrue();
+            assertThat(jdbc.queryForObject("SELECT password_hash FROM task_manager.app_user WHERE user_id=?", String.class, id)).isNotEqualTo("$2a$10$injected");
+        }
+
+        @Test @DisplayName("CA-USR-18: actualizar usuario inexistente -> 404")
+        void updateUserNotFound() {
+            assertThat(updateUser(chiefToken, 999999, Map.of("givenNames", "X")).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test @DisplayName("CA-USR-19: desactivación lógica preserva identidad, FK e historial")
+        void deactivateHappy() {
+            String email = uniqueEmail("udel");
+            assertThat(createUser(chiefToken, userBody(email, "Ana", "Pérez", "UserPass123!")).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+            Integer id = jdbc.queryForObject("SELECT user_id FROM task_manager.app_user WHERE email=?", Integer.class, email);
+            ResponseEntity<Void> r = deactivateUser(chiefToken, id);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+            assertThat(jdbc.queryForObject("SELECT is_active FROM task_manager.app_user WHERE user_id=?", Boolean.class, id)).isFalse();
+            // Identidad y fila conservadas (no borrado físico)
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM task_manager.app_user WHERE user_id=?", Integer.class, id)).isEqualTo(1);
+            // Respuesta sin secretos
+            ResponseEntity<Map> after = getUser(chiefToken, id);
+            assertThat(after.getBody().get("active")).isEqualTo(false);
+            assertThat(after.getBody()).doesNotContainKeys("password", "passwordHash", "password_hash", "token");
+        }
+
+        @Test @DisplayName("CA-USR-20: desactivar usuario inexistente -> 404")
+        void deactivateUserNotFound() {
+            assertThat(deactivateUser(chiefToken, 999999).getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        }
+
+        @Test @DisplayName("CA-USR-21: usuario inactivo no puede iniciar sesión")
+        void inactiveUserCannotLogin() {
+            String email = uniqueEmail("inact");
+            saveUser(email, false, false, "InactPass123!");
+            ResponseEntity<Map> r = rest.exchange(url("/api/auth/login"), HttpMethod.POST,
+                    new HttpEntity<>(Map.of("email", email, "password", "InactPass123!"), json()), Map.class);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+
+        @Test @DisplayName("CA-USR-22: token existente de usuario desactivado es rechazado en operaciones protegidas")
+        void deactivatedUserTokenRejected() {
+            String email = uniqueEmail("tok");
+            saveUser(email, true, true, "TokPass123!");
+            String token = login(email, "TokPass123!");
+            // Desactivar directamente en BD (simula baja por otro canal)
+            jdbc.update("UPDATE task_manager.app_user SET is_active = false WHERE email=?", email);
+            // El token ya no autoriza operaciones protegidas (el actor se resuelve desde BD en cada petición)
+            ResponseEntity<Map> r = getUser(token, 1);
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         }
     }
 }

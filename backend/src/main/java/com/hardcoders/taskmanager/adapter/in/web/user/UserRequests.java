@@ -26,4 +26,16 @@ public final class UserRequests {
             String password
     ) {
     }
+
+    /** Solicitud de actualización de perfil: solo campos permitidos, todos opcionales (actualización parcial). */
+    public record UpdateUserRequest(
+            @Email(message = "El correo no tiene un formato válido")
+            @Size(max = 254, message = "El correo no puede superar 254 caracteres")
+            String email,
+            @Size(max = 100, message = "Los nombres no pueden superar 100 caracteres")
+            String givenNames,
+            @Size(max = 100, message = "Los apellidos no pueden superar 100 caracteres")
+            String familyNames
+    ) {
+    }
 }

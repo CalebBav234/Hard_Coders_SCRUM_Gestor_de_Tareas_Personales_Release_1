@@ -96,6 +96,18 @@ class AssignmentPersistenceAdapter implements AssignmentRepository {
     }
 
     @Override
+    public Optional<TaskAssignment> updateReason(Integer taskId, Integer workerUserId, String reason) {
+        TaskAssignmentEntity entity = entityManager.find(TaskAssignmentEntity.class,
+                new TaskAssignmentId(taskId, workerUserId));
+        if (entity == null) {
+            return Optional.empty();
+        }
+        entity.setReason(reason);
+        entityManager.flush();
+        return Optional.of(toDomain(entity));
+    }
+
+    @Override
     public void delete(Integer taskId, Integer workerUserId) {
         entityManager.createQuery("""
                         delete from TaskAssignmentEntity a

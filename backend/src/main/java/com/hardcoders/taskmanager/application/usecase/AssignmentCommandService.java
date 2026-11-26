@@ -100,6 +100,34 @@ public class AssignmentCommandService implements ManageAssignmentsUseCase {
         return users.findActive().stream().map(ProjectResultAssembler::summary).toList();
     }
 
+    @Override
+    public TaskAssignmentResult getAssignment(Integer taskId, Integer workerUserId) {
+        Actor actor = currentActor.current();
+        Task task = loadTask(taskId);
+        Project project = projectOf(task);
+        AssignmentPolicy.requireCanAssign(actor, project);
+        TaskAssignment assignment = assignments.find(taskId, workerUserId)
+                .orElseThrow(() -> new NotFoundException(Task.ENTITY, taskId));
+        UserAccount worker = users.findById(workerUserId)
+                .orElseThrow(() -> new NotFoundException("Usuario", workerUserId));
+        return toResult(assignment, task, worker);
+    }
+
+    @Override
+    public TaskAssignmentResult updateReason(Integer taskId, Integer workerUserId, String reason) {
+        Actor actor = currentActor.current();
+        Task task = loadTask(taskId);
+        Project project = projectOf(task);
+        WbsHierarchyPolicy.requireOpen(project, "actualizar el motivo de la asignación");
+        AssignmentPolicy.requireCanAssign(actor, project);
+        String normalized = TaskAssignment.normalizeReason(reason);
+        TaskAssignment updated = assignments.updateReason(taskId, workerUserId, normalized)
+                .orElseThrow(() -> new NotFoundException("Asignación", workerUserId));
+        UserAccount worker = users.findById(workerUserId)
+                .orElseThrow(() -> new NotFoundException("Usuario", workerUserId));
+        return toResult(updated, task, worker);
+    }
+
     private Task loadTask(Integer taskId) {
         Integer projectId = tasks.projectIdOf(taskId)
                 .orElseThrow(() -> new NotFoundException(Task.ENTITY, taskId));

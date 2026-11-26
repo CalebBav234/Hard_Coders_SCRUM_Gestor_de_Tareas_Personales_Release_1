@@ -173,6 +173,21 @@ public class HierarchyController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/tasks/{taskId}/assignments/{workerUserId}")
+    public TaskResponses.TaskAssignmentResponse assignment(
+            @PathVariable Integer taskId, @PathVariable Integer workerUserId) {
+        return TaskResponses.TaskAssignmentResponse.from(manageAssignments.getAssignment(taskId, workerUserId));
+    }
+
+    @PutMapping("/tasks/{taskId}/assignments/{workerUserId}")
+    public TaskResponses.TaskAssignmentResponse updateAssignmentReason(
+            @PathVariable Integer taskId,
+            @PathVariable Integer workerUserId,
+            @Valid @RequestBody HierarchyRequests.UpdateAssignmentReasonRequest request) {
+        return TaskResponses.TaskAssignmentResponse.from(manageAssignments.updateReason(
+                taskId, workerUserId, request.reason()));
+    }
+
     @GetMapping("/tasks/{taskId}/assignments")
     public List<TaskResponses.TaskAssignmentResponse> assignments(@PathVariable Integer taskId) {
         return manageAssignments.assignmentsForTask(taskId).stream()

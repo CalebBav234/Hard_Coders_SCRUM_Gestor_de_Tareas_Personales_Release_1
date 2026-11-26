@@ -130,9 +130,9 @@ public class UseCaseConfiguration {
     }
 
     @Bean
-    ManageUsersUseCase manageUsersUseCase(UserWriter users, PasswordHasher passwordHasher, CurrentActor actor,
-                                          PlatformTransactionManager transactionManager) {
+    ManageUsersUseCase manageUsersUseCase(UserWriter users, UserDirectory directory, PasswordHasher passwordHasher,
+                                          CurrentActor actor, PlatformTransactionManager transactionManager) {
         return TransactionalUseCases.wrap(ManageUsersUseCase.class,
-                new UserCommandService(users, passwordHasher, actor), transactionManager, false);
+                new UserCommandService(users, directory, passwordHasher, actor), transactionManager, false);
     }
 }

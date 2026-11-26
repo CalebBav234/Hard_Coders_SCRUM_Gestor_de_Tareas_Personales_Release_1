@@ -20,6 +20,7 @@
     <properties>
         <java.version>21</java.version>
         <jacoco.version>0.8.15</jacoco.version>
+        <cucumber.version>7.18.0</cucumber.version>
     </properties>
 
     <dependencies>
@@ -63,6 +64,32 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- EC4 Etapa 1: Cucumber-JVM con JUnit 4 runner (compatible con Surefire) y Spring -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit</artifactId>
+            <version>${cucumber.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-spring</artifactId>
+            <version>${cucumber.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite-api</artifactId>
+            <version>6.0.3</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

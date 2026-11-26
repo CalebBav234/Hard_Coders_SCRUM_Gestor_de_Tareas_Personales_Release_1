@@ -7,6 +7,9 @@ import { ProjectList } from './features/projects/project-list/project-list';
 import { TaskHome } from './features/tasks/task-home/task-home';
 import { TaskHistory } from './features/tasks/task-history/task-history';
 import { UserForm } from './features/users/user-form/user-form';
+import { UserList } from './features/users/user-list/user-list';
+import { UserDetail } from './features/users/user-detail/user-detail';
+import { UserEdit } from './features/users/user-edit/user-edit';
 
 export const routes: Routes = [
   {
@@ -57,6 +60,21 @@ export const routes: Routes = [
   {
     path: 'users/new',
     component: UserForm,
+    canActivate: [authGuard, chiefGuard],
+  },
+  {
+    path: 'users',
+    component: UserList,
+    canActivate: [authGuard, chiefGuard],
+  },
+  {
+    path: 'users/:userId',
+    component: UserDetail,
+    canActivate: [authGuard, chiefGuard],
+  },
+  {
+    path: 'users/:userId/edit',
+    component: UserEdit,
     canActivate: [authGuard, chiefGuard],
   },
   {

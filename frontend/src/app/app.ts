@@ -56,7 +56,7 @@ import { AuthService } from './core/auth/auth.service';
 
       @if (auth.isChief()) {
       <a
-        routerLink="/users/new"
+        routerLink="/users"
         routerLinkActive="active"
         class="nav-link"
       >

@@ -8,6 +8,7 @@ import {
   ProjectProgressDto,
   StageDto,
   UpdateActivityBody,
+  UpdateAssignmentReasonBody,
   UpdateStageBody,
 } from '../models/api';
 import { UserSummary } from '../models/project';
@@ -94,6 +95,17 @@ export class WbsService {
 
   assign(taskId: number, workerUserId: number, reason: string | null): Observable<AssignmentDto> {
     return this.http.post<AssignmentDto>(`${this.tasksUrl}/${taskId}/assignments`, { workerUserId, reason });
+  }
+
+  /** US2.3: consulta individual de una asignación por clave compuesta. */
+  getAssignment(taskId: number, workerUserId: number): Observable<AssignmentDto> {
+    return this.http.get<AssignmentDto>(`${this.tasksUrl}/${taskId}/assignments/${workerUserId}`);
+  }
+
+  /** US2.3: actualiza únicamente el motivo de una asignación existente. */
+  updateAssignment(taskId: number, workerUserId: number, reason: string | null): Observable<AssignmentDto> {
+    const body: UpdateAssignmentReasonBody = { reason };
+    return this.http.put<AssignmentDto>(`${this.tasksUrl}/${taskId}/assignments/${workerUserId}`, body);
   }
 
   unassign(taskId: number, workerUserId: number): Observable<void> {
