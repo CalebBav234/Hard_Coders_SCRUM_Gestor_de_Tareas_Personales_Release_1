@@ -142,7 +142,7 @@ jobs:
   e2e:
     name: E2E (Playwright Chromium, real HTTP stack)
     needs: [backend, frontend]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:18
