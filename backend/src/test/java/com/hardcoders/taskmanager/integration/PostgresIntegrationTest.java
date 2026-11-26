@@ -124,7 +124,7 @@ class PostgresIntegrationTest {
     @Nested class MigrationsAndReason {
         @Test @DisplayName("MIG-V001..V006 y reason nullable")
         void migrationsAppliedAndReasonColumn() {
-            List<Integer> versions = jdbc.queryForList("SELECT version FROM task_manager.database_schema_migrations ORDER BY version", Integer.class);
+            List<Integer> versions = jdbc.queryForList("SELECT version FROM public.database_schema_migrations ORDER BY version", Integer.class);
             assertThat(versions).containsExactly(1, 2, 3, 4, 5, 6);
             String nullable = jdbc.queryForObject("SELECT is_nullable FROM information_schema.columns WHERE table_schema='task_manager' AND table_name='task_assignment' AND column_name='reason'", String.class);
             assertThat(nullable).isEqualTo("YES");
