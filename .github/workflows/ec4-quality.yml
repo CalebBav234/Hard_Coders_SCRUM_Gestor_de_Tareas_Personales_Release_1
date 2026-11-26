@@ -65,6 +65,17 @@ jobs:
 
       - name: Apply migrations V001-V006 to gestor_tareas_test (schema task_manager)
         run: |
+          # Create migration-tracking table (mirrors init-dev-db.sql)
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS public.database_schema_migrations (
+              version     integer PRIMARY KEY,
+              description varchar(200) NOT NULL,
+              checksum    char(64) NOT NULL,
+              applied_at  timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              applied_by  name NOT NULL DEFAULT CURRENT_USER
+          );
+          SQL
+
           for f in \
             database/migrations/V001__initial_schema.sql \
             database/migrations/V002__views_and_permissions.sql \
@@ -75,6 +86,19 @@ jobs:
             echo "Applying migration $f"
             psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -f "$f"
           done
+
+          # Register migration versions (mirrors init-dev-db.sql)
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
+          VALUES
+            (1, 'initial schema', 'c4d290198c22ecd90108c7afafd6002f52ee8f2cf2f8939a2bbeaf6daed0086d', CURRENT_USER),
+            (2, 'views and permissions', '985ff1238dfcd2f71ceec5bc848a90a2500d91c60617bbaa5e057e5b6d66f97b', CURRENT_USER),
+            (3, 'task archive', 'a5b8d1568195c6ea03e58babd4f41ee4ed0b38207ab6c89c287e98a1c4b31772', CURRENT_USER),
+            (4, 'project management model', 'dd55ed8ca35a66eb96221efa330941db84c17bfdac29b7e7826dff3b0498b5ac', CURRENT_USER),
+            (5, 'add sort order', '4bb94a97158a0f808f167079194fe2732f3468b1f42b844f3a5e3baa852dc3ab', CURRENT_USER),
+            (6, 'task assignment reason', 'e1bd108bc203360e4e7e5a363d8aa1ff4ca0be4b65161f21552ab92ab9ac1dec', CURRENT_USER)
+          ON CONFLICT (version) DO NOTHING;
+          SQL
 
       - name: Backend verify (unit + integration + Cucumber EC4 + JaCoCo check)
         env:
@@ -206,6 +230,17 @@ jobs:
 
       - name: Apply migrations V001-V006 to gestor_tareas_test (schema task_manager)
         run: |
+          # Create migration-tracking table (mirrors init-dev-db.sql)
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS public.database_schema_migrations (
+              version     integer PRIMARY KEY,
+              description varchar(200) NOT NULL,
+              checksum    char(64) NOT NULL,
+              applied_at  timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              applied_by  name NOT NULL DEFAULT CURRENT_USER
+          );
+          SQL
+
           for f in \
             database/migrations/V001__initial_schema.sql \
             database/migrations/V002__views_and_permissions.sql \
@@ -216,6 +251,19 @@ jobs:
             echo "Applying migration $f"
             psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 -f "$f"
           done
+
+          # Register migration versions (mirrors init-dev-db.sql)
+          psql -h localhost -U gestor_tareas_owner -d gestor_tareas_test -v ON_ERROR_STOP=1 <<'SQL'
+          INSERT INTO public.database_schema_migrations (version, description, checksum, applied_by)
+          VALUES
+            (1, 'initial schema', 'c4d290198c22ecd90108c7afafd6002f52ee8f2cf2f8939a2bbeaf6daed0086d', CURRENT_USER),
+            (2, 'views and permissions', '985ff1238dfcd2f71ceec5bc848a90a2500d91c60617bbaa5e057e5b6d66f97b', CURRENT_USER),
+            (3, 'task archive', 'a5b8d1568195c6ea03e58babd4f41ee4ed0b38207ab6c89c287e98a1c4b31772', CURRENT_USER),
+            (4, 'project management model', 'dd55ed8ca35a66eb96221efa330941db84c17bfdac29b7e7826dff3b0498b5ac', CURRENT_USER),
+            (5, 'add sort order', '4bb94a97158a0f808f167079194fe2732f3468b1f42b844f3a5e3baa852dc3ab', CURRENT_USER),
+            (6, 'task assignment reason', 'e1bd108bc203360e4e7e5a363d8aa1ff4ca0be4b65161f21552ab92ab9ac1dec', CURRENT_USER)
+          ON CONFLICT (version) DO NOTHING;
+          SQL
 
       - name: Seed E2E test users in gestor_tareas_test (jefe, encargado1, personal, inactivo)
         run: |
