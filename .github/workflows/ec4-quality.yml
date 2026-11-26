@@ -281,9 +281,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fail workflow if any required job failed or was cancelled
-        if: >
-          contains(needs.*.result, 'failure') ||
-          contains(needs.*.result, 'cancelled')
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
           echo "One or more required EC4 jobs did not succeed."
           for job in backend frontend e2e; do
@@ -291,4 +289,4 @@ jobs:
           done
           exit 1
       - name: All EC4 quality gates passed
-        run: echo "EC4 quality gate: BACKEND, FRONTEND and E2E all succeeded."
+        run: 'echo "EC4 quality gate: BACKEND, FRONTEND and E2E all succeeded."'
